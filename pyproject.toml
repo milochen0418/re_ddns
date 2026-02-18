@@ -1,0 +1,18 @@
+[project]
+name = "re-ddns"
+version = "0.1.0"
+description = "Dynamic DNS Client Interface for BIND9"
+requires-python = "~=3.11"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "~3.11"
+reflex = "0.8.24.post1"
+dnspython = "*"
+httpx = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
