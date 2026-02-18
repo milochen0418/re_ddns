@@ -1,0 +1,4 @@
+.web/
+.states/
+__pycache__/
+/app/__pycache__/
