@@ -1,4 +1,22 @@
+assets/external/
+.states
+*.db
+*.py[cod]
+.web
 .web/
 .states/
 __pycache__/
 /app/__pycache__/
+
+
+# Ignore uploaded files
+uploaded_files/
+
+# Ignore environment variable files
+.env
+
+# Ignore macOS system files
+.DS_Store
+
+# Playwright / Test Artifacts
+testcases/**/output/
