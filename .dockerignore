@@ -1,0 +1,15 @@
+# ── .dockerignore ──
+.git
+.gitignore
+.venv
+.web
+.states
+__pycache__
+*.pyc
+*.db
+*.jnl
+node_modules
+testcases
+uploaded_files
+.pytest_cache
+.mypy_cache

@@ -1,0 +1,49 @@
+services:
+  re-ddns:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: re-ddns
+    hostname: re-ddns
+
+    ports:
+      # DNS – BIND9
+      - "53:53/tcp"
+      - "53:53/udp"
+      # Reflex frontend
+      - "3000:3000"
+      # Reflex backend
+      - "8000:8000"
+
+    volumes:
+      # ── Live-reload: mount source code so edits on the Mac are seen instantly ──
+      - ./re_ddns:/app/re_ddns
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./assets:/app/assets
+      - ./reflex_rerun.sh:/app/reflex_rerun.sh
+
+      # ── Persist BIND9 dynamic zone journals across restarts ──
+      - bind-data:/var/cache/bind
+      - bind-log:/var/log/bind
+
+      # ── Persist Reflex DB (SQLite) across restarts ──
+      - reflex-db:/app
+
+    environment:
+      # Tell the Reflex app that BIND9 is on localhost inside the container
+      - BIND9_HOST=127.0.0.1
+      # Reflex listens on all interfaces so it's accessible from the host
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+
+    # BIND9 needs NET_ADMIN + SYS_RESOURCE to bind to port 53
+    cap_add:
+      - NET_ADMIN
+      - SYS_RESOURCE
+
+    restart: unless-stopped
+
+volumes:
+  bind-data:
+  bind-log:
+  reflex-db:

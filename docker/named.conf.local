@@ -1,0 +1,24 @@
+// /etc/bind/named.conf.local  –  TSIG key + zone declarations
+// ─────────────────────────────────────────────────────────────
+
+// ── TSIG Key for dynamic updates (RFC 2136) ──
+// Generate your own key with:
+//   docker exec re-ddns tsig-keygen ddns-key
+// Then replace the secret below.
+key "ddns-key" {
+    algorithm hmac-sha256;
+    secret "CHANGE_ME_GENERATE_WITH_TSIG_KEYGEN";
+};
+
+// ── Example authoritative zone: example.com ──
+// Change "example.com" to your actual domain.
+zone "example.com" {
+    type master;
+    file "/etc/bind/zones/db.example.com";
+
+    // Allow dynamic updates only from localhost with the TSIG key
+    allow-update { key "ddns-key"; };
+
+    // Optional: also allow updates from the trusted ACL
+    // allow-update { key "ddns-key"; trusted; };
+};
