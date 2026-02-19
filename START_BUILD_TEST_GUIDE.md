@@ -1,76 +1,78 @@
 [TOC]
 
-# 初始建立
-All files created. Here's a summary of the complete Docker setup:
+# Initial Build
+All files are created. Here's a summary of the complete Docker setup:
 
 ---
 
-### Docker 相關檔案一覽
+### Docker File Overview
 
 | File | Purpose |
 | --- | --- |
-| [ Dockerfile](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | Python 3.11 + BIND9 + Node.js，安裝 Poetry 依賴後啟動兩個服務 |
-| [ docker-compose.yml](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 埠映射 (53, 3000, 8000)，Volume 掛載源碼實現 live-reload |
-| [ named.conf](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | BIND9 主設定：authoritative-only, logging |
-| [ named.conf.local](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | TSIG key 定義 + zone 宣告 (允許動態更新) |
-| [ rndc.conf](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | rndc 管理工具設定 |
-| [ db.example.com](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 範例 zone 檔，含  `home`  A record |
-| [ entrypoint.sh](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 啟動 BIND9 → 啟動 Reflex dev server → 優雅關閉 |
-| [ generate\_tsig\_key.sh](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 一鍵產生 TSIG secret 並自動寫入設定檔 |
-| [ .dockerignore](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 排除不需要的檔案，加速 build |
+| Dockerfile | Python 3.11 + BIND9 + Node.js; installs Poetry dependencies and starts both services |
+| docker-compose.yml | Port mapping (53, 3000, 8000); volume mount for source live-reload |
+| named.conf | Main BIND9 settings: authoritative-only, logging |
+| named.conf.local | TSIG key definition + zone declaration (dynamic updates allowed) |
+| rndc.conf | `rndc` management tool configuration |
+| db.example.com | Example zone file including the `home` A record |
+| entrypoint.sh | Start BIND9 → start Reflex dev server → graceful shutdown |
+| generate_tsig_key.sh | One-command TSIG secret generation and automatic config updates |
+| .dockerignore | Excludes unnecessary files to speed up image builds |
 
-### 運作方式
+### How It Works
 
-1.  **單一容器**同時跑 BIND9 (DNS) 和 Reflex App (Web UI)
-2.  **Volume 掛載**  [ re\_ddns](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html)  原始碼 → 你在 Mac 上改 Python 程式碼，容器內的 Reflex dev server 自動偵測並重新載入，**不需要重新 build image**
-3.  **Port 53**  從容器拉出到 Mac → Mac 變成一台 DDNS 伺服器
-4.  **Port 3000**  → 打開瀏覽器  `http://localhost:3000`  操作 Reflex App 控制 BIND9
-5.  Reflex App 透過 RFC 2136 (dnspython) 向容器內的  `127.0.0.1:53`  發送動態 DNS 更新
+1. A **single container** runs both BIND9 (DNS) and Reflex App (Web UI).
+2. The `re_ddns` source code is mounted into the container. When you edit Python code on macOS, Reflex in the container detects changes and reloads automatically, **without rebuilding the image**.
+3. **Port 53** is exposed from the container to macOS, so your Mac can act as a DDNS server.
+4. **Port 3000** serves `http://localhost:3000` for operating the Reflex App to control BIND9.
+5. Reflex App sends dynamic DNS updates via RFC 2136 (`dnspython`) to `127.0.0.1:53` inside the container.
 
-## 快速使用
+## Quick Start
 
-### 快速使用1
+### Quick Start 1
 ```bash
-# 1. 產生 TSIG key（只需一次）
+# 1. Generate TSIG key (one-time only)
 ./docker/generate_tsig_key.sh
 
-# 2. 如果 macOS 的 port 53 被佔用
-sudo lsof -i :53  # 檢查
+# 2. If macOS port 53 is occupied
+sudo lsof -i :53  # check
 sudo launchctl unload -w /System/Library/LaunchDaemons/com.apple.mDNSResponder.plist
 
-# 3. Build & 啟動
+# 3. Build & start
 docker compose up --build
 
-# 4. 瀏覽器開啟 http://localhost:3000
-# 5. 在設定表單填入 Server IP=127.0.0.1, Key Name=ddns-key, Key Secret=<產生的 secret>
+# 4. Open http://localhost:3000
+# 5. In Configuration form, fill in:
+#    Server IP=127.0.0.1, Key Name=ddns-key, Key Secret=<generated secret>
 
-# 驗證 DNS
+# Verify DNS
 dig @127.0.0.1 home.example.com A
 ```
 
-### 快速使用2
-Port 53 is already free (the  `lsof`  returned nothing), so there's no conflict. The  `launchctl unload`  error is expected — on modern macOS (Ventura+),  `mDNSResponder`  is managed differently and may already not be listening on port 53, which is exactly what the empty  `lsof`  result confirms.
+### Quick Start 2
+If port 53 is already free (`lsof` returns nothing), there is no conflict.
 
-You're good to proceed:
-```bash 
-# 1. Generate the TSIG key (one-time)
+On modern macOS (Ventura+), a `launchctl unload` error can be expected. `mDNSResponder` may already not be listening on port 53, which is consistent with an empty `lsof` result.
+
+You can proceed directly:
+```bash
+# 1. Generate TSIG key (one-time)
 ./docker/generate_tsig_key.sh
 
 # 2. Build & start
 docker compose up --build
 ```
 
-No need to worry about the  `launchctl`  error — port 53 is available.
+No need to worry about the `launchctl` error if port 53 is available.
 
 
+# Initial Startup Test
+## Test Method
 
-# 初始啟動測試
-## 測試方法
-
-初始啟動，進入專案資料夾 re_ddns 可以作以下測試
+After initial startup, go to the `re_ddns` project folder and run the following tests.
 
 
-```bash=1 
+```bash=1
 dig @127.0.0.1 home.example.com A
 ```
 ```
@@ -226,95 +228,96 @@ version.bind.           0       CH      TXT     "not disclosed"
 
 
 
-## 測試結果分析
+## Test Result Analysis
 
 
-全部正常，所有測試都通過了：
+Everything is normal; all tests pass:
 
-| 項次 | 測試  | 結果  | 說明  |
+| Item | Test | Result | Notes |
 | --- | --- | --- | --- |
-| 01 | `home.example.com A` | `127.0.0.1` | 動態記錄存在，TTL 300 正確 |
-| 02 | `example.com SOA` | `ns1.example.com. admin.example.com.` | Zone 權威資訊正確 |
-| 03 | `example.com NS` | `ns1.example.com.`  \+ glue record | NS 及其 A 記錄都正確回傳 |
-| 04 | `example.com ANY` | SOA + NS 共 2 筆 | Zone 完整 |
-| 05 | `version.bind TXT CHAOS` | `"not disclosed"` | 版本隱藏生效，安全性 OK |
-| 06 | `flags: qr aa rd` | `aa`  (authoritative answer) | BIND9 作為權威伺服器正確運作 |
-| 07 | `recursion requested but not available` | 預期行為 | 我們設定了  `recursion no`，正確 |
+| 01 | `home.example.com A` | `127.0.0.1` | Dynamic record exists, TTL 300 is correct |
+| 02 | `example.com SOA` | `ns1.example.com. admin.example.com.` | Zone authority information is correct |
+| 03 | `example.com NS` | `ns1.example.com.` + glue record | NS and its A record are returned correctly |
+| 04 | `example.com ANY` | SOA + NS (2 records) | Zone is complete |
+| 05 | `version.bind TXT CHAOS` | `"not disclosed"` | Version hiding is active; security is OK |
+| 06 | `flags: qr aa rd` | `aa` (authoritative answer) | BIND9 is correctly operating as an authoritative server |
+| 07 | `recursion requested but not available` | Expected behavior | `recursion no` is configured correctly |
 
 
 
-# 動態操作指引-測試方法
+# Dynamic Operation Guide - Test Method
 
-動態 DNS 更新 — 完整操作指引
+Dynamic DNS update — complete operation guide
 ------------------
 
-### Step 1：開啟 Reflex UI
+### Step 1: Open Reflex UI
 
-瀏覽器打開  **[http://localhost:3000](http://localhost:3000)**
+Open **http://localhost:3000** in your browser.
 
-### Step 2：填寫設定表單
+### Step 2: Fill the Configuration Form
 
-在 Configuration 頁面，填入以下值：
+On the Configuration page, fill in the following values:
 
-| 欄位  | 填入值 | 說明  |
+| Field | Value | Description |
 | --- | --- | --- |
-| **Primary Nameserver** | `127.0.0.1` | BIND9 在容器內，Reflex 也在同一容器，所以是 localhost |
-| **DNS Zone** | `example.com` | 對應 BIND9 設定的 zone 名稱 |
-| **Record Hostname** | `home` | 要動態更新的子域名（即  `home.example.com`） |
-| **Record Type** | `A (IPv4)` | 下拉選 A |
-| **TTL (Seconds)** | `300` | 預設即可 |
-| **TSIG Key Name** | `ddns-key` | 對應 BIND9 設定的 key 名稱 |
-| **TSIG Key Secret** | `yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g=` | generate\_tsig\_key.sh 產生的密鑰 |
+| **Primary Nameserver** | `127.0.0.1` | BIND9 and Reflex are in the same container, so localhost is used |
+| **DNS Zone** | `example.com` | Must match the zone name in BIND9 configuration |
+| **Record Hostname** | `home` | Subdomain to update dynamically (`home.example.com`) |
+| **Record Type** | `A (IPv4)` | Select A in the dropdown |
+| **TTL (Seconds)** | `300` | Default is fine |
+| **TSIG Key Name** | `ddns-key` | Must match key name in BIND9 config |
+| **TSIG Key Secret** | `yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g=` | Secret generated by `generate_tsig_key.sh` |
 
-填完後點  **Save**  按鈕。
+After filling all fields, click **Save**.
 
-### Step 3：偵測 IP 並觸發 DNS 更新
+### Step 3: Detect IP and Trigger DNS Update
 
-1.  在 Dashboard 頁面，點  **Check Now**  — 這會去  `api64.ipify.org`  偵測你的外部 IP
-2.  偵測成功後，點  **Update DNS**  — 這會透過 RFC 2136 發送動態更新到 BIND9
+1. On Dashboard, click **Check Now** — this checks your external IP from `api64.ipify.org`.
+2. After detection succeeds, click **Update DNS** — this sends a dynamic update to BIND9 via RFC 2136.
 
-### Step 4：用 dig 驗證更新結果
-```bash 
-# 查詢更新後的記錄（應該會從 127.0.0.1 變成你的外部 IP）
+### Step 4: Verify Updated Result with dig
+```bash
+# Query updated record (should change from 127.0.0.1 to your external IP)
 dig @127.0.0.1 home.example.com A +short
 
-# 完整輸出版本
+# Full output
 dig @127.0.0.1 home.example.com A
 
-# 查看 SOA serial 是否遞增（每次動態更新 BIND9 會自動遞增）
+# Check whether SOA serial increased (BIND9 auto-increments on each dynamic update)
 dig @127.0.0.1 example.com SOA +short
 ```
 
-### 預期結果
+### Expected Result
 
-**更新前：**
+**Before update:**
 
 ```bash
 $ dig @127.0.0.1 home.example.com A +short
 127.0.0.1
 ```
 
-**更新後：**
+**After update:**
 
-```bash 
+```bash
 $ dig @127.0.0.1 home.example.com A +short
-<你的外部 IP, 例如 203.0.113.42>
+<your external IP, e.g. 203.0.113.42>
 ```
-### 除錯指令
 
-如果更新失敗，可以檢查：
+### Debug Commands
 
-```bash 
-# 查看 BIND9 的動態更新 log
+If update fails, check:
+
+```bash
+# BIND9 dynamic update log
 docker exec re-ddns cat /var/log/bind/update.log
 
-# 查看 BIND9 主 log
+# BIND9 main log
 docker exec re-ddns cat /var/log/bind/named.log
 
-# 查看整體容器 log
+# Overall container log
 docker compose logs --tail=30
 
-# 手動用 nsupdate 測試（在容器內）
+# Manual nsupdate test (inside container)
 docker exec -it re-ddns bash -c '
 nsupdate -y hmac-sha256:ddns-key:yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g= <<EOF
 server 127.0.0.1
@@ -325,8 +328,8 @@ send
 EOF
 '
 
-# 驗證手動更新
+# Verify manual update
 dig @127.0.0.1 test.example.com A +short
-# 預期輸出: 1.2.3.4
+# Expected output: 1.2.3.4
 
 ```
