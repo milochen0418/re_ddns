@@ -22,6 +22,11 @@ services:
       - ./assets:/app/assets
       - ./reflex_rerun.sh:/app/reflex_rerun.sh
 
+      # ── Shell scripts: mounted so edits take effect on next `docker compose restart`
+      #    without needing a full `--build` rebuild ──
+      - ./docker/entrypoint.sh:/entrypoint.sh
+      - ./docker/generate_tsig_key.sh:/usr/local/bin/generate_tsig_key.sh
+
       # ── Persist BIND9 dynamic zone journals across restarts ──
       - bind-data:/var/cache/bind
       - bind-log:/var/log/bind
@@ -35,6 +40,12 @@ services:
       # Reflex listens on all interfaces so it's accessible from the host
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
+      # ── TSIG key injection ────────────────────────────────────────────────
+      # Leave unset → entrypoint auto-generates a random key each container start.
+      # Set to a fixed base64 secret to keep the key stable across restarts:
+      #   TSIG_SECRET=<your-base64-32-byte-secret>
+      # Generate one with:  python3 -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+      # - TSIG_SECRET=
 
     # BIND9 needs NET_ADMIN + SYS_RESOURCE to bind to port 53
     cap_add:

@@ -15,6 +15,10 @@ uploaded_files/
 # Ignore environment variable files
 .env
 
+# BIND9 runtime configs (generated from *.template files at container startup)
+docker/named.conf.local
+docker/zones/db.reflex-ddns.com
+
 # Ignore macOS system files
 .DS_Store
 

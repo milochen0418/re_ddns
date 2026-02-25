@@ -7,14 +7,14 @@
 // Then replace the secret below.
 key "ddns-key" {
     algorithm hmac-sha256;
-    secret "yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g=";
+    secret "__TSIG_SECRET__";
 };
 
-// ── Example authoritative zone: example.com ──
-// Change "example.com" to your actual domain.
-zone "example.com" {
+// ── Example authoritative zone: reflex-ddns.com ──
+// Change "reflex-ddns.com" to your actual domain.
+zone "reflex-ddns.com" {
     type master;
-    file "/etc/bind/zones/db.example.com";
+    file "/etc/bind/zones/db.reflex-ddns.com";
 
     // Allow dynamic updates only from localhost with the TSIG key
     allow-update { key "ddns-key"; };

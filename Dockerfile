@@ -23,9 +23,12 @@ RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
     && chown -R bind:bind /var/cache/bind /var/log/bind /run/named /etc/bind/zones
 
 # ── Copy BIND9 configuration ──
-COPY docker/named.conf       /etc/bind/named.conf
-COPY docker/named.conf.local /etc/bind/named.conf.local
-COPY docker/rndc.conf        /etc/bind/rndc.conf
+# named.conf.local.template uses __TSIG_SECRET__ placeholder;
+# entrypoint.sh copies it to named.conf.local and injects the real key at runtime.
+COPY docker/named.conf                  /etc/bind/named.conf.template
+COPY docker/named.conf.local.template  /etc/bind/named.conf.local.template
+COPY docker/rndc.conf                   /etc/bind/rndc.conf
+# zones/*.template files are expanded to their runtime paths by entrypoint.sh
 COPY docker/zones/           /etc/bind/zones/
 RUN chown -R bind:bind /etc/bind
 
@@ -41,6 +44,12 @@ COPY . .
 
 # ── Reflex init (pre-build the frontend skeleton so first start is faster) ──
 RUN poetry run reflex init || true
+
+# Patch Reflex's Vite config template to allow any hostname (e.g. custom
+# domains resolved by the local BIND9). Vite 7+ requires boolean `true`
+# (not the string "all") to fully disable host checking.
+RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: true,/' \
+    /app/.venv/lib/python3.11/site-packages/reflex/compiler/templates.py
 
 # ── Entrypoint ──
 COPY docker/entrypoint.sh /entrypoint.sh

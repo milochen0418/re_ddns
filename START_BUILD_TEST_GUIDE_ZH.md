@@ -14,7 +14,7 @@ All files created. Here's a summary of the complete Docker setup:
 | [ named.conf](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | BIND9 主設定：authoritative-only, logging |
 | [ named.conf.local](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | TSIG key 定義 + zone 宣告 (允許動態更新) |
 | [ rndc.conf](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | rndc 管理工具設定 |
-| [ db.example.com](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 範例 zone 檔，含  `home`  A record |
+| [ db.reflex-ddns.com](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 範例 zone 檔，含  `home`  A record |
 | [ entrypoint.sh](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 啟動 BIND9 → 啟動 Reflex dev server → 優雅關閉 |
 | [ generate\_tsig\_key.sh](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 一鍵產生 TSIG secret 並自動寫入設定檔 |
 | [ .dockerignore](vscode-file://vscode-app/Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/code/electron-browser/workbench/workbench.html) | 排除不需要的檔案，加速 build |
@@ -45,7 +45,7 @@ docker compose up --build
 # 5. 在設定表單填入 Server IP=127.0.0.1, Key Name=ddns-key, Key Secret=<產生的 secret>
 
 # 驗證 DNS
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 ```
 
 ### 快速使用2
@@ -71,10 +71,10 @@ No need to worry about the  `launchctl`  error — port 53 is available.
 
 
 ```bash=1 
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.example.com A
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.reflex-ddns.com A
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -85,10 +85,10 @@ dig @127.0.0.1 home.example.com A
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;home.example.com.              IN      A
+;home.reflex-ddns.com.              IN      A
 
 ;; ANSWER SECTION:
-home.example.com.       300     IN      A       127.0.0.1
+home.reflex-ddns.com.       300     IN      A       127.0.0.1
 
 ;; Query time: 5 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -97,17 +97,17 @@ home.example.com.       300     IN      A       127.0.0.1
 ```
 
 ```bash=2
-dig @127.0.0.1 home.example.com A +short
+dig @127.0.0.1 home.reflex-ddns.com A +short
 ```
 ```
 127.0.0.1
 ```
 
 ```bash=3
-dig @127.0.0.1 example.com SOA
+dig @127.0.0.1 reflex-ddns.com SOA
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 example.com SOA
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 reflex-ddns.com SOA
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -118,10 +118,10 @@ dig @127.0.0.1 example.com SOA
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;example.com.                   IN      SOA
+;reflex-ddns.com.                   IN      SOA
 
 ;; ANSWER SECTION:
-example.com.            300     IN      SOA     ns1.example.com. admin.example.com. 2025010101 3600 900 604800 300
+reflex-ddns.com.            300     IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. 2025010101 3600 900 604800 300
 
 ;; Query time: 1 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -132,10 +132,10 @@ example.com.            300     IN      SOA     ns1.example.com. admin.example.c
 
 
 ```bash=4
-dig @127.0.0.1 example.com NS
+dig @127.0.0.1 reflex-ddns.com NS
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 example.com NS
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 reflex-ddns.com NS
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -146,13 +146,13 @@ dig @127.0.0.1 example.com NS
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;example.com.                   IN      NS
+;reflex-ddns.com.                   IN      NS
 
 ;; ANSWER SECTION:
-example.com.            300     IN      NS      ns1.example.com.
+reflex-ddns.com.            300     IN      NS      ns1.reflex-ddns.com.
 
 ;; ADDITIONAL SECTION:
-ns1.example.com.        300     IN      A       127.0.0.1
+ns1.reflex-ddns.com.        300     IN      A       127.0.0.1
 
 ;; Query time: 1 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -161,20 +161,20 @@ ns1.example.com.        300     IN      A       127.0.0.1
 ```
 
 ```bash=5
-dig @127.0.0.1 home.example.com A +noall +answer +authority
+dig @127.0.0.1 home.reflex-ddns.com A +noall +answer +authority
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.example.com A +noall +answer +authority
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.reflex-ddns.com A +noall +answer +authority
 ; (1 server found)
 ;; global options: +cmd
-home.example.com.       300     IN      A       127.0.0.1
+home.reflex-ddns.com.       300     IN      A       127.0.0.1
 ```
 
 ```bash=6
-dig @127.0.0.1 example.com ANY
+dig @127.0.0.1 reflex-ddns.com ANY
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 example.com ANY
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 reflex-ddns.com ANY
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -185,11 +185,11 @@ dig @127.0.0.1 example.com ANY
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;example.com.                   IN      ANY
+;reflex-ddns.com.                   IN      ANY
 
 ;; ANSWER SECTION:
-example.com.            300     IN      SOA     ns1.example.com. admin.example.com. 2025010101 3600 900 604800 300
-example.com.            300     IN      NS      ns1.example.com.
+reflex-ddns.com.            300     IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. 2025010101 3600 900 604800 300
+reflex-ddns.com.            300     IN      NS      ns1.reflex-ddns.com.
 
 ;; Query time: 1 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -233,10 +233,10 @@ version.bind.           0       CH      TXT     "not disclosed"
 
 | 項次 | 測試  | 結果  | 說明  |
 | --- | --- | --- | --- |
-| 01 | `home.example.com A` | `127.0.0.1` | 動態記錄存在，TTL 300 正確 |
-| 02 | `example.com SOA` | `ns1.example.com. admin.example.com.` | Zone 權威資訊正確 |
-| 03 | `example.com NS` | `ns1.example.com.`  \+ glue record | NS 及其 A 記錄都正確回傳 |
-| 04 | `example.com ANY` | SOA + NS 共 2 筆 | Zone 完整 |
+| 01 | `home.reflex-ddns.com A` | `127.0.0.1` | 動態記錄存在，TTL 300 正確 |
+| 02 | `reflex-ddns.com SOA` | `ns1.reflex-ddns.com. admin.reflex-ddns.com.` | Zone 權威資訊正確 |
+| 03 | `reflex-ddns.com NS` | `ns1.reflex-ddns.com.`  \+ glue record | NS 及其 A 記錄都正確回傳 |
+| 04 | `reflex-ddns.com ANY` | SOA + NS 共 2 筆 | Zone 完整 |
 | 05 | `version.bind TXT CHAOS` | `"not disclosed"` | 版本隱藏生效，安全性 OK |
 | 06 | `flags: qr aa rd` | `aa`  (authoritative answer) | BIND9 作為權威伺服器正確運作 |
 | 07 | `recursion requested but not available` | 預期行為 | 我們設定了  `recursion no`，正確 |
@@ -259,8 +259,8 @@ version.bind.           0       CH      TXT     "not disclosed"
 | 欄位  | 填入值 | 說明  |
 | --- | --- | --- |
 | **Primary Nameserver** | `127.0.0.1` | BIND9 在容器內，Reflex 也在同一容器，所以是 localhost |
-| **DNS Zone** | `example.com` | 對應 BIND9 設定的 zone 名稱 |
-| **Record Hostname** | `home` | 要動態更新的子域名（即  `home.example.com`） |
+| **DNS Zone** | `reflex-ddns.com` | 對應 BIND9 設定的 zone 名稱 |
+| **Record Hostname** | `home` | 要動態更新的子域名（即  `home.reflex-ddns.com`） |
 | **Record Type** | `A (IPv4)` | 下拉選 A |
 | **TTL (Seconds)** | `300` | 預設即可 |
 | **TSIG Key Name** | `ddns-key` | 對應 BIND9 設定的 key 名稱 |
@@ -276,13 +276,13 @@ version.bind.           0       CH      TXT     "not disclosed"
 ### Step 4：用 dig 驗證更新結果
 ```bash 
 # 查詢更新後的記錄（應該會從 127.0.0.1 變成你的外部 IP）
-dig @127.0.0.1 home.example.com A +short
+dig @127.0.0.1 home.reflex-ddns.com A +short
 
 # 完整輸出版本
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 
 # 查看 SOA serial 是否遞增（每次動態更新 BIND9 會自動遞增）
-dig @127.0.0.1 example.com SOA +short
+dig @127.0.0.1 reflex-ddns.com SOA +short
 ```
 
 ### 預期結果
@@ -290,14 +290,14 @@ dig @127.0.0.1 example.com SOA +short
 **更新前：**
 
 ```bash
-$ dig @127.0.0.1 home.example.com A +short
+$ dig @127.0.0.1 home.reflex-ddns.com A +short
 127.0.0.1
 ```
 
 **更新後：**
 
 ```bash 
-$ dig @127.0.0.1 home.example.com A +short
+$ dig @127.0.0.1 home.reflex-ddns.com A +short
 <你的外部 IP, 例如 203.0.113.42>
 ```
 ### 除錯指令
@@ -318,15 +318,15 @@ docker compose logs --tail=30
 docker exec -it re-ddns bash -c '
 nsupdate -y hmac-sha256:ddns-key:yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g= <<EOF
 server 127.0.0.1
-zone example.com
-update delete test.example.com A
-update add test.example.com 300 A 1.2.3.4
+zone reflex-ddns.com
+update delete test.reflex-ddns.com A
+update add test.reflex-ddns.com 300 A 1.2.3.4
 send
 EOF
 '
 
 # 驗證手動更新
-dig @127.0.0.1 test.example.com A +short
+dig @127.0.0.1 test.reflex-ddns.com A +short
 # 預期輸出: 1.2.3.4
 
 ```

@@ -110,7 +110,7 @@ This creates a shared secret used by both BIND9 and the Reflex app to authentica
 
 **2. (Optional) Customize your domain**:
 
-Edit `docker/named.conf.local` and `docker/zones/db.example.com` — replace `example.com` with your actual domain.
+Edit `docker/named.conf.local` and `docker/zones/db.reflex-ddns.com` — replace `reflex-ddns.com` with your actual domain.
 
 **3. Free port 53 on macOS** (if occupied):
 
@@ -138,7 +138,7 @@ In the configuration form, enter:
 | Field | Value |
 |-------|-------|
 | Server IP | `127.0.0.1` |
-| Zone Name | `example.com` (or your domain) |
+| Zone Name | `reflex-ddns.com` (or your domain) |
 | Record Name | `home` |
 | Key Name | `ddns-key` |
 | Key Secret | *(the secret printed by `generate_tsig_key.sh`)* |
@@ -146,7 +146,7 @@ In the configuration form, enter:
 **6. Test DNS resolution** from your Mac:
 
 ```bash
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 ```
 
 ### Live Reload (Development)
@@ -170,7 +170,7 @@ docker exec -it re-ddns bash
 docker exec re-ddns rndc status
 
 # Query a record
-docker exec re-ddns dig @127.0.0.1 home.example.com
+docker exec re-ddns dig @127.0.0.1 home.reflex-ddns.com
 
 # Rebuild after dependency changes
 docker compose up --build

@@ -14,7 +14,7 @@ All files are created. Here's a summary of the complete Docker setup:
 | named.conf | Main BIND9 settings: authoritative-only, logging |
 | named.conf.local | TSIG key definition + zone declaration (dynamic updates allowed) |
 | rndc.conf | `rndc` management tool configuration |
-| db.example.com | Example zone file including the `home` A record |
+| db.reflex-ddns.com | Example zone file including the `home` A record |
 | entrypoint.sh | Start BIND9 → start Reflex dev server → graceful shutdown |
 | generate_tsig_key.sh | One-command TSIG secret generation and automatic config updates |
 | .dockerignore | Excludes unnecessary files to speed up image builds |
@@ -46,7 +46,7 @@ docker compose up --build
 #    Server IP=127.0.0.1, Key Name=ddns-key, Key Secret=<generated secret>
 
 # Verify DNS
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 ```
 
 ### Quick Start 2
@@ -73,10 +73,10 @@ After initial startup, go to the `re_ddns` project folder and run the following 
 
 
 ```bash=1
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.example.com A
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.reflex-ddns.com A
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -87,10 +87,10 @@ dig @127.0.0.1 home.example.com A
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;home.example.com.              IN      A
+;home.reflex-ddns.com.              IN      A
 
 ;; ANSWER SECTION:
-home.example.com.       300     IN      A       127.0.0.1
+home.reflex-ddns.com.       300     IN      A       127.0.0.1
 
 ;; Query time: 5 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -99,17 +99,17 @@ home.example.com.       300     IN      A       127.0.0.1
 ```
 
 ```bash=2
-dig @127.0.0.1 home.example.com A +short
+dig @127.0.0.1 home.reflex-ddns.com A +short
 ```
 ```
 127.0.0.1
 ```
 
 ```bash=3
-dig @127.0.0.1 example.com SOA
+dig @127.0.0.1 reflex-ddns.com SOA
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 example.com SOA
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 reflex-ddns.com SOA
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -120,10 +120,10 @@ dig @127.0.0.1 example.com SOA
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;example.com.                   IN      SOA
+;reflex-ddns.com.                   IN      SOA
 
 ;; ANSWER SECTION:
-example.com.            300     IN      SOA     ns1.example.com. admin.example.com. 2025010101 3600 900 604800 300
+reflex-ddns.com.            300     IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. 2025010101 3600 900 604800 300
 
 ;; Query time: 1 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -134,10 +134,10 @@ example.com.            300     IN      SOA     ns1.example.com. admin.example.c
 
 
 ```bash=4
-dig @127.0.0.1 example.com NS
+dig @127.0.0.1 reflex-ddns.com NS
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 example.com NS
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 reflex-ddns.com NS
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -148,13 +148,13 @@ dig @127.0.0.1 example.com NS
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;example.com.                   IN      NS
+;reflex-ddns.com.                   IN      NS
 
 ;; ANSWER SECTION:
-example.com.            300     IN      NS      ns1.example.com.
+reflex-ddns.com.            300     IN      NS      ns1.reflex-ddns.com.
 
 ;; ADDITIONAL SECTION:
-ns1.example.com.        300     IN      A       127.0.0.1
+ns1.reflex-ddns.com.        300     IN      A       127.0.0.1
 
 ;; Query time: 1 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -163,20 +163,20 @@ ns1.example.com.        300     IN      A       127.0.0.1
 ```
 
 ```bash=5
-dig @127.0.0.1 home.example.com A +noall +answer +authority
+dig @127.0.0.1 home.reflex-ddns.com A +noall +answer +authority
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.example.com A +noall +answer +authority
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 home.reflex-ddns.com A +noall +answer +authority
 ; (1 server found)
 ;; global options: +cmd
-home.example.com.       300     IN      A       127.0.0.1
+home.reflex-ddns.com.       300     IN      A       127.0.0.1
 ```
 
 ```bash=6
-dig @127.0.0.1 example.com ANY
+dig @127.0.0.1 reflex-ddns.com ANY
 ```
 ```
-; <<>> DiG 9.10.6 <<>> @127.0.0.1 example.com ANY
+; <<>> DiG 9.10.6 <<>> @127.0.0.1 reflex-ddns.com ANY
 ; (1 server found)
 ;; global options: +cmd
 ;; Got answer:
@@ -187,11 +187,11 @@ dig @127.0.0.1 example.com ANY
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags:; udp: 1232
 ;; QUESTION SECTION:
-;example.com.                   IN      ANY
+;reflex-ddns.com.                   IN      ANY
 
 ;; ANSWER SECTION:
-example.com.            300     IN      SOA     ns1.example.com. admin.example.com. 2025010101 3600 900 604800 300
-example.com.            300     IN      NS      ns1.example.com.
+reflex-ddns.com.            300     IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. 2025010101 3600 900 604800 300
+reflex-ddns.com.            300     IN      NS      ns1.reflex-ddns.com.
 
 ;; Query time: 1 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
@@ -235,10 +235,10 @@ Everything is normal; all tests pass:
 
 | Item | Test | Result | Notes |
 | --- | --- | --- | --- |
-| 01 | `home.example.com A` | `127.0.0.1` | Dynamic record exists, TTL 300 is correct |
-| 02 | `example.com SOA` | `ns1.example.com. admin.example.com.` | Zone authority information is correct |
-| 03 | `example.com NS` | `ns1.example.com.` + glue record | NS and its A record are returned correctly |
-| 04 | `example.com ANY` | SOA + NS (2 records) | Zone is complete |
+| 01 | `home.reflex-ddns.com A` | `127.0.0.1` | Dynamic record exists, TTL 300 is correct |
+| 02 | `reflex-ddns.com SOA` | `ns1.reflex-ddns.com. admin.reflex-ddns.com.` | Zone authority information is correct |
+| 03 | `reflex-ddns.com NS` | `ns1.reflex-ddns.com.` + glue record | NS and its A record are returned correctly |
+| 04 | `reflex-ddns.com ANY` | SOA + NS (2 records) | Zone is complete |
 | 05 | `version.bind TXT CHAOS` | `"not disclosed"` | Version hiding is active; security is OK |
 | 06 | `flags: qr aa rd` | `aa` (authoritative answer) | BIND9 is correctly operating as an authoritative server |
 | 07 | `recursion requested but not available` | Expected behavior | `recursion no` is configured correctly |
@@ -261,8 +261,8 @@ On the Configuration page, fill in the following values:
 | Field | Value | Description |
 | --- | --- | --- |
 | **Primary Nameserver** | `127.0.0.1` | BIND9 and Reflex are in the same container, so localhost is used |
-| **DNS Zone** | `example.com` | Must match the zone name in BIND9 configuration |
-| **Record Hostname** | `home` | Subdomain to update dynamically (`home.example.com`) |
+| **DNS Zone** | `reflex-ddns.com` | Must match the zone name in BIND9 configuration |
+| **Record Hostname** | `home` | Subdomain to update dynamically (`home.reflex-ddns.com`) |
 | **Record Type** | `A (IPv4)` | Select A in the dropdown |
 | **TTL (Seconds)** | `300` | Default is fine |
 | **TSIG Key Name** | `ddns-key` | Must match key name in BIND9 config |
@@ -278,13 +278,13 @@ After filling all fields, click **Save**.
 ### Step 4: Verify Updated Result with dig
 ```bash
 # Query updated record (should change from 127.0.0.1 to your external IP)
-dig @127.0.0.1 home.example.com A +short
+dig @127.0.0.1 home.reflex-ddns.com A +short
 
 # Full output
-dig @127.0.0.1 home.example.com A
+dig @127.0.0.1 home.reflex-ddns.com A
 
 # Check whether SOA serial increased (BIND9 auto-increments on each dynamic update)
-dig @127.0.0.1 example.com SOA +short
+dig @127.0.0.1 reflex-ddns.com SOA +short
 ```
 
 ### Expected Result
@@ -292,14 +292,14 @@ dig @127.0.0.1 example.com SOA +short
 **Before update:**
 
 ```bash
-$ dig @127.0.0.1 home.example.com A +short
+$ dig @127.0.0.1 home.reflex-ddns.com A +short
 127.0.0.1
 ```
 
 **After update:**
 
 ```bash
-$ dig @127.0.0.1 home.example.com A +short
+$ dig @127.0.0.1 home.reflex-ddns.com A +short
 <your external IP, e.g. 203.0.113.42>
 ```
 
@@ -321,15 +321,15 @@ docker compose logs --tail=30
 docker exec -it re-ddns bash -c '
 nsupdate -y hmac-sha256:ddns-key:yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g= <<EOF
 server 127.0.0.1
-zone example.com
-update delete test.example.com A
-update add test.example.com 300 A 1.2.3.4
+zone reflex-ddns.com
+update delete test.reflex-ddns.com A
+update add test.reflex-ddns.com 300 A 1.2.3.4
 send
 EOF
 '
 
 # Verify manual update
-dig @127.0.0.1 test.example.com A +short
+dig @127.0.0.1 test.reflex-ddns.com A +short
 # Expected output: 1.2.3.4
 
 ```

@@ -1,11 +1,11 @@
-; /etc/bind/zones/db.example.com
+; /etc/bind/zones/db.reflex-ddns.com
 ; ──────────────────────────────
-; Authoritative zone file for example.com
-; Replace "example.com" with your actual domain.
+; Authoritative zone file for reflex-ddns.com
+; Replace "reflex-ddns.com" with your actual domain.
 ; The "home" A record is the one managed by re_ddns.
 
 $TTL    300
-@       IN      SOA     ns1.example.com. admin.example.com. (
+@       IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. (
                         2025010101  ; Serial (YYYYMMDDNN)
                         3600        ; Refresh
                         900         ; Retry
@@ -13,7 +13,7 @@ $TTL    300
                         300 )       ; Negative Cache TTL
 
 ; ── Name servers ──
-@       IN      NS      ns1.example.com.
+@       IN      NS      ns1.reflex-ddns.com.
 
 ; ── NS glue record (point to this server's public IP) ──
 ns1     IN      A       127.0.0.1

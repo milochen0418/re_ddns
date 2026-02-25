@@ -3,8 +3,19 @@ set -euo pipefail
 
 # generate_tsig_key.sh
 # ────────────────────
-# Generates a TSIG key and patches the BIND9 config files.
-# Run this ONCE before the first `docker compose up --build`.
+# [OPTIONAL] Pre-seed a fixed TSIG key into the BIND9 config templates.
+#
+# ┌─ You normally do NOT need this script ─────────────────────────────────┐
+# │ entrypoint.sh auto-generates a random TSIG key at container startup     │
+# │ and injects it into /etc/bind/named.conf.local and /etc/bind/rndc.conf. │
+# │ The generated key is also written to /etc/bind/tsig-secret.env.         │
+# │                                                                          │
+# │ Run this script only when you want a known, persistent key baked into   │
+# │ the image (e.g. CI, GitOps, or you prefer not to use TSIG_SECRET env).  │
+# │                                                                          │
+# │ Alternative (runtime only, no image baking):                            │
+# │   Set TSIG_SECRET=<base64> in docker-compose.yml environment section.   │
+# └──────────────────────────────────────────────────────────────────────────┘
 #
 # Usage:
 #   ./docker/generate_tsig_key.sh [key-name]
@@ -28,17 +39,21 @@ echo "│  Secret: $SECRET"
 echo "└──────────────────────────────────────────┘"
 echo ""
 
-# Patch named.conf.local
-sed -i.bak "s|CHANGE_ME_GENERATE_WITH_TSIG_KEYGEN|$SECRET|g" "$SCRIPT_DIR/named.conf.local"
-rm -f "$SCRIPT_DIR/named.conf.local.bak"
+# Patch named.conf.local.template (named.conf.local is gitignored / runtime only)
+sed -i.bak "s|__TSIG_SECRET__|$SECRET|g" "$SCRIPT_DIR/named.conf.local.template"
+rm -f "$SCRIPT_DIR/named.conf.local.template.bak"
 
 # Patch rndc.conf
-sed -i.bak "s|CHANGE_ME_GENERATE_WITH_TSIG_KEYGEN|$SECRET|g" "$SCRIPT_DIR/rndc.conf"
+sed -i.bak "s|__TSIG_SECRET__|$SECRET|g" "$SCRIPT_DIR/rndc.conf"
 rm -f "$SCRIPT_DIR/rndc.conf.bak"
 
-echo "Updated:"
-echo "  - $SCRIPT_DIR/named.conf.local"
+echo "Updated (placeholder __TSIG_SECRET__ replaced in template files):"
+echo "  - $SCRIPT_DIR/named.conf.local.template"
 echo "  - $SCRIPT_DIR/rndc.conf"
+echo ""
+echo "The key is now baked into the config templates."
+echo "Alternatively, pass it at runtime (no need to run this script):"
+echo "  TSIG_SECRET=$SECRET docker compose up --build"
 echo ""
 echo "Use these values in the Reflex app's configuration form:"
 echo "  Key Name:   $KEY_NAME"
