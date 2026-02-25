@@ -56,13 +56,13 @@ def config_panel() -> rx.Component:
                         form_field(
                             "Primary Nameserver",
                             "server_ip",
-                            "ns1.example.com or 1.2.3.4",
+                            "ns1.reflex-ddns.com or 1.2.3.4",
                             help_text="The IP or FQDN of your BIND9 master.",
                         ),
                         form_field(
                             "DNS Zone",
                             "zone_name",
-                            "home.example.com",
+                            "home.reflex-ddns.com",
                             help_text="The zone configured for dynamic updates.",
                         ),
                         class_name="grid grid-cols-1 md:grid-cols-2 gap-6",
@@ -72,7 +72,7 @@ def config_panel() -> rx.Component:
                             "Record Hostname",
                             "record_name",
                             "nas",
-                            help_text="The subdomain to update (e.g. 'nas' for nas.home.example.com).",
+                            help_text="The subdomain to update (e.g. 'nas' for nas.home.reflex-ddns.com).",
                         ),
                         rx.el.div(
                             rx.el.label(

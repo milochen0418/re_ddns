@@ -136,15 +136,18 @@ log "Starting Reflex app (dev mode) …"
 cd /app
 
 # Patch Vite's allowedHosts so the app is reachable via custom hostnames
-# (e.g. home.example.com resolved by the local BIND9).
+# (e.g. home.reflex-ddns.com resolved by the local BIND9).
 # Reflex regenerates vite.config.js on each run, so we patch it once here
-# just before starting. The sed inserts allowedHosts: "all" into the server{}
-# block which already contains "port: process.env.PORT".
+# just before starting. Vite 7+ requires boolean true (not string "all")
+# to fully disable host checking.
 VITE_CFG="/app/.web/vite.config.js"
 if [[ -f "$VITE_CFG" ]]; then
-    if ! grep -q "allowedHosts" "$VITE_CFG"; then
-        sed -i 's|port: process.env.PORT,|port: process.env.PORT,\n    allowedHosts: "all",|' "$VITE_CFG"
-        log "Patched vite.config.js: allowedHosts = all"
+    if grep -q 'allowedHosts: "all"' "$VITE_CFG"; then
+        sed -i 's|allowedHosts: "all"|allowedHosts: true|' "$VITE_CFG"
+        log "Patched vite.config.js: allowedHosts = true (was \"all\")"
+    elif ! grep -q "allowedHosts" "$VITE_CFG"; then
+        sed -i 's|port: process.env.PORT,|port: process.env.PORT,\n    allowedHosts: true,|' "$VITE_CFG"
+        log "Patched vite.config.js: allowedHosts = true"
     fi
 fi
 

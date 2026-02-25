@@ -73,7 +73,7 @@ class ConfigState(rx.State):
         if not self._validate_ip(server):
             self.errors["server_ip"] = "Invalid IP or Hostname"
         if not self._validate_zone(zone):
-            self.errors["zone_name"] = "Invalid Zone (e.g. example.com)"
+            self.errors["zone_name"] = "Invalid Zone (e.g. reflex-ddns.com)"
         if not record:
             self.errors["record_name"] = "Record name required"
         try:

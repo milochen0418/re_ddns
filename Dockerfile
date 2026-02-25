@@ -46,9 +46,9 @@ COPY . .
 RUN poetry run reflex init || true
 
 # Patch Reflex's Vite config template to allow any hostname (e.g. custom
-# domains resolved by the local BIND9). This makes "allowedHosts: all"
-# appear in every generated vite.config.js so no host-blocking ever occurs.
-RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: "all",/' \
+# domains resolved by the local BIND9). Vite 7+ requires boolean `true`
+# (not the string "all") to fully disable host checking.
+RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: true,/' \
     /app/.venv/lib/python3.11/site-packages/reflex/compiler/templates.py
 
 # ── Entrypoint ──
