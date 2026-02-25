@@ -25,7 +25,7 @@ RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
 # ── Copy BIND9 configuration ──
 # named.conf.local.template uses __TSIG_SECRET__ placeholder;
 # entrypoint.sh copies it to named.conf.local and injects the real key at runtime.
-COPY docker/named.conf                  /etc/bind/named.conf
+COPY docker/named.conf                  /etc/bind/named.conf.template
 COPY docker/named.conf.local.template  /etc/bind/named.conf.local.template
 COPY docker/rndc.conf                   /etc/bind/rndc.conf
 # zones/*.template files are expanded to their runtime paths by entrypoint.sh

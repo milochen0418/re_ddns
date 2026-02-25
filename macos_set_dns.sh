@@ -95,6 +95,52 @@ current_dns() {
     echo "$result" | tr '\n' ' ' | sed 's/[[:space:]]*$//'
 }
 
+# ── Helper: discover DHCP-provided DNS servers ───────────────────────────
+# networksetup -getdnsservers only shows *manually* set DNS servers.
+# When the user hasn't set any (DHCP mode), it returns nothing — but the
+# system IS still using DHCP-provided nameservers.  We must discover those
+# so we can keep them as fallbacks when prepending our local DNS.
+dhcp_dns() {
+    # 1. Find the BSD device name (e.g. en0) for the network service
+    local device
+    device=$(networksetup -listallhardwareports 2>/dev/null \
+        | awk -v svc="$IFACE" '
+            $0 ~ "Hardware Port: " svc { found=1; next }
+            found && /^Device:/ { print $2; exit }
+          ')
+
+    if [[ -z "$device" ]]; then
+        # Fallback: try scutil --dns resolver #1
+        scutil --dns 2>/dev/null \
+            | awk '/^resolver #1/,/^$/' \
+            | awk '/nameserver\[/ { print $3 }' \
+            | grep -v '%' \
+            | tr '\n' ' ' | sed 's/ $//'
+        return
+    fi
+
+    # 2. Ask ipconfig for the DHCP packet on that device
+    local servers
+    servers=$(ipconfig getpacket "$device" 2>/dev/null \
+        | awk -F'[{},]' '/domain_name_server/ {
+            for (i=2; i<=NF; i++) {
+                gsub(/^[ \t]+|[ \t]+$/, "", $i)
+                if ($i != "") print $i
+            }
+        }')
+
+    if [[ -n "$servers" ]]; then
+        echo "$servers" | tr '\n' ' ' | sed 's/ $//'
+    else
+        # 3. Last resort: scutil --dns resolver #1 (skip link-local/IPv6 with %)
+        scutil --dns 2>/dev/null \
+            | awk '/^resolver #1/,/^$/' \
+            | awk '/nameserver\[/ { print $3 }' \
+            | grep -v '%' \
+            | tr '\n' ' ' | sed 's/ $//'
+    fi
+}
+
 # ── Commands ──────────────────────────────────────────────────────────────
 case "$CMD" in
 
@@ -102,9 +148,17 @@ case "$CMD" in
     echo "Interface : $IFACE"
     servers=$(current_dns)
     if [[ -z "$servers" ]]; then
-        echo "DNS       : (none – using DHCP-provided DNS)"
+        dhcp_servers=$(dhcp_dns)
+        if [[ -n "$dhcp_servers" ]]; then
+            echo "DNS       : (DHCP-provided)"
+            for s in $dhcp_servers; do
+                echo "  $s  ← from DHCP"
+            done
+        else
+            echo "DNS       : (none – no DHCP DNS found either)"
+        fi
     else
-        echo "DNS       :"
+        echo "DNS       : (manually set)"
         for s in $servers; do
             if [[ "$s" == "$LOCAL_DNS" ]]; then
                 echo "  $s  ← local Docker BIND9"
@@ -123,9 +177,21 @@ case "$CMD" in
             exit 0
             ;;
     esac
-    # prepend local DNS so it is queried first
+
+    # If no manual DNS is set, discover DHCP-provided DNS so we can keep
+    # them as fallbacks.  Without this, setting only 127.0.0.1 would make
+    # macOS lose all DNS when the Docker container is down.
+    if [[ -z "$servers" ]]; then
+        dhcp_servers=$(dhcp_dns)
+        if [[ -n "$dhcp_servers" ]]; then
+            echo "[$IFACE] Discovered DHCP DNS: $dhcp_servers"
+            servers="$dhcp_servers"
+        fi
+    fi
+
+    # prepend local DNS so it is queried first, keep originals as fallback
     new_list="$LOCAL_DNS${servers:+ $servers}"
-    echo "[$IFACE] Adding $LOCAL_DNS to DNS list …"
+    echo "[$IFACE] Setting DNS list → $new_list"
     sudo networksetup -setdnsservers "$IFACE" $new_list
     echo "[$IFACE] New DNS list:"
     networksetup -getdnsservers "$IFACE"
@@ -147,8 +213,24 @@ case "$CMD" in
     # Remove LOCAL_DNS from the list
     new_list=$(echo "$servers" | tr ' ' '\n' | grep -v "^${LOCAL_DNS}$" | tr '\n' ' ' | sed 's/ $//' || true)
     echo "[$IFACE] Removing $LOCAL_DNS from DNS list …"
+
+    # Decide whether to revert to DHCP or keep the remaining servers.
+    # If the remaining servers are exactly the DHCP-provided ones,
+    # revert to DHCP mode so the system is back to its original state.
+    should_revert_dhcp=false
     if [[ -z "$new_list" ]]; then
-        # No servers left → revert to DHCP
+        should_revert_dhcp=true
+    else
+        dhcp_servers=$(dhcp_dns)
+        # Sort and compare: if remaining == DHCP DNS, revert to DHCP
+        remaining_sorted=$(echo "$new_list" | tr ' ' '\n' | sort)
+        dhcp_sorted=$(echo "$dhcp_servers" | tr ' ' '\n' | sort)
+        if [[ "$remaining_sorted" == "$dhcp_sorted" ]]; then
+            should_revert_dhcp=true
+        fi
+    fi
+
+    if $should_revert_dhcp; then
         sudo networksetup -setdnsservers "$IFACE" "Empty"
         echo "[$IFACE] Reverted to DHCP-provided DNS."
     else

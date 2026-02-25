@@ -53,6 +53,37 @@ log "TSIG key injected into BIND9 config (secret written to $SECRET_EXPORT)"
 unset _secret
 
 # ──────────────────────────────────────────────
+# 0.4 Auto-detect system forwarders & expand named.conf template
+# ──────────────────────────────────────────────
+# Read the container's /etc/resolv.conf to discover whatever DNS the
+# system is already configured to use (Docker embedded DNS 127.0.0.11
+# on compose networks, or the host's real nameservers on host/bridge
+# networking).  This avoids hard-coding specific upstream resolvers.
+
+NAMED_TEMPLATE="/etc/bind/named.conf.template"
+NAMED_CONF="/etc/bind/named.conf"
+
+# Always start from a fresh copy of the template
+cp "$NAMED_TEMPLATE" "$NAMED_CONF"
+
+_forwarders=""
+while IFS= read -r _line; do
+    if [[ "$_line" =~ ^nameserver[[:space:]]+([^[:space:]]+) ]]; then
+        _forwarders="${_forwarders}${BASH_REMATCH[1]}; "
+    fi
+done < /etc/resolv.conf
+
+if [[ -z "$_forwarders" ]]; then
+    _forwarders="8.8.8.8; 1.1.1.1; "
+    log "WARNING: No nameservers found in /etc/resolv.conf – falling back to 8.8.8.8 / 1.1.1.1"
+else
+    log "Using system forwarders from /etc/resolv.conf: ${_forwarders}"
+fi
+
+sed -i "s|__FORWARDERS__|${_forwarders}|g" "$NAMED_CONF"
+unset _forwarders _line
+
+# ──────────────────────────────────────────────
 # 0.5 Expand zone file templates
 # ──────────────────────────────────────────────
 # Any file in /etc/bind/zones/*.template is copied to its non-.template
