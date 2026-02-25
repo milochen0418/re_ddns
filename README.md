@@ -38,14 +38,22 @@ poetry run playwright install
 
 ### Installation
 
-1. Ensure Poetry uses Python 3.11:
+1. (Recommended) Configure Poetry to store the virtual environment inside the project directory. This makes it easier for IDEs and AI agents to discover and analyze dependency source code:
+
+```bash
+poetry config virtualenvs.in-project true
+```
+
+> This is a global one-time setting. After this, every project will create its `.venv/` under the project root instead of a shared cache folder (`~/Library/Caches/pypoetry/virtualenvs/`). The `.venv/` directory is already in `.gitignore`.
+
+2. Ensure Poetry uses Python 3.11:
 
 ```bash
 poetry env use python3.11
 poetry env info
 ```
 
-2. Install dependencies:
+3. Install dependencies:
 
 ```bash
 poetry install
