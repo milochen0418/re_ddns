@@ -1,6 +1,34 @@
 import reflex as rx
 import re
+import os
 from typing import TypedDict
+
+
+def _read_tsig_env_file(path: str = "/etc/bind/tsig-secret.env") -> dict[str, str]:
+    """Read TSIG key written by entrypoint.sh at container startup.
+
+    Called once at module import time so the values are available as State
+    defaults before any browser session connects (e.g. FastAPI endpoints).
+    Returns an empty dict silently when running outside Docker.
+    """
+    result: dict[str, str] = {}
+    if not os.path.exists(path):
+        return result
+    try:
+        with open(path) as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                k, _, v = line.partition("=")
+                result[k] = v
+    except Exception:
+        pass
+    return result
+
+
+# Evaluated once when Python imports this module – before any HTTP/WS request.
+_tsig_defaults = _read_tsig_env_file()
 
 
 class ConfigState(rx.State):
@@ -11,8 +39,8 @@ class ConfigState(rx.State):
     record_name: str = "home"
     record_type: str = "A"
     ttl: str = "300"
-    key_name: str = ""
-    key_secret: str = ""
+    key_name: str = _tsig_defaults.get("TSIG_KEY_NAME", "")
+    key_secret: str = _tsig_defaults.get("TSIG_SECRET", "")
     is_saved: bool = False
     show_secret: bool = False
     errors: dict[str, str] = {}
@@ -74,3 +102,20 @@ class ConfigState(rx.State):
     @rx.event
     def edit_config(self):
         self.is_saved = False
+
+    @rx.event
+    def reload_tsig_from_env_file(self):
+        """Manually reload TSIG credentials from /etc/bind/tsig-secret.env.
+
+        Unlike the module-level initialisation, this always overwrites the
+        current values – useful as a UI "Reset to auto-detected key" button.
+        """
+        fresh = _read_tsig_env_file()
+        if not fresh:
+            yield rx.toast("tsig-secret.env not found (not running inside Docker?)", duration=4000)
+            return
+        if "TSIG_KEY_NAME" in fresh:
+            self.key_name = fresh["TSIG_KEY_NAME"]
+        if "TSIG_SECRET" in fresh:
+            self.key_secret = fresh["TSIG_SECRET"]
+        yield rx.toast("TSIG credentials reloaded from env file.", duration=3000)

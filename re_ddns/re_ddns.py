@@ -383,4 +383,11 @@ app = rx.App(
         ),
     ],
 )
-app.add_page(index, route="/", on_load=[IPState.detect_ip, IPState.toggle_monitoring])
+app.add_page(
+    index,
+    route="/",
+    on_load=[
+        IPState.detect_ip,
+        IPState.toggle_monitoring,
+    ],
+)
