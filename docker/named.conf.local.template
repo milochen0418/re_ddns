@@ -7,7 +7,7 @@
 // Then replace the secret below.
 key "ddns-key" {
     algorithm hmac-sha256;
-    secret "yfy0mnBZvA1pXv/hqJxNefx6R6RwZG7jXLYT6YcAM2g=";
+    secret "__TSIG_SECRET__";
 };
 
 // ── Example authoritative zone: example.com ──

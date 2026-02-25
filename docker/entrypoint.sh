@@ -7,6 +7,50 @@ set -euo pipefail
 log() { echo "[entrypoint] $(date '+%H:%M:%S') $*"; }
 
 # ──────────────────────────────────────────────
+# 0. Inject TSIG key into BIND9 config files
+# ──────────────────────────────────────────────
+#
+# Priority:
+#   a) TSIG_SECRET env var  → use as-is (deterministic across restarts)
+#   b) /run/secrets/tsig_secret (Docker Swarm secret)
+#   c) not set              → auto-generate a random key once per container
+#
+# The placeholder __TSIG_SECRET__ in the config templates is replaced in-place
+# BEFORE named ever reads them.
+
+BIND_TEMPLATE="/etc/bind/named.conf.local.template"
+BIND_LOCAL="/etc/bind/named.conf.local"
+RNDC_CONF="/etc/bind/rndc.conf"
+SECRET_EXPORT="/etc/bind/tsig-secret.env"   # readable by the Reflex app
+
+# Always start from a clean copy of the template
+cp "$BIND_TEMPLATE" "$BIND_LOCAL"
+
+if [[ -n "${TSIG_SECRET:-}" ]]; then
+    log "Using TSIG_SECRET from environment variable"
+    _secret="$TSIG_SECRET"
+elif [[ -f /run/secrets/tsig_secret ]]; then
+    log "Using TSIG_SECRET from Docker secret file"
+    _secret=$(cat /run/secrets/tsig_secret)
+else
+    log "No TSIG_SECRET supplied – generating a random key …"
+    _secret=$(python3 -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())")
+    log "Generated TSIG secret: $_secret"
+fi
+
+# Substitute placeholder in both config files
+sed -i "s|__TSIG_SECRET__|${_secret}|g" "$BIND_LOCAL" "$RNDC_CONF"
+
+# Persist so Reflex app can discover the key without the user copy-pasting it
+mkdir -p "$(dirname "$SECRET_EXPORT")"
+printf 'TSIG_KEY_NAME=ddns-key\nTSIG_SECRET=%s\n' "$_secret" > "$SECRET_EXPORT"
+chown root:bind "$SECRET_EXPORT"
+chmod 640 "$SECRET_EXPORT"
+
+log "TSIG key injected into BIND9 config (secret written to $SECRET_EXPORT)"
+unset _secret
+
+# ──────────────────────────────────────────────
 # 1. Start BIND9
 # ──────────────────────────────────────────────
 log "Starting BIND9 (named) …"

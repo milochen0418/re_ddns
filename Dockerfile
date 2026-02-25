@@ -23,9 +23,11 @@ RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
     && chown -R bind:bind /var/cache/bind /var/log/bind /run/named /etc/bind/zones
 
 # ── Copy BIND9 configuration ──
-COPY docker/named.conf       /etc/bind/named.conf
-COPY docker/named.conf.local /etc/bind/named.conf.local
-COPY docker/rndc.conf        /etc/bind/rndc.conf
+# named.conf.local.template uses __TSIG_SECRET__ placeholder;
+# entrypoint.sh copies it to named.conf.local and injects the real key at runtime.
+COPY docker/named.conf                  /etc/bind/named.conf
+COPY docker/named.conf.local.template  /etc/bind/named.conf.local.template
+COPY docker/rndc.conf                   /etc/bind/rndc.conf
 COPY docker/zones/           /etc/bind/zones/
 RUN chown -R bind:bind /etc/bind
 
