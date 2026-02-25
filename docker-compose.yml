@@ -22,6 +22,11 @@ services:
       - ./assets:/app/assets
       - ./reflex_rerun.sh:/app/reflex_rerun.sh
 
+      # ── Shell scripts: mounted so edits take effect on next `docker compose restart`
+      #    without needing a full `--build` rebuild ──
+      - ./docker/entrypoint.sh:/entrypoint.sh
+      - ./docker/generate_tsig_key.sh:/usr/local/bin/generate_tsig_key.sh
+
       # ── Persist BIND9 dynamic zone journals across restarts ──
       - bind-data:/var/cache/bind
       - bind-log:/var/log/bind

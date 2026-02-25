@@ -45,6 +45,12 @@ COPY . .
 # ── Reflex init (pre-build the frontend skeleton so first start is faster) ──
 RUN poetry run reflex init || true
 
+# Patch Reflex's Vite config template to allow any hostname (e.g. custom
+# domains resolved by the local BIND9). This makes "allowedHosts: all"
+# appear in every generated vite.config.js so no host-blocking ever occurs.
+RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: "all",/' \
+    /app/.venv/lib/python3.11/site-packages/reflex/compiler/templates.py
+
 # ── Entrypoint ──
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

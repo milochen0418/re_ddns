@@ -6,6 +6,8 @@ set -euo pipefail
 
 log() { echo "[entrypoint] $(date '+%H:%M:%S') $*"; }
 
+log "Hello, ^^ entrypoint.sh — last modified: $(stat -c '%y' "$0" 2>/dev/null || stat -f '%Sm' "$0")"
+
 # ──────────────────────────────────────────────
 # 0. Inject TSIG key into BIND9 config files
 # ──────────────────────────────────────────────
@@ -101,6 +103,19 @@ done
 # ──────────────────────────────────────────────
 log "Starting Reflex app (dev mode) …"
 cd /app
+
+# Patch Vite's allowedHosts so the app is reachable via custom hostnames
+# (e.g. home.example.com resolved by the local BIND9).
+# Reflex regenerates vite.config.js on each run, so we patch it once here
+# just before starting. The sed inserts allowedHosts: "all" into the server{}
+# block which already contains "port: process.env.PORT".
+VITE_CFG="/app/.web/vite.config.js"
+if [[ -f "$VITE_CFG" ]]; then
+    if ! grep -q "allowedHosts" "$VITE_CFG"; then
+        sed -i 's|port: process.env.PORT,|port: process.env.PORT,\n    allowedHosts: "all",|' "$VITE_CFG"
+        log "Patched vite.config.js: allowedHosts = all"
+    fi
+fi
 
 # Clean stale PID files / ports from previous runs
 rm -f /app/.web/.next/.pid 2>/dev/null || true
