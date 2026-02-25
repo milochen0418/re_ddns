@@ -51,6 +51,21 @@ log "TSIG key injected into BIND9 config (secret written to $SECRET_EXPORT)"
 unset _secret
 
 # ──────────────────────────────────────────────
+# 0.5 Expand zone file templates
+# ──────────────────────────────────────────────
+# Any file in /etc/bind/zones/*.template is copied to its non-.template
+# counterpart at startup. This keeps zone files out of git while the
+# templates (safe to commit) remain the source of truth.
+ZONES_DIR="/etc/bind/zones"
+for tmpl in "$ZONES_DIR"/*.template; do
+    [[ -f "$tmpl" ]] || continue
+    dest="${tmpl%.template}"
+    cp "$tmpl" "$dest"
+    log "Zone template expanded: $(basename "$dest")"
+done
+chown -R bind:bind "$ZONES_DIR"
+
+# ──────────────────────────────────────────────
 # 1. Start BIND9
 # ──────────────────────────────────────────────
 log "Starting BIND9 (named) …"

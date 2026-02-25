@@ -15,8 +15,9 @@ uploaded_files/
 # Ignore environment variable files
 .env
 
-# BIND9 runtime config (generated from template at container startup)
+# BIND9 runtime configs (generated from *.template files at container startup)
 docker/named.conf.local
+docker/zones/db.example.com
 
 # Ignore macOS system files
 .DS_Store

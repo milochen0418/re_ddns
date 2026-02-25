@@ -28,6 +28,7 @@ RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
 COPY docker/named.conf                  /etc/bind/named.conf
 COPY docker/named.conf.local.template  /etc/bind/named.conf.local.template
 COPY docker/rndc.conf                   /etc/bind/rndc.conf
+# zones/*.template files are expanded to their runtime paths by entrypoint.sh
 COPY docker/zones/           /etc/bind/zones/
 RUN chown -R bind:bind /etc/bind
 
