@@ -1,8 +1,9 @@
 FROM python:3.11-slim-bookworm
 
-# ── System deps: BIND9, Node.js (for Reflex frontend build), utilities ──
+# ── System deps: BIND9, nginx, Node.js (for Reflex frontend build), utilities ──
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bind9 bind9utils bind9-dnsutils \
+        nginx \
         curl unzip git lsof procps \
         gcc libffi-dev \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -21,6 +22,10 @@ RUN curl -sSL https://install.python-poetry.org | python - \
 # ── BIND9 directories & permissions ──
 RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
     && chown -R bind:bind /var/cache/bind /var/log/bind /run/named /etc/bind/zones
+
+# ── nginx: remove default site, prepare dynamic config directory ──
+RUN rm -f /etc/nginx/sites-enabled/default \
+    && mkdir -p /etc/nginx/conf.d /var/log/nginx
 
 # ── Copy BIND9 configuration ──
 # named.conf.local.template uses __TSIG_SECRET__ placeholder;
@@ -55,7 +60,7 @@ RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts:
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Ports: DNS 53 (TCP+UDP), Reflex frontend 3000, Reflex backend 8000
-EXPOSE 53/tcp 53/udp 3000 8000
+# Ports: DNS 53 (TCP+UDP), HTTP 80 (nginx proxy), Reflex frontend 3000, backend 8000
+EXPOSE 53/tcp 53/udp 80 3000 8000
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -130,6 +130,27 @@ for i in $(seq 1 15); do
 done
 
 # ──────────────────────────────────────────────
+# 2.5 Initialise registry + nginx reverse proxy
+# ──────────────────────────────────────────────
+log "Initialising service registry + nginx …"
+cd /app
+
+# 1) Init registry (creates /app/data/registry.json if absent)
+# 2) Write base nginx config
+# 3) Sync any previously-registered services from registry.json
+poetry run python -c "
+from re_ddns.api import registry, nginx_manager
+registry.init()
+nginx_manager.write_base_config()
+nginx_manager.sync()
+" || log "WARNING: registry / nginx init had errors"
+
+log "Starting nginx …"
+nginx &
+NGINX_PID=$!
+log "nginx started (PID $NGINX_PID)"
+
+# ──────────────────────────────────────────────
 # 3. Start Reflex dev server
 # ──────────────────────────────────────────────
 log "Starting Reflex app (dev mode) …"
@@ -169,6 +190,7 @@ log "Reflex started (PID $REFLEX_PID)"
 cleanup() {
     log "Shutting down …"
     kill "$REFLEX_PID" 2>/dev/null || true
+    nginx -s quit 2>/dev/null || kill "$NGINX_PID" 2>/dev/null || true
     rndc stop 2>/dev/null || kill "$NAMED_PID" 2>/dev/null || true
     wait
     log "All processes stopped"
@@ -178,6 +200,6 @@ trap cleanup SIGTERM SIGINT
 # ──────────────────────────────────────────────
 # 5. Wait for either process to exit
 # ──────────────────────────────────────────────
-wait -n "$NAMED_PID" "$REFLEX_PID" 2>/dev/null || true
+wait -n "$NAMED_PID" "$NGINX_PID" "$REFLEX_PID" 2>/dev/null || true
 log "A child process exited – shutting down the other"
 cleanup

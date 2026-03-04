@@ -1,0 +1,97 @@
+# docker-compose.test.yml
+#
+# Brings up the full re-ddns stack (BIND9 + nginx + Reflex DDNS UI)
+# together with a lightweight test-app (Reflex Hello World).
+#
+# re-ddns container serves as the "control plane":
+#   - BIND9     on port 53  (DNS)
+#   - nginx     on port 80  (reverse proxy, routes by Host header)
+#   - Reflex    on 3000/8000 internally
+#
+# Routing (via nginx inside re-ddns):
+#   home.reflex-ddns.com     → re-ddns Reflex frontend
+#   api.reflex-ddns.com      → re-ddns Reflex backend (FastAPI)
+#   testapp.reflex-ddns.com  → test-app container
+#
+# Service registry lives in /app/data/registry.json (persisted via volume).
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up --build
+#
+# After startup (with Mac DNS set to 127.0.0.1):
+#   http://home.reflex-ddns.com       → re-ddns UI
+#   http://api.reflex-ddns.com/api/   → re-ddns API
+#   http://testapp.reflex-ddns.com    → test-app Hello World
+
+services:
+  # ── Main DDNS service (BIND9 + nginx + Reflex) ────────────────────────
+  re-ddns:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: re-ddns
+    hostname: re-ddns
+
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:80"
+      # Uncomment for direct debugging (bypassing nginx):
+      # - "3000:3000"
+      # - "8000:8000"
+
+    volumes:
+      - ./re_ddns:/app/re_ddns
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./assets:/app/assets
+      - ./reflex_rerun.sh:/app/reflex_rerun.sh
+      - ./docker/entrypoint.sh:/entrypoint.sh
+      - ./docker/generate_tsig_key.sh:/usr/local/bin/generate_tsig_key.sh
+      - bind-data:/var/cache/bind
+      - bind-log:/var/log/bind
+      - registry-data:/app/data
+      - reflex-db:/app
+
+    environment:
+      - BIND9_HOST=127.0.0.1
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_RESOURCE
+
+    restart: unless-stopped
+
+  # ── Test app (Reflex Hello World) ──────────────────────────────────────
+  test-app:
+    build:
+      context: ./testapp
+      dockerfile: Dockerfile
+    container_name: test-app
+    hostname: test-app
+
+    depends_on:
+      - re-ddns
+
+    # No ports published — nginx inside re-ddns routes by Host header.
+    # Reflex uses 3000/8000 internally (no conflict between containers).
+
+    environment:
+      # re-ddns API base URL (Docker DNS resolves "re-ddns" → container IP)
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      # Service registration details
+      - SERVICE_SUBDOMAIN=testapp
+      - SERVICE_ZONE=reflex-ddns.com
+      - SERVICE_IP=127.0.0.1
+      # Reflex listen addresses
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+
+    restart: unless-stopped
+
+volumes:
+  bind-data:
+  bind-log:
+  registry-data:
+  reflex-db:

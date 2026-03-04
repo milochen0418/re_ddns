@@ -391,3 +391,8 @@ app.add_page(
         IPState.toggle_monitoring,
     ],
 )
+
+# ── Register REST API routes (FastAPI router) ──
+from re_ddns.api.dns_api import router as dns_api_router  # noqa: E402
+
+app.api.include_router(dns_api_router)
