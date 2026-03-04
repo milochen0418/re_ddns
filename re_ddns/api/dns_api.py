@@ -26,8 +26,7 @@ import dns.update
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from re_ddns.api import registry
-from re_ddns.api import nginx_manager
+from re_ddns.api import cert_manager, nginx_manager, registry
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +100,7 @@ class ServiceRegisterResponse(BaseModel):
     success: bool
     dns_ok: bool
     nginx_ok: bool
+    tls_ok: bool
     message: str
 
 
@@ -194,7 +194,7 @@ async def update_dns_record(req: DNSUpdateRequest):
 
 @router.post("/service/register", response_model=ServiceRegisterResponse)
 async def register_service_endpoint(req: ServiceRegisterRequest):
-    """Register a service: write to registry → sync nginx → update DNS."""
+    """Register a service: registry → DNS → TLS cert → nginx (with HTTPS)."""
 
     fqdn = f"{req.subdomain}.{req.zone_name}"
     logger.info(
@@ -213,20 +213,33 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
         ttl=req.ttl,
     )
 
-    # 2) Sync nginx from registry
+    # 2) DNS A record
+    dns_ok, dns_msg = _do_dns_update(
+        req.subdomain, req.zone_name, req.ip_address, req.ttl,
+    )
+    if not dns_ok:
+        logger.warning("DNS failed for %s: %s", fqdn, dns_msg)
+
+    # 3) TLS certificate
+    #    For self-signed: generated immediately.
+    #    For letsencrypt: needs DNS + HTTP serving first, so we sync
+    #    nginx once with HTTP-only, then obtain the cert, then re-sync.
+    tls_ok = False
+    if cert_manager.TLS_MODE == "letsencrypt":
+        # First sync: HTTP + ACME challenge location (no cert yet)
+        nginx_manager.sync()
+        tls_ok = cert_manager.ensure_cert(fqdn)
+    else:
+        # self-signed or none
+        tls_ok = cert_manager.ensure_cert(fqdn)
+
+    # 4) Sync nginx from registry (now with HTTPS if cert exists)
     nginx_ok = True
     try:
         nginx_ok = nginx_manager.sync()
     except Exception as exc:
         logger.exception("nginx sync failed for %s", fqdn)
         nginx_ok = False
-
-    # 3) DNS A record
-    dns_ok, dns_msg = _do_dns_update(
-        req.subdomain, req.zone_name, req.ip_address, req.ttl,
-    )
-    if not dns_ok:
-        logger.warning("DNS failed for %s: %s", fqdn, dns_msg)
 
     success = dns_ok and nginx_ok
     parts = []
@@ -238,11 +251,16 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
         parts.append(f"nginx: {fqdn} -> {req.upstream_host}:{req.frontend_port}")
     else:
         parts.append("nginx sync failed")
+    if tls_ok:
+        parts.append(f"TLS: {cert_manager.TLS_MODE}")
+    else:
+        parts.append(f"TLS: skipped ({cert_manager.TLS_MODE})")
 
     return ServiceRegisterResponse(
         success=success,
         dns_ok=dns_ok,
         nginx_ok=nginx_ok,
+        tls_ok=tls_ok,
         message=" | ".join(parts),
     )
 

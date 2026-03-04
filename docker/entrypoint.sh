@@ -135,15 +135,29 @@ done
 log "Initialising service registry + nginx …"
 cd /app
 
-# 1) Init registry (creates /app/data/registry.json if absent)
-# 2) Write base nginx config
-# 3) Sync any previously-registered services from registry.json
+# 1) Init registry + cert manager
+# 2) Generate TLS certs for base domains (home / api / fallback)
+# 3) Write base nginx config (with HTTPS if certs exist)
+# 4) Sync any previously-registered services + their certs
 poetry run python -c "
-from re_ddns.api import registry, nginx_manager
+from re_ddns.api import registry, cert_manager, nginx_manager
+
 registry.init()
+cert_manager.init()
+
+# Generate certs for re-ddns's own domains
+for domain in ('home.reflex-ddns.com', 'api.reflex-ddns.com', 'reflex-ddns.com'):
+    cert_manager.ensure_cert(domain)
+
 nginx_manager.write_base_config()
+
+# Restore certs for previously registered services
+for svc in registry.list_services():
+    fqdn = f\"{svc['subdomain']}.{svc['zone']}\"
+    cert_manager.ensure_cert(fqdn)
+
 nginx_manager.sync()
-" || log "WARNING: registry / nginx init had errors"
+" || log "WARNING: registry / cert / nginx init had errors"
 
 log "Starting nginx …"
 nginx &

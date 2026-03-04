@@ -5,13 +5,14 @@
 #
 # re-ddns container serves as the "control plane":
 #   - BIND9     on port 53  (DNS)
-#   - nginx     on port 80  (reverse proxy, routes by Host header)
+#   - nginx     on port 80+443  (reverse proxy with auto-HTTPS)
 #   - Reflex    on 3000/8000 internally
 #
 # Routing (via nginx inside re-ddns):
-#   home.reflex-ddns.com     → re-ddns Reflex frontend
-#   api.reflex-ddns.com      → re-ddns Reflex backend (FastAPI)
-#   testapp.reflex-ddns.com  → test-app container
+#   https://home.reflex-ddns.com       → re-ddns Reflex frontend
+#   https://api.reflex-ddns.com/api/   → re-ddns Reflex backend (FastAPI)
+#   https://testapp.reflex-ddns.com    → test-app container
+#   (HTTP automatically redirects to HTTPS when TLS_MODE != none)
 #
 # Service registry lives in /app/data/registry.json (persisted via volume).
 #
@@ -36,6 +37,7 @@ services:
       - "53:53/tcp"
       - "53:53/udp"
       - "80:80"
+      - "443:443"
       # Uncomment for direct debugging (bypassing nginx):
       # - "3000:3000"
       # - "8000:8000"
@@ -56,6 +58,10 @@ services:
       - BIND9_HOST=127.0.0.1
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
+      # TLS_MODE: self-signed (default) | letsencrypt | none
+      - TLS_MODE=self-signed
+      # For letsencrypt mode, set your email:
+      # - LETSENCRYPT_EMAIL=you@example.com
 
     cap_add:
       - NET_ADMIN

@@ -1,19 +1,18 @@
-"""Dynamic nginx reverse-proxy configuration manager.
+"""Dynamic nginx reverse-proxy configuration manager (HTTP + HTTPS).
 
-All configuration is **derived from the service registry**
-(``registry.json``).  This module never stores state itself — it reads
-the registry and regenerates nginx configs every time ``sync()`` is
-called.
+All configuration is **derived from the service registry** and the
+certificate store.  This module never stores state itself.
 
-Flow::
+When a TLS certificate exists for a domain (checked via
+``cert_manager.has_cert()``), the generated nginx config will:
+  1. Listen on **:443 ssl** with the cert.
+  2. Redirect **:80** to HTTPS (except the ACME challenge path).
 
-    API call
-      → registry.put_service(...)     # write to JSON
-      → nginx_manager.sync()         # read JSON → write nginx confs → reload
-      → dns update                   # read JSON → RFC 2136 updates
+When no certificate exists, the config serves on **:80** only and
+exposes ``/.well-known/acme-challenge/`` so certbot can work later.
 
 Generated files live under ``/etc/nginx/conf.d/``:
-  - ``_base.conf``        – WebSocket map, re-ddns own server blocks, fallback
+  - ``_base.conf``        – globals, SSL params, re-ddns server blocks, fallback
   - ``<subdomain>.conf``  – one per registered service
 """
 
@@ -21,128 +20,174 @@ from __future__ import annotations
 
 import logging
 import subprocess
-import textwrap
 from pathlib import Path
 
-from re_ddns.api import registry
+from re_ddns.api import cert_manager, registry
 
 logger = logging.getLogger(__name__)
 
 NGINX_CONF_DIR = Path("/etc/nginx/conf.d")
 BASE_CONF = NGINX_CONF_DIR / "_base.conf"
 
+# ACME challenge webroot (shared with cert_manager)
+ACME_WEBROOT = "/var/www/acme"
 
-# ---------------------------------------------------------------------------
-# Config generation
-# ---------------------------------------------------------------------------
+
+# =====================================================================
+# Building blocks – small helpers that compose into full server blocks
+# =====================================================================
+
+def _acme_location() -> str:
+    """Snippet: serve ACME HTTP-01 challenges on port 80."""
+    return (
+        "    location /.well-known/acme-challenge/ {\n"
+        f"        root {ACME_WEBROOT};\n"
+        "    }\n"
+    )
+
+
+def _proxy_location(upstream: str) -> str:
+    """Snippet: reverse-proxy location block."""
+    return (
+        "    location / {\n"
+        f"        proxy_pass http://{upstream};\n"
+        "        proxy_http_version 1.1;\n"
+        "        proxy_set_header Host              $host;\n"
+        "        proxy_set_header X-Real-IP         $remote_addr;\n"
+        "        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;\n"
+        "        proxy_set_header X-Forwarded-Proto $scheme;\n"
+        "        proxy_set_header Upgrade    $http_upgrade;\n"
+        "        proxy_set_header Connection $connection_upgrade;\n"
+        "        proxy_read_timeout 86400s;\n"
+        "    }\n"
+    )
+
+
+def _ssl_directives(domain: str) -> str:
+    """Snippet: ssl_certificate + ssl_certificate_key lines."""
+    d = cert_manager.cert_dir(domain)
+    return (
+        f"    ssl_certificate     {d}/fullchain.pem;\n"
+        f"    ssl_certificate_key {d}/privkey.pem;\n"
+    )
+
+
+def _server_blocks(
+    domain: str,
+    upstream: str,
+    *,
+    is_default: bool = False,
+) -> str:
+    """Generate HTTP + optional HTTPS server blocks for *domain*.
+
+    If a cert exists → HTTP redirects to HTTPS; HTTPS serves content.
+    If no cert        → HTTP serves content directly.
+    """
+    has_ssl = cert_manager.has_cert(domain)
+
+    sn = "_" if is_default else domain
+    listen_80 = "    listen 80 default_server;" if is_default else "    listen 80;"
+    listen_443 = "    listen 443 ssl default_server;" if is_default else "    listen 443 ssl;"
+
+    parts: list[str] = []
+
+    # ── HTTP server block ──
+    parts.append("server {")
+    parts.append(listen_80)
+    parts.append(f"    server_name {sn};")
+    parts.append("")
+    parts.append(_acme_location())
+    if has_ssl:
+        # Redirect everything else to HTTPS
+        parts.append("    location / {")
+        parts.append("        return 301 https://$host$request_uri;")
+        parts.append("    }")
+    else:
+        # Serve directly
+        parts.append(_proxy_location(upstream))
+    parts.append("}")
+    parts.append("")
+
+    # ── HTTPS server block (only if cert exists) ──
+    if has_ssl:
+        parts.append("server {")
+        parts.append(listen_443)
+        parts.append("    http2 on;")
+        parts.append(f"    server_name {sn};")
+        parts.append("")
+        parts.append(_ssl_directives(domain))
+        parts.append("")
+        parts.append(_proxy_location(upstream))
+        parts.append("}")
+        parts.append("")
+
+    return "\n".join(parts)
+
+
+# =====================================================================
+# Full config generators
+# =====================================================================
 
 def _base_config_content() -> str:
-    """Return the nginx base config (map + default fallback server)."""
-    return textwrap.dedent("""\
-        # Auto-generated by re_ddns – do not edit manually
-        # WebSocket upgrade support
-        map $http_upgrade $connection_upgrade {
-            default upgrade;
-            ''      close;
-        }
-
-        # ── re-ddns own UI: home.<zone> ──
-        upstream _re_ddns_frontend {
-            server 127.0.0.1:3000;
-        }
-
-        upstream _re_ddns_backend {
-            server 127.0.0.1:8000;
-        }
-
-        server {
-            listen 80;
-            server_name home.reflex-ddns.com;
-
-            location / {
-                proxy_pass http://_re_ddns_frontend;
-                proxy_http_version 1.1;
-                proxy_set_header Host              $host;
-                proxy_set_header X-Real-IP         $remote_addr;
-                proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_set_header Upgrade    $http_upgrade;
-                proxy_set_header Connection $connection_upgrade;
-                proxy_read_timeout 86400s;
-            }
-        }
-
-        server {
-            listen 80;
-            server_name api.reflex-ddns.com;
-
-            location / {
-                proxy_pass http://_re_ddns_backend;
-                proxy_http_version 1.1;
-                proxy_set_header Host              $host;
-                proxy_set_header X-Real-IP         $remote_addr;
-                proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_set_header Upgrade    $http_upgrade;
-                proxy_set_header Connection $connection_upgrade;
-                proxy_read_timeout 86400s;
-            }
-        }
-
-        # ── Fallback: unknown Host → re-ddns UI ──
-        server {
-            listen 80 default_server;
-            server_name _;
-
-            location / {
-                proxy_pass http://_re_ddns_frontend;
-                proxy_http_version 1.1;
-                proxy_set_header Host              $host;
-                proxy_set_header X-Real-IP         $remote_addr;
-                proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_set_header Upgrade    $http_upgrade;
-                proxy_set_header Connection $connection_upgrade;
-                proxy_read_timeout 86400s;
-            }
-        }
-    """)
+    """Return the base nginx config with SSL params, upstreams, and
+    server blocks for home / api / fallback.
+    """
+    lines: list[str] = [
+        "# Auto-generated by re_ddns – do not edit manually",
+        "",
+        "# ── WebSocket upgrade support ──",
+        "map $http_upgrade $connection_upgrade {",
+        "    default upgrade;",
+        "    ''      close;",
+        "}",
+        "",
+        "# ── Shared SSL settings ──",
+        "ssl_protocols TLSv1.2 TLSv1.3;",
+        "ssl_ciphers HIGH:!aNULL:!MD5;",
+        "ssl_prefer_server_ciphers on;",
+        "ssl_session_cache shared:SSL:10m;",
+        "ssl_session_timeout 1d;",
+        "",
+        "# ── re-ddns upstreams ──",
+        "upstream _re_ddns_frontend {",
+        "    server 127.0.0.1:3000;",
+        "}",
+        "",
+        "upstream _re_ddns_backend {",
+        "    server 127.0.0.1:8000;",
+        "}",
+        "",
+        "# ── home.reflex-ddns.com ──",
+        _server_blocks("home.reflex-ddns.com", "_re_ddns_frontend"),
+        "# ── api.reflex-ddns.com ──",
+        _server_blocks("api.reflex-ddns.com", "_re_ddns_backend"),
+        "# ── Fallback: unknown Host → re-ddns UI ──",
+        _server_blocks("reflex-ddns.com", "_re_ddns_frontend", is_default=True),
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def _service_config(svc: dict) -> str:
-    """Generate an nginx server block for one registry entry."""
+    """Generate nginx config for one registered service."""
     fqdn = f"{svc['subdomain']}.{svc['zone']}"
     upstream_name = f"_svc_{svc['subdomain']}"
     host = svc["upstream_host"]
     port = svc["frontend_port"]
-    return textwrap.dedent(f"""\
-        # Auto-generated by re_ddns for {fqdn}
-        upstream {upstream_name} {{
-            server {host}:{port};
-        }}
 
-        server {{
-            listen 80;
-            server_name {fqdn};
-
-            location / {{
-                proxy_pass http://{upstream_name};
-                proxy_http_version 1.1;
-                proxy_set_header Host              $host;
-                proxy_set_header X-Real-IP         $remote_addr;
-                proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-                proxy_set_header X-Forwarded-Proto $scheme;
-                proxy_set_header Upgrade    $http_upgrade;
-                proxy_set_header Connection $connection_upgrade;
-                proxy_read_timeout 86400s;
-            }}
-        }}
-    """)
+    lines: list[str] = [
+        f"# Auto-generated by re_ddns for {fqdn}",
+        f"upstream {upstream_name} {{",
+        f"    server {host}:{port};",
+        "}",
+        "",
+        _server_blocks(fqdn, upstream_name),
+    ]
+    return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
+# =====================================================================
 # Public API
-# ---------------------------------------------------------------------------
+# =====================================================================
 
 def write_base_config() -> None:
     """Write the base nginx config (called once at startup)."""
@@ -152,15 +197,19 @@ def write_base_config() -> None:
 
 
 def sync() -> bool:
-    """Read the registry and regenerate **all** per-service nginx configs.
+    """Regenerate **all** nginx configs from the registry and reload.
 
-    1. Write a ``.conf`` file for every service in the registry.
-    2. Remove any stale ``.conf`` files for services no longer in the registry.
-    3. Reload nginx.
+    1. Rewrite ``_base.conf`` (cert availability may have changed).
+    2. Write a ``.conf`` per registered service.
+    3. Remove stale ``.conf`` files.
+    4. ``nginx -t && nginx -s reload``.
 
-    Returns *True* if nginx reloaded successfully.
+    Returns *True* on success.
     """
     NGINX_CONF_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Re-generate base config (picks up new certs for home/api)
+    BASE_CONF.write_text(_base_config_content())
 
     services = registry.list_services()
     wanted_files: set[str] = set()
@@ -172,10 +221,10 @@ def sync() -> bool:
         conf_path.write_text(_service_config(svc))
         logger.info("Wrote nginx config: %s", conf_path)
 
-    # Remove stale configs (skip _base.conf and any non-service files)
+    # Remove stale configs (skip _base.conf and system files)
     for existing in NGINX_CONF_DIR.glob("*.conf"):
         if existing.name.startswith("_"):
-            continue  # _base.conf etc.
+            continue
         if existing.name not in wanted_files:
             existing.unlink()
             logger.info("Removed stale nginx config: %s", existing)

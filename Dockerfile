@@ -4,6 +4,8 @@ FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bind9 bind9utils bind9-dnsutils \
         nginx \
+        certbot \
+        openssl \
         curl unzip git lsof procps \
         gcc libffi-dev \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -25,7 +27,7 @@ RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
 
 # ── nginx: remove default site, prepare dynamic config directory ──
 RUN rm -f /etc/nginx/sites-enabled/default \
-    && mkdir -p /etc/nginx/conf.d /var/log/nginx
+    && mkdir -p /etc/nginx/conf.d /var/log/nginx /var/www/acme
 
 # ── Copy BIND9 configuration ──
 # named.conf.local.template uses __TSIG_SECRET__ placeholder;
@@ -60,7 +62,7 @@ RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts:
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Ports: DNS 53 (TCP+UDP), HTTP 80 (nginx proxy), Reflex frontend 3000, backend 8000
-EXPOSE 53/tcp 53/udp 80 3000 8000
+# Ports: DNS 53 (TCP+UDP), HTTP 80, HTTPS 443 (nginx proxy), Reflex 3000/8000
+EXPOSE 53/tcp 53/udp 80 443 3000 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
