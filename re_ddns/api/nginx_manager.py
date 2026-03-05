@@ -77,6 +77,7 @@ def _server_blocks(
     upstream: str,
     *,
     is_default: bool = False,
+    http_redirect: bool = True,
 ) -> str:
     """Generate HTTP + optional HTTPS server blocks for *domain*.
 
@@ -97,13 +98,13 @@ def _server_blocks(
     parts.append(f"    server_name {sn};")
     parts.append("")
     parts.append(_acme_location())
-    if has_ssl:
+    if has_ssl and http_redirect:
         # Redirect everything else to HTTPS
         parts.append("    location / {")
         parts.append("        return 301 https://$host$request_uri;")
         parts.append("    }")
     else:
-        # Serve directly
+        # Serve directly (HTTP-only or HTTP kept as CA-check fallback)
         parts.append(_proxy_location(upstream))
     parts.append("}")
     parts.append("")
@@ -157,10 +158,10 @@ def _base_config_content() -> str:
         "    server 127.0.0.1:8000;",
         "}",
         "",
-        "# ── home.reflex-ddns.com ──",
-        _server_blocks("home.reflex-ddns.com", "_re_ddns_frontend"),
-        "# ── api.reflex-ddns.com ──",
-        _server_blocks("api.reflex-ddns.com", "_re_ddns_backend"),
+        "# ── home.reflex-ddns.com (HTTP kept open for CA-check fallback) ──",
+        _server_blocks("home.reflex-ddns.com", "_re_ddns_frontend", http_redirect=False),
+        "# ── api.reflex-ddns.com (HTTP kept open for CA download) ──",
+        _server_blocks("api.reflex-ddns.com", "_re_ddns_backend", http_redirect=False),
         "# ── Fallback: unknown Host → re-ddns UI ──",
         _server_blocks("reflex-ddns.com", "_re_ddns_frontend", is_default=True),
     ]

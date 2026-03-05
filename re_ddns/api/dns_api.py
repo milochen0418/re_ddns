@@ -24,6 +24,7 @@ import dns.rdatatype
 import dns.tsigkeyring
 import dns.update
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
 from re_ddns.api import cert_manager, nginx_manager, registry
@@ -282,3 +283,126 @@ async def unregister_service_endpoint(subdomain: str):
 async def list_services_endpoint():
     """List all registered services (from registry)."""
     return registry.list_services()
+
+
+# ---------------------------------------------------------------------------
+# CA certificate — verify, download & install helpers
+# ---------------------------------------------------------------------------
+
+@router.get("/ca/verify")
+async def ca_verify():
+    """Return CA status, TLS mode, and fingerprint.
+
+    Responds with ``Access-Control-Allow-Origin: *`` so that a page
+    served over HTTP can probe the HTTPS version of this endpoint to
+    decide whether the browser trusts the CA certificate.
+    """
+    has_ca = cert_manager.has_ca()
+    return JSONResponse(
+        content={
+            "tls_mode": cert_manager.TLS_MODE,
+            "has_ca": has_ca,
+            "fingerprint": cert_manager.ca_fingerprint() if has_ca else "",
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+        },
+    )
+
+
+@router.get("/ca.pem")
+async def download_ca_cert():
+    """Download the Local CA root certificate (PEM format).
+
+    Users import this into their OS / browser trust store so that all
+    ``*.reflex-ddns.com`` HTTPS sites are trusted automatically.
+    """
+    pem = cert_manager.ca_pem_bytes()
+    if not pem:
+        return PlainTextResponse(
+            "No CA certificate available (TLS_MODE may be 'none').",
+            status_code=404,
+        )
+    return Response(
+        content=pem,
+        media_type="application/x-pem-file",
+        headers={
+            "Content-Disposition": "attachment; filename=re_ddns_ca.pem",
+        },
+    )
+
+
+@router.get("/ca/install-script/{platform}")
+async def ca_install_script(platform: str):
+    """Return a ready-to-run install script for the CA certificate.
+
+    Supported platforms: ``macos``, ``linux``, ``windows``.
+    """
+    # The API URL visible to the client (they access via nginx on :80)
+    base = "http://home.reflex-ddns.com"
+    download = f"{base}/api/ca.pem"
+
+    scripts = {
+        "macos": (
+            "#!/bin/bash\n"
+            "# Re-DDNS Local CA — macOS installer\n"
+            "set -e\n"
+            f'echo "Downloading CA certificate from {download} ..."\n'
+            f'curl -sSfL -o /tmp/re_ddns_ca.pem "{download}"\n'
+            'echo "Installing into System Keychain (requires admin password) ..."\n'
+            "sudo security add-trusted-cert -d -r trustRoot "
+            "-k /Library/Keychains/System.keychain /tmp/re_ddns_ca.pem\n"
+            'echo ""\n'
+            'echo "Done! All *.reflex-ddns.com HTTPS sites are now trusted."\n'
+            'echo "You may need to restart your browser."\n'
+        ),
+        "linux": (
+            "#!/bin/bash\n"
+            "# Re-DDNS Local CA — Linux installer (Debian/Ubuntu)\n"
+            "set -e\n"
+            f'echo "Downloading CA certificate from {download} ..."\n'
+            f'curl -sSfL -o /tmp/re_ddns_ca.pem "{download}"\n'
+            'echo "Installing system-wide (requires root) ..."\n'
+            "sudo cp /tmp/re_ddns_ca.pem /usr/local/share/ca-certificates/re_ddns_ca.crt\n"
+            "sudo update-ca-certificates\n"
+            'echo ""\n'
+            'echo "Done! System tools (curl, wget) now trust *.reflex-ddns.com."\n'
+            'echo ""\n'
+            'echo "For browsers:"\n'
+            'echo "  Chrome: Settings → Privacy → Manage certificates → Authorities → Import"\n'
+            'echo "  Firefox: Settings → Privacy → View Certificates → Authorities → Import"\n'
+            'echo "  Import the file: /tmp/re_ddns_ca.pem"\n'
+        ),
+        "windows": (
+            "# Re-DDNS Local CA — Windows installer (PowerShell, run as Admin)\n"
+            f'$url = "{download}"\n'
+            '$outFile = "$env:TEMP\\re_ddns_ca.pem"\n'
+            '\n'
+            'Write-Host "Downloading CA certificate ..."\n'
+            "Invoke-WebRequest -Uri $url -OutFile $outFile\n"
+            '\n'
+            'Write-Host "Installing to Trusted Root Certification Authorities ..."\n'
+            "Import-Certificate -FilePath $outFile "
+            "-CertStoreLocation Cert:\\LocalMachine\\Root\n"
+            '\n'
+            'Write-Host ""\n'
+            'Write-Host "Done! All *.reflex-ddns.com HTTPS sites are now trusted."\n'
+            'Write-Host "You may need to restart your browser."\n'
+        ),
+    }
+
+    content = scripts.get(platform.lower())
+    if content is None:
+        return PlainTextResponse(
+            f"Unknown platform '{platform}'. Use: macos, linux, windows",
+            status_code=400,
+        )
+
+    ext = ".ps1" if platform.lower() == "windows" else ".sh"
+    return PlainTextResponse(
+        content=content,
+        headers={
+            "Content-Disposition": f"attachment; filename=install_ca{ext}",
+        },
+    )

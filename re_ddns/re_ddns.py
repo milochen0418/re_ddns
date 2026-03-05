@@ -1,6 +1,7 @@
 import reflex as rx
 from re_ddns.components.sidebar import sidebar
 from re_ddns.components.config_form import config_panel, config_summary_card
+from re_ddns.components.ca_guide import ca_guide_view
 from re_ddns.states.ui import UIState
 from re_ddns.states.config import ConfigState
 from re_ddns.states.ip_state import IPState
@@ -360,6 +361,7 @@ def index() -> rx.Component:
                             ),
                         ),
                         ("Activity Log", activity_view()),
+                        ("CA Setup", ca_guide_view()),
                         dashboard_view(),
                     ),
                     class_name="flex-1 p-8 overflow-y-auto",
@@ -372,6 +374,39 @@ def index() -> rx.Component:
     )
 
 
+# ── Client-side CA detection script ──────────────────────────────────
+# On HTTP: probes HTTPS /api/ca/verify
+#   → HTTPS OK   → redirect user to the HTTPS version of the same page
+#   → HTTPS fail → redirect to /ca-setup (CA not trusted)
+# On HTTPS / /ca-setup / IP-address / localhost: no-op.
+_CA_DETECT_SCRIPT = r"""
+(function() {
+    if (location.pathname === '/ca-setup') return;
+    var h = location.hostname;
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(h) || h === 'localhost') return;
+    if (location.protocol === 'https:') return;
+    fetch('/api/ca/verify')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.has_ca || data.tls_mode === 'none') return;
+            fetch('https://' + location.host + '/api/ca/verify', { mode: 'cors' })
+                .then(function(r) {
+                    if (r.ok) {
+                        location.replace(
+                            'https://' + location.host +
+                            location.pathname + location.search + location.hash
+                        );
+                    }
+                })
+                .catch(function() {
+                    location.replace('/ca-setup');
+                });
+        })
+        .catch(function() {});
+})();
+"""
+
+
 app = rx.App(
     theme=rx.theme(appearance="light"),
     head_components=[
@@ -381,6 +416,7 @@ app = rx.App(
             href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
             rel="stylesheet",
         ),
+        rx.el.script(_CA_DETECT_SCRIPT),
     ],
 )
 app.add_page(
@@ -390,6 +426,12 @@ app.add_page(
         IPState.detect_ip,
         IPState.toggle_monitoring,
     ],
+)
+
+app.add_page(
+    index,
+    route="/ca-setup",
+    on_load=[UIState.set_page("CA Setup")],
 )
 
 # ── Register REST API routes (FastAPI router) ──
