@@ -62,8 +62,19 @@ def _download_section() -> rx.Component:
                         rx.el.span("Download re_ddns_ca.pem"),
                         class_name="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-all shadow-md",
                     ),
+                    id="ca-download-link",
                     href="/api/ca.pem",
                     download="re_ddns_ca.pem",
+                ),
+                rx.el.script(
+                    """
+                    (function() {
+                        var el = document.getElementById('ca-download-link');
+                        if (el && window.__reddns_api) {
+                            el.href = window.__reddns_api('/api/ca.pem');
+                        }
+                    })();
+                    """
                 ),
                 class_name="mt-4 ml-11",
             ),
@@ -91,8 +102,16 @@ def _macos_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    "curl -sfL http://home.reflex-ddns.com/api/ca/install-script/macos | bash",
+                    id="macos-cmd",
                     class_name="text-sm text-green-400",
+                ),
+                rx.el.script(
+                    "document.getElementById('macos-cmd').textContent = "
+                    "'curl -sfL http://' + location.host + '/api/ca/install-script/macos | bash';"
+                    "if (window.__reddns_api_base) {"
+                    "  document.getElementById('macos-cmd').textContent = "
+                    "  'curl -sfL ' + window.__reddns_api('/api/ca/install-script/macos') + ' | bash';"
+                    "}"
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
             ),
@@ -146,8 +165,18 @@ def _windows_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    'Invoke-WebRequest -Uri "http://home.reflex-ddns.com/api/ca/install-script/windows" -OutFile "$env:TEMP\\install_ca.ps1"; & "$env:TEMP\\install_ca.ps1"',
+                    id="windows-cmd",
                     class_name="text-sm text-green-400",
+                ),
+                rx.el.script(
+                    "document.getElementById('windows-cmd').textContent = "
+                    "'Invoke-WebRequest -Uri \"http://' + location.host + '/api/ca/install-script/windows\" '"
+                    "+ '-OutFile \"$env:TEMP\\\\install_ca.ps1\"; & \"$env:TEMP\\\\install_ca.ps1\"';"
+                    "if (window.__reddns_api_base) {"
+                    "  document.getElementById('windows-cmd').textContent = "
+                    "  'Invoke-WebRequest -Uri \"' + window.__reddns_api('/api/ca/install-script/windows') + '\" '"
+                    "  + '-OutFile \"$env:TEMP\\\\install_ca.ps1\"; & \"$env:TEMP\\\\install_ca.ps1\"';"
+                    "}"
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
             ),
@@ -197,8 +226,16 @@ def _linux_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    "curl -sfL http://home.reflex-ddns.com/api/ca/install-script/linux | bash",
+                    id="linux-cmd",
                     class_name="text-sm text-green-400",
+                ),
+                rx.el.script(
+                    "document.getElementById('linux-cmd').textContent = "
+                    "'curl -sfL http://' + location.host + '/api/ca/install-script/linux | bash';"
+                    "if (window.__reddns_api_base) {"
+                    "  document.getElementById('linux-cmd').textContent = "
+                    "  'curl -sfL ' + window.__reddns_api('/api/ca/install-script/linux') + ' | bash';"
+                    "}"
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
             ),
@@ -311,17 +348,34 @@ def _verify_section() -> rx.Component:
             rx.el.div(
                 rx.el.a(
                     rx.icon("lock", class_name="h-4 w-4 text-green-600"),
-                    rx.el.span("https://home.reflex-ddns.com"),
-                    href="https://home.reflex-ddns.com",
+                    rx.el.span(id="verify-url-home"),
+                    id="verify-link-home",
                     target="_blank",
                     class_name="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-all text-sm font-mono",
                 ),
                 rx.el.a(
                     rx.icon("lock", class_name="h-4 w-4 text-green-600"),
-                    rx.el.span("https://api.reflex-ddns.com/api/dns/status"),
-                    href="https://api.reflex-ddns.com/api/dns/status",
+                    rx.el.span(id="verify-url-api"),
+                    id="verify-link-api",
                     target="_blank",
                     class_name="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-all text-sm font-mono",
+                ),
+                rx.el.script(
+                    """
+                    (function() {
+                        var h = location.host;
+                        var homeUrl = 'https://' + h + '/';
+                        var apiUrl  = 'https://' + h + '/api/dns/status';
+                        var el1 = document.getElementById('verify-url-home');
+                        var lk1 = document.getElementById('verify-link-home');
+                        var el2 = document.getElementById('verify-url-api');
+                        var lk2 = document.getElementById('verify-link-api');
+                        if (el1) el1.textContent = homeUrl;
+                        if (lk1) lk1.href = homeUrl;
+                        if (el2) el2.textContent = apiUrl;
+                        if (lk2) lk2.href = apiUrl;
+                    })();
+                    """
                 ),
                 class_name="flex flex-col gap-2 mt-4 ml-11",
             ),
@@ -349,7 +403,11 @@ def _verify_section() -> rx.Component:
                     btn.addEventListener('click', function() {
                         res.textContent = 'Checking...';
                         res.className = 'text-sm ml-3 text-blue-600';
-                        fetch('https://' + location.host + '/api/ca/verify', { mode: 'cors' })
+                        fetch(window.__reddns_api
+                            ? window.__reddns_api('/api/ca/verify').replace('http:', 'https:')
+                            : 'https://' + location.host + '/api/ca/verify',
+                            { mode: 'cors' }
+                        )
                             .then(function(r) {
                                 if (r.ok) {
                                     res.textContent = 'HTTPS works! Redirecting...';
