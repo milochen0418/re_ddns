@@ -140,9 +140,9 @@ cd /app
 # 3) Write base nginx config (with HTTPS if certs exist)
 # 4) Sync any previously-registered services + their certs
 poetry run python -c "
-from re_ddns.api import registry, cert_manager, nginx_manager
+from re_ddns.api import registry_api, cert_manager, nginx_manager
 
-registry.init()
+registry_api.init()
 cert_manager.init()
 
 # Generate certs for re-ddns's own domains
@@ -152,7 +152,7 @@ for domain in ('home.reflex-ddns.com', 'api.reflex-ddns.com', 'reflex-ddns.com')
 nginx_manager.write_base_config()
 
 # Restore certs for previously registered services
-for svc in registry.list_services():
+for svc in registry_api.list_services():
     fqdn = f\"{svc['subdomain']}.{svc['zone']}\"
     cert_manager.ensure_cert(fqdn)
 

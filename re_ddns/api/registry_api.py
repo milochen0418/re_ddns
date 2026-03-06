@@ -1,63 +1,162 @@
-"""FastAPI router – DNS + service-registration endpoints.
+"""Service registry + FastAPI router.
 
-All mutations flow through the JSON **registry** which is the single
-source of truth:
+This module is the **single entry-point** for service management:
 
-1. ``POST /api/service/register`` → ``registry.put_service()``
-   → ``nginx_manager.sync()`` → ``_do_dns_update()``
-2. ``DELETE /api/service/{subdomain}`` → ``registry.delete_service()``
-   → ``nginx_manager.sync()``
-3. ``GET /api/service/list`` / ``GET /api/dns/status`` are read-only.
-4. ``POST /api/dns/update`` is a low-level escape hatch that does NOT
-   touch the registry (direct RFC 2136 update).
+1. It owns the JSON registry (``/app/data/registry.json``) — the
+   single source of truth for all registered services.
+2. It exposes FastAPI endpoints that first persist changes to the
+   registry, then delegate to the infrastructure managers:
+   - ``dns_manager``   — RFC 2136 dynamic DNS updates
+   - ``cert_manager``  — TLS certificate provisioning
+   - ``nginx_manager`` — reverse-proxy configuration
+
+Flow for ``POST /api/service/register``::
+
+    registry_api  ──►  write JSON (registry)
+         │
+         ├──►  dns_manager.do_dns_update()
+         ├──►  cert_manager.ensure_cert()
+         └──►  nginx_manager.sync()   (reads the JSON it needs itself)
+
+File layout (default ``/app/data/registry.json``)::
+
+    {
+      "services": {
+        "testapp": {
+          "subdomain": "testapp",
+          "zone": "reflex-ddns.com",
+          "upstream_host": "test-app",
+          "frontend_port": 3000,
+          "backend_port": 8000,
+          "ip_address": "127.0.0.1",
+          "ttl": 60,
+          "registered_at": "2026-03-05T12:00:00"
+        }
+      }
+    }
+
+Thread-safe: all reads/writes are protected by a ``threading.Lock``.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-import os
-from typing import Optional
+from datetime import datetime, timezone
+from pathlib import Path
+from threading import Lock
+from typing import Any, Optional
 
-import dns.query
-import dns.rcode
-import dns.rdatatype
-import dns.tsigkeyring
-import dns.update
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
-from re_ddns.api import cert_manager, nginx_manager, registry
+from re_ddns.api import cert_manager, dns_manager, nginx_manager
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["dns", "service"])
 
-
 # ---------------------------------------------------------------------------
-# Helpers – read server-side TSIG defaults
+# Registry data layer
 # ---------------------------------------------------------------------------
 
-def _read_tsig_defaults() -> dict[str, str]:
-    """Return TSIG defaults from the env-file written by entrypoint.sh."""
-    path = "/etc/bind/tsig-secret.env"
-    result: dict[str, str] = {}
-    if not os.path.exists(path):
-        return result
-    try:
-        with open(path) as f:
-            for raw in f:
-                line = raw.strip()
-                if not line or line.startswith("#"):
-                    continue
-                k, _, v = line.partition("=")
-                result[k] = v
-    except Exception:
-        pass
-    return result
+_DEFAULT_PATH = Path("/app/data/registry.json")
+_lock = Lock()
+
+# Module-level path — can be overridden via ``init()``.
+_registry_path: Path = _DEFAULT_PATH
 
 
-_tsig = _read_tsig_defaults()
+def _empty_registry() -> dict[str, Any]:
+    return {"services": {}}
+
+
+def _ensure_file(path: Path) -> None:
+    """Create the registry file (+ parent dirs) if it doesn't exist."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.write_text(json.dumps(_empty_registry(), indent=2) + "\n")
+        logger.info("Created new registry file: %s", path)
+
+
+def init(path: Path | str | None = None) -> Path:
+    """Initialise the registry.  Call once at startup.
+
+    Returns the resolved path for logging purposes.
+    """
+    global _registry_path
+    if path is not None:
+        _registry_path = Path(path)
+    _ensure_file(_registry_path)
+    logger.info("Registry initialised: %s", _registry_path)
+    return _registry_path
+
+
+def load() -> dict[str, Any]:
+    """Return the full registry dict (deep copy)."""
+    with _lock:
+        _ensure_file(_registry_path)
+        return json.loads(_registry_path.read_text())
+
+
+def save(data: dict[str, Any]) -> None:
+    """Overwrite the registry file atomically."""
+    with _lock:
+        _ensure_file(_registry_path)
+        tmp = _registry_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        tmp.replace(_registry_path)
+
+
+def get_service(subdomain: str) -> dict[str, Any] | None:
+    """Return a single service entry, or *None*."""
+    data = load()
+    return data["services"].get(subdomain)
+
+
+def put_service(
+    subdomain: str,
+    zone: str,
+    upstream_host: str,
+    frontend_port: int = 3000,
+    backend_port: int = 8000,
+    ip_address: str = "127.0.0.1",
+    ttl: int = 60,
+) -> dict[str, Any]:
+    """Insert or update a service.  Returns the entry written."""
+    entry = {
+        "subdomain": subdomain,
+        "zone": zone,
+        "upstream_host": upstream_host,
+        "frontend_port": frontend_port,
+        "backend_port": backend_port,
+        "ip_address": ip_address,
+        "ttl": ttl,
+        "registered_at": datetime.now(timezone.utc).isoformat(),
+    }
+    data = load()
+    data["services"][subdomain] = entry
+    save(data)
+    logger.info("Registry: put service '%s'", subdomain)
+    return entry
+
+
+def delete_service(subdomain: str) -> bool:
+    """Remove a service.  Returns *True* if it existed."""
+    data = load()
+    if subdomain not in data["services"]:
+        return False
+    del data["services"][subdomain]
+    save(data)
+    logger.info("Registry: deleted service '%s'", subdomain)
+    return True
+
+
+def list_services() -> list[dict[str, Any]]:
+    """Return a list of all service entries."""
+    data = load()
+    return list(data["services"].values())
 
 
 # ---------------------------------------------------------------------------
@@ -116,35 +215,6 @@ class ServiceListItem(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Internal DNS helper
-# ---------------------------------------------------------------------------
-
-def _do_dns_update(
-    record_name: str,
-    zone_name: str,
-    ip_address: str,
-    ttl: int,
-) -> tuple[bool, str]:
-    """Perform an RFC 2136 DNS update using server-side TSIG defaults."""
-    key_name = _tsig.get("TSIG_KEY_NAME", "")
-    key_secret = _tsig.get("TSIG_SECRET", "")
-    if not key_name or not key_secret:
-        return False, "No server-side TSIG credentials available."
-
-    try:
-        keyring = dns.tsigkeyring.from_text({key_name: key_secret})
-        update = dns.update.Update(zone_name, keyring=keyring)
-        update.replace(record_name, ttl, "A", ip_address)
-        response = dns.query.tcp(update, "127.0.0.1", timeout=10.0)
-        rcode_val = response.rcode()
-        if rcode_val != dns.rcode.NOERROR:
-            return False, f"DNS RCODE: {dns.rcode.to_text(rcode_val)}"
-        return True, "ok"
-    except Exception as exc:
-        return False, str(exc)
-
-
-# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -157,36 +227,27 @@ async def dns_status():
 @router.post("/dns/update", response_model=DNSUpdateResponse)
 async def update_dns_record(req: DNSUpdateRequest):
     """Low-level: create / replace a DNS record (does NOT touch registry)."""
-    key_name = req.key_name or _tsig.get("TSIG_KEY_NAME", "")
-    key_secret = req.key_secret or _tsig.get("TSIG_SECRET", "")
-
-    if not key_name or not key_secret:
-        return DNSUpdateResponse(
-            success=False,
-            message="TSIG credentials required but unavailable.",
-        )
-
     fqdn = f"{req.record_name}.{req.zone_name}"
     logger.info("dns/update: %s %s -> %s", req.record_type, fqdn, req.ip_address)
 
-    try:
-        keyring = dns.tsigkeyring.from_text({key_name: key_secret})
-        update = dns.update.Update(req.zone_name, keyring=keyring)
-        update.replace(req.record_name, req.ttl, req.record_type, req.ip_address)
-        response = dns.query.tcp(update, req.server_ip, timeout=10.0)
-        rcode_val = response.rcode()
-        if rcode_val != dns.rcode.NOERROR:
-            msg = f"DNS update failed: {dns.rcode.to_text(rcode_val)}"
-            logger.error(msg)
-            return DNSUpdateResponse(success=False, message=msg)
+    ok, msg = dns_manager.do_dns_update(
+        record_name=req.record_name,
+        zone_name=req.zone_name,
+        ip_address=req.ip_address,
+        ttl=req.ttl,
+        record_type=req.record_type,
+        key_name=req.key_name or None,
+        key_secret=req.key_secret or None,
+        server_ip=req.server_ip,
+    )
 
+    if ok:
         msg = f"Updated {fqdn} ({req.record_type}) -> {req.ip_address} (TTL {req.ttl})"
         logger.info(msg)
-        return DNSUpdateResponse(success=True, message=msg)
+    else:
+        logger.error("DNS update failed: %s", msg)
 
-    except Exception as exc:
-        logger.exception("DNS update error")
-        return DNSUpdateResponse(success=False, message=str(exc))
+    return DNSUpdateResponse(success=ok, message=msg)
 
 
 # ---------------------------------------------------------------------------
@@ -203,8 +264,8 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
         fqdn, req.upstream_host, req.frontend_port, req.ip_address,
     )
 
-    # 1) Registry (source of truth)
-    registry.put_service(
+    # 1) Registry (source of truth) — write JSON first
+    put_service(
         subdomain=req.subdomain,
         zone=req.zone_name,
         upstream_host=req.upstream_host,
@@ -215,14 +276,13 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
     )
 
     # 2) DNS A record
-    dns_ok, dns_msg = _do_dns_update(
+    dns_ok, dns_msg = dns_manager.do_dns_update(
         req.subdomain, req.zone_name, req.ip_address, req.ttl,
     )
     if not dns_ok:
         logger.warning("DNS failed for %s: %s", fqdn, dns_msg)
 
     # 3) TLS certificate
-    #    For self-signed: generated immediately.
     #    For letsencrypt: needs DNS + HTTP serving first, so we sync
     #    nginx once with HTTP-only, then obtain the cert, then re-sync.
     tls_ok = False
@@ -231,7 +291,7 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
         nginx_manager.sync()
         tls_ok = cert_manager.ensure_cert(fqdn)
     else:
-        # self-signed or none
+        # local-ca or none
         tls_ok = cert_manager.ensure_cert(fqdn)
 
     # 4) Sync nginx from registry (now with HTTPS if cert exists)
@@ -269,7 +329,7 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
 @router.delete("/service/{subdomain}")
 async def unregister_service_endpoint(subdomain: str):
     """Remove a service from registry + nginx (DNS TTL will expire)."""
-    existed = registry.delete_service(subdomain)
+    existed = delete_service(subdomain)
     nginx_ok = True
     if existed:
         try:
@@ -282,12 +342,42 @@ async def unregister_service_endpoint(subdomain: str):
 @router.get("/service/list", response_model=list[ServiceListItem])
 async def list_services_endpoint():
     """List all registered services (from registry)."""
-    return registry.list_services()
+    return list_services()
 
 
 # ---------------------------------------------------------------------------
 # CA certificate — verify, download & install helpers
 # ---------------------------------------------------------------------------
+
+@router.get("/origin")
+async def get_origin(request: Request):
+    """Return the origin/base-URL as seen by the client.
+
+    The Reflex app runs on localhost:3000/8000, but nginx proxies
+    requests and forwards the original ``Host`` header.  This endpoint
+    lets any client (browser JS or CLI) discover the externally-visible
+    domain name without hardcoding it.
+
+    Example response::
+
+        {
+            "host": "home.reflex-ddns.com",
+            "scheme": "https",
+            "base_url": "https://home.reflex-ddns.com"
+        }
+    """
+    host = request.headers.get("host", request.base_url.hostname or "localhost")
+    # Strip port if it's a default port
+    if ":" in host:
+        h, p = host.rsplit(":", 1)
+        if p in ("80", "443"):
+            host = h
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    return JSONResponse(
+        content={"host": host, "scheme": scheme, "base_url": f"{scheme}://{host}"},
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
+
 
 @router.get("/ca/verify")
 async def ca_verify():
@@ -334,13 +424,22 @@ async def download_ca_cert():
 
 
 @router.get("/ca/install-script/{platform}")
-async def ca_install_script(platform: str):
+async def ca_install_script(platform: str, request: Request):
     """Return a ready-to-run install script for the CA certificate.
 
     Supported platforms: ``macos``, ``linux``, ``windows``.
+
+    The download URL is derived from the incoming ``Host`` header so the
+    script works regardless of which domain/IP the user accessed.
     """
-    # The API URL visible to the client (they access via nginx on :80)
-    base = "http://home.reflex-ddns.com"
+    # Derive the base URL from the request Host header (set by nginx)
+    host = request.headers.get("host", request.base_url.hostname or "localhost")
+    if ":" in host:
+        h, p = host.rsplit(":", 1)
+        if p in ("80", "443"):
+            host = h
+    # Install scripts run from a terminal (no browser TLS), so use HTTP
+    base = f"http://{host}"
     download = f"{base}/api/ca.pem"
 
     scripts = {
@@ -354,7 +453,7 @@ async def ca_install_script(platform: str):
             "sudo security add-trusted-cert -d -r trustRoot "
             "-k /Library/Keychains/System.keychain /tmp/re_ddns_ca.pem\n"
             'echo ""\n'
-            'echo "Done! All *.reflex-ddns.com HTTPS sites are now trusted."\n'
+            f'echo "Done! All HTTPS sites under {host} are now trusted."\n'
             'echo "You may need to restart your browser."\n'
         ),
         "linux": (
@@ -367,7 +466,7 @@ async def ca_install_script(platform: str):
             "sudo cp /tmp/re_ddns_ca.pem /usr/local/share/ca-certificates/re_ddns_ca.crt\n"
             "sudo update-ca-certificates\n"
             'echo ""\n'
-            'echo "Done! System tools (curl, wget) now trust *.reflex-ddns.com."\n'
+            f'echo "Done! System tools (curl, wget) now trust *{host} domains."\n'
             'echo ""\n'
             'echo "For browsers:"\n'
             'echo "  Chrome: Settings → Privacy → Manage certificates → Authorities → Import"\n'
@@ -387,7 +486,7 @@ async def ca_install_script(platform: str):
             "-CertStoreLocation Cert:\\LocalMachine\\Root\n"
             '\n'
             'Write-Host ""\n'
-            'Write-Host "Done! All *.reflex-ddns.com HTTPS sites are now trusted."\n'
+            f'Write-Host "Done! All HTTPS sites under {host} are now trusted."\n'
             'Write-Host "You may need to restart your browser."\n'
         ),
     }

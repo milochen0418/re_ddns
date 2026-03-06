@@ -374,6 +374,29 @@ def index() -> rx.Component:
     )
 
 
+# ── API base URL helper ──────────────────────────────────────────────
+# Reflex dev mode: frontend = :3000 (Vite), backend = :8000 (FastAPI).
+# In production (nginx), both share the same origin.
+# This global function lets any JS in the app build correct API URLs.
+_API_BASE_SCRIPT = r"""
+(function() {
+    var p = location.protocol;
+    var h = location.hostname;
+    var port = location.port;
+    // Reflex dev mode: frontend :3000, backend :8000
+    if (port === '3000') {
+        window.__reddns_api_base = p + '//' + h + ':8000';
+    } else {
+        window.__reddns_api_base = '';
+    }
+    // Helper: build an API URL
+    window.__reddns_api = function(path) {
+        return window.__reddns_api_base + path;
+    };
+})();
+"""
+
+
 # ── Client-side CA detection script ──────────────────────────────────
 # On HTTP: probes HTTPS /api/ca/verify
 #   → HTTPS OK   → redirect user to the HTTPS version of the same page
@@ -385,7 +408,8 @@ _CA_DETECT_SCRIPT = r"""
     var h = location.hostname;
     if (/^\d+\.\d+\.\d+\.\d+$/.test(h) || h === 'localhost') return;
     if (location.protocol === 'https:') return;
-    fetch('/api/ca/verify')
+    var apiUrl = window.__reddns_api('/api/ca/verify');
+    fetch(apiUrl)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.has_ca || data.tls_mode === 'none') return;
@@ -416,6 +440,7 @@ app = rx.App(
             href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap",
             rel="stylesheet",
         ),
+        rx.el.script(_API_BASE_SCRIPT),
         rx.el.script(_CA_DETECT_SCRIPT),
     ],
 )
@@ -435,6 +460,6 @@ app.add_page(
 )
 
 # ── Register REST API routes (FastAPI router) ──
-from re_ddns.api.dns_api import router as dns_api_router  # noqa: E402
+from re_ddns.api.registry_api import router as registry_api_router  # noqa: E402
 
-app.api.include_router(dns_api_router)
+app.api.include_router(registry_api_router)
