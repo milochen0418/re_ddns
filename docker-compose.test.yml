@@ -23,6 +23,15 @@
 #   http://home.reflex-ddns.com       → re-ddns UI
 #   http://api.reflex-ddns.com/api/   → re-ddns API
 #   http://testapp.reflex-ddns.com    → test-app Hello World
+#   http://testapp2.reflex-ddns.com   → test-app2 (with in-container browser)
+#   http://localhost:6080/vnc.html    → noVNC (testapp2 container desktop)
+
+networks:
+  ddns-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
 
 services:
   # ── Main DDNS service (BIND9 + nginx + Reflex) ────────────────────────
@@ -32,6 +41,10 @@ services:
       dockerfile: Dockerfile
     container_name: re-ddns
     hostname: re-ddns
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.10
 
     ports:
       - "53:53/tcp"
@@ -77,6 +90,9 @@ services:
     container_name: test-app
     hostname: test-app
 
+    networks:
+      - ddns-net
+
     depends_on:
       - re-ddns
 
@@ -93,6 +109,53 @@ services:
       # Reflex listen addresses
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
+
+    restart: unless-stopped
+
+  # ── Test app 2 (Reflex + Chromium + noVNC) ─────────────────────────────
+  # Like test-app but with an in-container Chromium browser visible via
+  # noVNC at http://localhost:6080/vnc.html on your Mac.
+  # Use the browser to test CA download, certificate install, and HTTPS.
+  test-app2:
+    build:
+      context: ./testapp2
+      dockerfile: Dockerfile
+    container_name: test-app2
+    hostname: test-app2
+
+    networks:
+      - ddns-net
+
+    depends_on:
+      - re-ddns
+
+    ports:
+      # noVNC — view the container browser from your Mac
+      - "6080:6080"
+
+    environment:
+      # re-ddns API base URL (Docker DNS resolves "re-ddns" → container IP)
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      # Service registration details
+      - SERVICE_SUBDOMAIN=testapp2
+      - SERVICE_ZONE=reflex-ddns.com
+      - SERVICE_IP=127.0.0.1
+      # Reflex listen addresses
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      # Display settings
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=800
+      - SCREEN_DEPTH=24
+      # Chromium start URL (open re-ddns UI on launch)
+      - CHROMIUM_START_URL=http://home.reflex-ddns.com
+
+    # Chromium needs /dev/shm for shared memory
+    shm_size: '512m'
+
+    dns:
+      # Use re-ddns container's BIND9 so *.reflex-ddns.com resolves
+      - 172.28.0.10
 
     restart: unless-stopped
 
