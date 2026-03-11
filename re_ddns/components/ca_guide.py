@@ -11,6 +11,11 @@ platform-specific install scripts.
 
 import reflex as rx
 
+# Client-side JS expression that evaluates to the browser's current host
+# (e.g. "home.reflex-ddns.com").  Used to build install commands that
+# always match the URL the user is actually visiting.
+_host: rx.Var = rx.Var(_js_expr="window.location.host", _var_type=str)
+
 
 class CAGuideState(rx.State):
     """State for the CA installation guide page."""
@@ -66,7 +71,7 @@ def _download_section() -> rx.Component:
                     href="/api/ca.pem",
                     download="re_ddns_ca.pem",
                 ),
-                rx.el.script(
+                rx.script(
                     """
                     (function() {
                         var el = document.getElementById('ca-download-link');
@@ -102,16 +107,8 @@ def _macos_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    id="macos-cmd",
+                    rx.Var.create(f"curl -sfL http://{_host}/api/ca/install-script/macos | bash"),
                     class_name="text-sm text-green-400",
-                ),
-                rx.el.script(
-                    "document.getElementById('macos-cmd').textContent = "
-                    "'curl -sfL http://' + location.host + '/api/ca/install-script/macos | bash';"
-                    "if (window.__reddns_api_base) {"
-                    "  document.getElementById('macos-cmd').textContent = "
-                    "  'curl -sfL ' + window.__reddns_api('/api/ca/install-script/macos') + ' | bash';"
-                    "}"
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
             ),
@@ -165,18 +162,8 @@ def _windows_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    id="windows-cmd",
+                    rx.Var.create(f'Invoke-WebRequest -Uri "http://{_host}/api/ca/install-script/windows" -OutFile "$env:TEMP\\install_ca.ps1"; & "$env:TEMP\\install_ca.ps1"'),
                     class_name="text-sm text-green-400",
-                ),
-                rx.el.script(
-                    "document.getElementById('windows-cmd').textContent = "
-                    "'Invoke-WebRequest -Uri \"http://' + location.host + '/api/ca/install-script/windows\" '"
-                    "+ '-OutFile \"$env:TEMP\\\\install_ca.ps1\"; & \"$env:TEMP\\\\install_ca.ps1\"';"
-                    "if (window.__reddns_api_base) {"
-                    "  document.getElementById('windows-cmd').textContent = "
-                    "  'Invoke-WebRequest -Uri \"' + window.__reddns_api('/api/ca/install-script/windows') + '\" '"
-                    "  + '-OutFile \"$env:TEMP\\\\install_ca.ps1\"; & \"$env:TEMP\\\\install_ca.ps1\"';"
-                    "}"
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
             ),
@@ -226,16 +213,8 @@ def _linux_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    id="linux-cmd",
+                    rx.Var.create(f"curl -sfL http://{_host}/api/ca/install-script/linux | bash"),
                     class_name="text-sm text-green-400",
-                ),
-                rx.el.script(
-                    "document.getElementById('linux-cmd').textContent = "
-                    "'curl -sfL http://' + location.host + '/api/ca/install-script/linux | bash';"
-                    "if (window.__reddns_api_base) {"
-                    "  document.getElementById('linux-cmd').textContent = "
-                    "  'curl -sfL ' + window.__reddns_api('/api/ca/install-script/linux') + ' | bash';"
-                    "}"
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
             ),
@@ -348,34 +327,21 @@ def _verify_section() -> rx.Component:
             rx.el.div(
                 rx.el.a(
                     rx.icon("lock", class_name="h-4 w-4 text-green-600"),
-                    rx.el.span(id="verify-url-home"),
-                    id="verify-link-home",
+                    rx.el.span(
+                        rx.Var.create(f"https://{_host}/"),
+                    ),
+                    href=rx.Var.create(f"https://{_host}/"),
                     target="_blank",
                     class_name="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-all text-sm font-mono",
                 ),
                 rx.el.a(
                     rx.icon("lock", class_name="h-4 w-4 text-green-600"),
-                    rx.el.span(id="verify-url-api"),
-                    id="verify-link-api",
+                    rx.el.span(
+                        rx.Var.create(f"https://{_host}/api/dns/status"),
+                    ),
+                    href=rx.Var.create(f"https://{_host}/api/dns/status"),
                     target="_blank",
                     class_name="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-all text-sm font-mono",
-                ),
-                rx.el.script(
-                    """
-                    (function() {
-                        var h = location.host;
-                        var homeUrl = 'https://' + h + '/';
-                        var apiUrl  = 'https://' + h + '/api/dns/status';
-                        var el1 = document.getElementById('verify-url-home');
-                        var lk1 = document.getElementById('verify-link-home');
-                        var el2 = document.getElementById('verify-url-api');
-                        var lk2 = document.getElementById('verify-link-api');
-                        if (el1) el1.textContent = homeUrl;
-                        if (lk1) lk1.href = homeUrl;
-                        if (el2) el2.textContent = apiUrl;
-                        if (lk2) lk2.href = apiUrl;
-                    })();
-                    """
                 ),
                 class_name="flex flex-col gap-2 mt-4 ml-11",
             ),
@@ -394,7 +360,7 @@ def _verify_section() -> rx.Component:
                 ),
                 class_name="mt-4 ml-11 flex items-center",
             ),
-            rx.el.script(
+            rx.script(
                 """
                 (function() {
                     var btn = document.getElementById('verify-https-btn');
@@ -455,7 +421,7 @@ def ca_guide_view() -> rx.Component:
             style={"display": "none"},
             class_name="flex gap-3 p-4 bg-amber-50 rounded-xl border border-amber-300 mb-6",
         ),
-        rx.el.script(
+        rx.script(
             """
             (function() {
                 var el = document.getElementById('http-warning-banner');

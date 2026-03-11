@@ -71,6 +71,9 @@ services:
       - BIND9_HOST=127.0.0.1
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
+      # Tell Reflex frontend to connect to backend via nginx (port 80)
+      # instead of directly to port 8000 (not exposed to host).
+      - API_URL=http://home.reflex-ddns.com
       # TLS_MODE: local-ca (default) | letsencrypt | none
       - TLS_MODE=local-ca
       # For letsencrypt mode, set your email:
