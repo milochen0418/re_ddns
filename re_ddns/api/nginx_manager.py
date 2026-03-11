@@ -110,7 +110,7 @@ def _server_blocks(
 
     sn = "_" if is_default else domain
     listen_80 = "    listen 80 default_server;" if is_default else "    listen 80;"
-    listen_443 = "    listen 443 ssl default_server;" if is_default else "    listen 443 ssl;"
+    listen_443 = "    listen 443 ssl http2 default_server;" if is_default else "    listen 443 ssl http2;"
 
     parts: list[str] = []
 
@@ -141,7 +141,6 @@ def _server_blocks(
     if has_ssl:
         parts.append("server {")
         parts.append(listen_443)
-        parts.append("    http2 on;")
         parts.append(f"    server_name {sn};")
         parts.append("")
         parts.append(_ssl_directives(domain))
@@ -170,10 +169,9 @@ def _base_config_content() -> str:
         "    ''      close;",
         "}",
         "",
-        "# ── Shared SSL settings ──",
-        "ssl_protocols TLSv1.2 TLSv1.3;",
-        "ssl_ciphers HIGH:!aNULL:!MD5;",
-        "ssl_prefer_server_ciphers on;",
+        "# ── SSL settings (shared via main nginx.conf) ──",
+        "# Note: ssl_protocols and ssl_prefer_server_ciphers are set in",
+        "# /etc/nginx/nginx.conf; only add non-duplicate directives here.",
         "ssl_session_cache shared:SSL:10m;",
         "ssl_session_timeout 1d;",
         "",

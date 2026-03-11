@@ -459,7 +459,10 @@ app.add_page(
     on_load=[UIState.set_page("CA Setup")],
 )
 
-# ── Register REST API routes (FastAPI router) ──
+# ── Register REST API routes (FastAPI router on Starlette) ──
+from fastapi import FastAPI as _FastAPI  # noqa: E402
 from re_ddns.api.registry_api import router as registry_api_router  # noqa: E402
 
-app.api.include_router(registry_api_router)
+_api_app = _FastAPI()
+_api_app.include_router(registry_api_router)
+app._api.mount("", _api_app)

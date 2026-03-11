@@ -22,11 +22,13 @@ log "Hello, ^^ entrypoint.sh — last modified: $(stat -c '%y' "$0" 2>/dev/null 
 
 BIND_TEMPLATE="/etc/bind/named.conf.local.template"
 BIND_LOCAL="/etc/bind/named.conf.local"
+RNDC_TEMPLATE="/etc/bind/rndc.conf.template"
 RNDC_CONF="/etc/bind/rndc.conf"
 SECRET_EXPORT="/etc/bind/tsig-secret.env"   # readable by the Reflex app
 
-# Always start from a clean copy of the template
+# Always start from clean copies of the templates
 cp "$BIND_TEMPLATE" "$BIND_LOCAL"
+cp "$RNDC_TEMPLATE" "$RNDC_CONF"
 
 if [[ -n "${TSIG_SECRET:-}" ]]; then
     log "Using TSIG_SECRET from environment variable"
@@ -160,7 +162,7 @@ nginx_manager.sync()
 " || log "WARNING: registry / cert / nginx init had errors"
 
 log "Starting nginx …"
-nginx &
+nginx -g 'daemon off;' &
 NGINX_PID=$!
 log "nginx started (PID $NGINX_PID)"
 
