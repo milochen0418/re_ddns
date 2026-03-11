@@ -445,16 +445,117 @@ async def ca_install_script(platform: str, request: Request):
     scripts = {
         "macos": (
             "#!/bin/bash\n"
-            "# Re-DDNS Local CA — macOS installer\n"
-            "set -e\n"
-            f'echo "Downloading CA certificate from {download} ..."\n'
-            f'curl -sSfL -o /tmp/re_ddns_ca.pem "{download}"\n'
-            'echo "Installing into System Keychain (requires admin password) ..."\n'
-            "sudo security add-trusted-cert -d -r trustRoot "
-            "-k /Library/Keychains/System.keychain /tmp/re_ddns_ca.pem\n"
-            'echo ""\n'
-            f'echo "Done! All HTTPS sites under {host} are now trusted."\n'
-            'echo "You may need to restart your browser."\n'
+            "# Re-DDNS Local CA — macOS smart installer (AppleScript GUI)\n"
+            "# Uses native macOS dialogs for a friendly user experience.\n"
+            "\n"
+            'CA_NAME="Re-DDNS Root CA"\n'
+            'KEYCHAIN="/Library/Keychains/System.keychain"\n'
+            'TMP_PEM="/tmp/re_ddns_ca.pem"\n'
+            f'DOWNLOAD_URL="{download}"\n'
+            f'HOST="{host}"\n'
+            "\n"
+            "# ── Detect current CA status ──\n"
+            'INSTALLED=0\n'
+            'TRUSTED=0\n'
+            'STATUS_ICON="❌"\n'
+            'STATUS_TEXT="Not installed"\n'
+            "\n"
+            'if security find-certificate -c "$CA_NAME" "$KEYCHAIN" >/dev/null 2>&1; then\n'
+            '    INSTALLED=1\n'
+            '    TRUST_INFO=$(security dump-trust-settings -d 2>/dev/null || true)\n'
+            '    if echo "$TRUST_INFO" | grep -q "$CA_NAME"; then\n'
+            '        TRUSTED=1\n'
+            '        STATUS_ICON="✅"\n'
+            '        STATUS_TEXT="Installed and trusted (System Keychain)"\n'
+            '    else\n'
+            '        STATUS_ICON="⚠️"\n'
+            '        STATUS_TEXT="Installed but NOT fully trusted"\n'
+            '    fi\n'
+            'fi\n'
+            "\n"
+            "# ── Show status + menu via AppleScript ──\n"
+            'if [ "$INSTALLED" -eq 1 ]; then\n'
+            '    CHOICE=$(osascript <<EOF\n'
+            "tell application \"System Events\"\n"
+            "    set dialogResult to display dialog \\\n"
+            '        "$STATUS_ICON  Re-DDNS Root CA" & return & return & \\\n'
+            '        "Status:  $STATUS_TEXT" & return & return & \\\n'
+            '        "What would you like to do?" \\\n'
+            "        with title \"Re-DDNS CA Certificate Tool\" \\\n"
+            '        buttons {"Cancel", "Remove", "Reinstall"} \\\n'
+            '        default button "Reinstall" \\\n'
+            "        with icon caution\n"
+            "    return button returned of dialogResult\n"
+            "end tell\n"
+            "EOF\n"
+            '    ) || { echo "Cancelled."; exit 0; }\n'
+            'else\n'
+            '    CHOICE=$(osascript <<EOF\n'
+            "tell application \"System Events\"\n"
+            "    set dialogResult to display dialog \\\n"
+            '        "$STATUS_ICON  Re-DDNS Root CA" & return & return & \\\n'
+            '        "Status:  $STATUS_TEXT" & return & return & \\\n'
+            '        "Install the CA certificate to trust all" & return & \\\n'
+            '        "*.reflex-ddns.com HTTPS sites?" \\\n'
+            "        with title \"Re-DDNS CA Certificate Tool\" \\\n"
+            '        buttons {"Cancel", "Install"} \\\n'
+            '        default button "Install" \\\n'
+            "        with icon note\n"
+            "    return button returned of dialogResult\n"
+            "end tell\n"
+            "EOF\n"
+            '    ) || { echo "Cancelled."; exit 0; }\n'
+            'fi\n'
+            "\n"
+            "# ── Helper functions ──\n"
+            "do_download() {\n"
+            '    curl -fL -o "$TMP_PEM" "$DOWNLOAD_URL"\n'
+            "}\n"
+            "\n"
+            "do_install() {\n"
+            "    # sudo properly acquires the authorization context needed\n"
+            "    # by SecTrustSettingsSetTrustSettings (osascript cannot).\n"
+            '    sudo security add-trusted-cert -d -r trustRoot -k "$KEYCHAIN" "$TMP_PEM"\n'
+            "}\n"
+            "\n"
+            "do_remove() {\n"
+            '    CERT_SHA1=$(security find-certificate -c "$CA_NAME" -Z "$KEYCHAIN" 2>/dev/null \\\n'
+            "        | awk '/SHA-1 hash:/{print $NF}')\n"
+            '    if [ -n "$CERT_SHA1" ]; then\n'
+            '        sudo security delete-certificate -Z "$CERT_SHA1" "$KEYCHAIN"\n'
+            '    fi\n'
+            "}\n"
+            "\n"
+            "notify_ok() {\n"
+            '    osascript -e "display dialog \\"$1\\" with title \\"Re-DDNS CA\\" buttons {\\"OK\\"} default button \\"OK\\" with icon note"\n'
+            "}\n"
+            "\n"
+            "notify_err() {\n"
+            '    osascript -e "display dialog \\"$1\\" with title \\"Re-DDNS CA\\" buttons {\\"OK\\"} default button \\"OK\\" with icon stop"\n'
+            "}\n"
+            "\n"
+            "# ── Execute chosen action ──\n"
+            'case "$CHOICE" in\n'
+            '    "Install")\n'
+            "        do_download && do_install \\\n"
+            f'            && notify_ok "✅ CA certificate installed!\\n\\nAll HTTPS sites under {host} are now trusted.\\nPlease restart your browser." \\\n'
+            '            || notify_err "❌ Installation failed.\\nPlease try again."\n'
+            "        ;;\n"
+            '    "Reinstall")\n'
+            "        do_remove 2>/dev/null || true\n"
+            "        do_download && do_install \\\n"
+            f'            && notify_ok "✅ CA certificate reinstalled!\\n\\nThe latest certificate for {host} is now active.\\nPlease restart your browser." \\\n'
+            '            || notify_err "❌ Reinstallation failed.\\nPlease try again."\n'
+            "        ;;\n"
+            '    "Remove")\n'
+            "        do_remove \\\n"
+            '            && notify_ok "✅ CA certificate removed.\\n\\nHTTPS sites under *.reflex-ddns.com will no longer be trusted.\\nPlease restart your browser." \\\n'
+            '            || notify_err "❌ Removal failed.\\nThe certificate may have been removed already."\n'
+            "        ;;\n"
+            "    *)\n"
+            '        echo "Cancelled."\n'
+            "        ;;\n"
+            "esac\n"
         ),
         "linux": (
             "#!/bin/bash\n"

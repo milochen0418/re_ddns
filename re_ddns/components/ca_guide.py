@@ -107,7 +107,7 @@ def _macos_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    rx.Var.create(f"curl -sfL http://{_host}/api/ca/install-script/macos | bash"),
+                    rx.Var.create(f"curl -fL http://{_host}/api/ca/install-script/macos | bash"),
                     class_name="text-sm text-green-400",
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",
@@ -213,7 +213,7 @@ def _linux_instructions() -> rx.Component:
             ),
             rx.el.div(
                 rx.el.code(
-                    rx.Var.create(f"curl -sfL http://{_host}/api/ca/install-script/linux | bash"),
+                    rx.Var.create(f"curl -fL http://{_host}/api/ca/install-script/linux | bash"),
                     class_name="text-sm text-green-400",
                 ),
                 class_name="bg-gray-900 rounded-lg p-4 mt-3 overflow-x-auto",

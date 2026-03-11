@@ -34,7 +34,7 @@ ACME_WEBROOT = "/var/www/acme"
 
 # Reflex internal paths that must be proxied to the *backend* (FastAPI) port.
 # Everything else goes to the *frontend* (Vite / static) port.
-_REFLEX_BACKEND_PATHS = ("/_event", "/ping", "/_upload", "/_health")
+_REFLEX_BACKEND_PATHS = ("/_event", "/ping", "/_upload", "/_health", "/api")
 
 
 # =====================================================================

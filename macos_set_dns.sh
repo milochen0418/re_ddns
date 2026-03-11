@@ -17,6 +17,8 @@ set -euo pipefail
 # ── Defaults ──────────────────────────────────────────────────────────────
 IFACE="Wi-Fi"
 LOCAL_DNS="127.0.0.1"
+DOMAIN="reflex-ddns.com"
+RESOLVER_DIR="/etc/resolver"
 CMD=""
 
 # ── Parse arguments ────────────────────────────────────────────────────────
@@ -167,6 +169,12 @@ case "$CMD" in
             fi
         done
     fi
+    # Show /etc/resolver status
+    if [[ -f "$RESOLVER_DIR/$DOMAIN" ]]; then
+        echo "Resolver  : $RESOLVER_DIR/$DOMAIN → $(cat "$RESOLVER_DIR/$DOMAIN" | awk '/nameserver/{print $2}')"
+    else
+        echo "Resolver  : $RESOLVER_DIR/$DOMAIN (not set)"
+    fi
     ;;
 
   join)
@@ -195,6 +203,11 @@ case "$CMD" in
     sudo networksetup -setdnsservers "$IFACE" $new_list
     echo "[$IFACE] New DNS list:"
     networksetup -getdnsservers "$IFACE"
+    # Create /etc/resolver entry so mDNSResponder routes *.reflex-ddns.com
+    # queries to our local BIND9 (this is what curl/python/apps actually use).
+    sudo mkdir -p "$RESOLVER_DIR"
+    echo "nameserver $LOCAL_DNS" | sudo tee "$RESOLVER_DIR/$DOMAIN" > /dev/null
+    echo "[$IFACE] Created $RESOLVER_DIR/$DOMAIN → $LOCAL_DNS"
     # Flush macOS DNS cache
     sudo dscacheutil -flushcache
     sudo killall -HUP mDNSResponder 2>/dev/null || true
@@ -237,6 +250,11 @@ case "$CMD" in
         sudo networksetup -setdnsservers "$IFACE" $new_list
         echo "[$IFACE] New DNS list:"
         networksetup -getdnsservers "$IFACE"
+    fi
+    # Remove /etc/resolver entry
+    if [[ -f "$RESOLVER_DIR/$DOMAIN" ]]; then
+        sudo rm -f "$RESOLVER_DIR/$DOMAIN"
+        echo "[$IFACE] Removed $RESOLVER_DIR/$DOMAIN"
     fi
     # Flush macOS DNS cache
     sudo dscacheutil -flushcache

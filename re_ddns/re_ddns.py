@@ -396,6 +396,31 @@ _API_BASE_SCRIPT = r"""
 })();
 """
 
+# ── Auto-protocol WebSocket patch ────────────────────────────────────
+# Monkey-patches the global WebSocket constructor so that when the page
+# is loaded via HTTPS the browser automatically upgrades ws:// → wss://.
+# This lets the same compiled frontend work on both HTTP and HTTPS
+# without changing API_URL (solves the chicken-and-egg CA-setup problem).
+_WS_PROTOCOL_SCRIPT = r"""
+(function() {
+    var OrigWS = window.WebSocket;
+    window.WebSocket = function(url, protocols) {
+        if (location.protocol === 'https:') {
+            url = url.replace(/^ws:\/\//, 'wss://');
+        }
+        if (protocols !== undefined) {
+            return new OrigWS(url, protocols);
+        }
+        return new OrigWS(url);
+    };
+    window.WebSocket.prototype = OrigWS.prototype;
+    window.WebSocket.CONNECTING = OrigWS.CONNECTING;
+    window.WebSocket.OPEN       = OrigWS.OPEN;
+    window.WebSocket.CLOSING    = OrigWS.CLOSING;
+    window.WebSocket.CLOSED     = OrigWS.CLOSED;
+})();
+"""
+
 
 # ── Client-side CA detection script ──────────────────────────────────
 # On HTTP: probes HTTPS /api/ca/verify
@@ -434,6 +459,7 @@ _CA_DETECT_SCRIPT = r"""
 app = rx.App(
     theme=rx.theme(appearance="light"),
     head_components=[
+        rx.el.script(_WS_PROTOCOL_SCRIPT),
         rx.el.link(rel="preconnect", href="https://fonts.googleapis.com"),
         rx.el.link(rel="preconnect", href="https://fonts.gstatic.com", cross_origin=""),
         rx.el.link(
