@@ -17,6 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         xterm dbus-x11 \
         # NSS tools (certutil) for Chromium CA install
         libnss3-tools \
+        # Zenity for GUI dialogs in CA install script
+        zenity \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g bun \

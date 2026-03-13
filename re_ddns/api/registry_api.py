@@ -559,36 +559,195 @@ async def ca_install_script(platform: str, request: Request):
         ),
         "linux": (
             "#!/bin/bash\n"
-            "# Re-DDNS Local CA — Linux installer (Debian/Ubuntu)\n"
-            "set -e\n"
-            "# Use sudo only if not already root\n"
+            "# Re-DDNS Local CA — Linux smart installer (Zenity GUI)\n"
+            "# Uses zenity dialogs for a friendly user experience.\n"
+            "# Falls back to terminal-only mode if no display is available.\n"
+            "\n"
+            f'CA_NAME="Re-DDNS CA"\n'
+            f'TMP_PEM="/tmp/re_ddns_ca.pem"\n'
+            f'DOWNLOAD_URL="{download}"\n'
+            f'HOST="{host}"\n'
             'SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"\n'
-            f'echo "Downloading CA certificate from {download} ..."\n'
-            f'curl -sSfL -o /tmp/re_ddns_ca.pem "{download}"\n'
-            'echo "Installing system-wide (requires root) ..."\n'
-            "$SUDO cp /tmp/re_ddns_ca.pem /usr/local/share/ca-certificates/re_ddns_ca.crt\n"
-            "$SUDO update-ca-certificates\n"
-            'echo ""\n'
-            f'echo "Done! System tools (curl, wget) now trust *{host} domains."\n'
-            'echo ""\n'
-            '# Install into Chromium/Chrome NSS database (if certutil is available)\n'
-            'if command -v certutil >/dev/null 2>&1; then\n'
-            '    NSS_DB="$HOME/.pki/nssdb"\n'
-            '    mkdir -p "$NSS_DB"\n'
-            '    # Initialize NSS DB if it does not exist\n'
-            '    [ ! -f "$NSS_DB/cert9.db" ] && certutil -d sql:"$NSS_DB" -N --empty-password 2>/dev/null || true\n'
-            '    # Remove old entry if present, then add\n'
-            '    certutil -d sql:"$NSS_DB" -D -n "Re-DDNS CA" 2>/dev/null || true\n'
-            '    certutil -d sql:"$NSS_DB" -A -t "C,," -n "Re-DDNS CA" -i /tmp/re_ddns_ca.pem\n'
-            '    echo "Installed into Chromium NSS database."\n'
-            '    echo ">>> Please RESTART Chromium for the CA to take effect. <<<"\n'
-            'else\n'
-            '    echo "certutil not found — install libnss3-tools to auto-configure Chromium."\n'
-            '    echo "For browsers, import manually:"\n'
-            '    echo "  Chrome: Settings → Privacy → Manage certificates → Authorities → Import"\n'
-            '    echo "  Firefox: Settings → Privacy → View Certificates → Authorities → Import"\n'
-            '    echo "  Import the file: /tmp/re_ddns_ca.pem"\n'
+            'NSS_DB="$HOME/.pki/nssdb"\n'
+            'CA_CERT="/usr/local/share/ca-certificates/re_ddns_ca.crt"\n'
+            "\n"
+            "# ── Ensure zenity is available ──\n"
+            'HAS_GUI=0\n'
+            'if [ -n "$DISPLAY" ] || [ -n "$WAYLAND_DISPLAY" ]; then\n'
+            '    if ! command -v zenity >/dev/null 2>&1; then\n'
+            '        echo "Installing zenity for GUI dialogs ..."\n'
+            '        $SUDO apt-get update -qq && $SUDO apt-get install -y -qq zenity >/dev/null 2>&1 || true\n'
+            '    fi\n'
+            '    command -v zenity >/dev/null 2>&1 && HAS_GUI=1\n'
             'fi\n'
+            "\n"
+            "# ── Ensure certutil is available ──\n"
+            'if ! command -v certutil >/dev/null 2>&1; then\n'
+            '    echo "Installing libnss3-tools (certutil) for Chromium ..."\n'
+            '    $SUDO apt-get update -qq && $SUDO apt-get install -y -qq libnss3-tools >/dev/null 2>&1 || true\n'
+            'fi\n'
+            "\n"
+            "# ── GUI helper functions ──\n"
+            "gui_info() {\n"
+            '    if [ "$HAS_GUI" -eq 1 ]; then\n'
+            '        zenity --info --title="Re-DDNS CA" --text="$1" --width=400 2>/dev/null\n'
+            '    else\n'
+            '        echo "$1"\n'
+            '    fi\n'
+            "}\n"
+            "\n"
+            "gui_error() {\n"
+            '    if [ "$HAS_GUI" -eq 1 ]; then\n'
+            '        zenity --error --title="Re-DDNS CA" --text="$1" --width=400 2>/dev/null\n'
+            '    else\n'
+            '        echo "ERROR: $1" >&2\n'
+            '    fi\n'
+            "}\n"
+            "\n"
+            "gui_question() {\n"
+            "    # $1=text  returns 0=Yes/1=No\n"
+            '    if [ "$HAS_GUI" -eq 1 ]; then\n'
+            '        zenity --question --title="Re-DDNS CA" --text="$1" --width=400 2>/dev/null\n'
+            '    else\n'
+            '        read -rp "$1 [y/N] " ans; [ "$ans" = "y" ] || [ "$ans" = "Y" ]\n'
+            '    fi\n'
+            "}\n"
+            "\n"
+            "# ── Detect current CA status ──\n"
+            'INSTALLED_SYSTEM=0\n'
+            'INSTALLED_CHROMIUM=0\n'
+            'STATUS_ICON="❌"\n'
+            'STATUS_TEXT="Not installed"\n'
+            "\n"
+            '# Check system CA store\n'
+            'if [ -f "$CA_CERT" ]; then\n'
+            '    INSTALLED_SYSTEM=1\n'
+            'fi\n'
+            "\n"
+            '# Check Chromium NSS database\n'
+            'if command -v certutil >/dev/null 2>&1 && [ -d "$NSS_DB" ]; then\n'
+            '    certutil -d sql:"$NSS_DB" -L -n "$CA_NAME" >/dev/null 2>&1 && INSTALLED_CHROMIUM=1\n'
+            'fi\n'
+            "\n"
+            '# Build status string\n'
+            'if [ "$INSTALLED_SYSTEM" -eq 1 ] && [ "$INSTALLED_CHROMIUM" -eq 1 ]; then\n'
+            '    STATUS_ICON="✅"\n'
+            '    STATUS_TEXT="Installed (system + Chromium)"\n'
+            'elif [ "$INSTALLED_SYSTEM" -eq 1 ]; then\n'
+            '    STATUS_ICON="⚠️"\n'
+            '    STATUS_TEXT="Installed (system only, not in Chromium)"\n'
+            'elif [ "$INSTALLED_CHROMIUM" -eq 1 ]; then\n'
+            '    STATUS_ICON="⚠️"\n'
+            '    STATUS_TEXT="Installed (Chromium only, not system-wide)"\n'
+            'fi\n'
+            "\n"
+            "# ── Action functions ──\n"
+            "do_download() {\n"
+            '    curl -sSfL -o "$TMP_PEM" "$DOWNLOAD_URL"\n'
+            "}\n"
+            "\n"
+            "do_install_system() {\n"
+            '    $SUDO cp "$TMP_PEM" "$CA_CERT"\n'
+            '    $SUDO update-ca-certificates\n'
+            "}\n"
+            "\n"
+            "do_install_chromium() {\n"
+            '    if command -v certutil >/dev/null 2>&1; then\n'
+            '        mkdir -p "$NSS_DB"\n'
+            '        [ ! -f "$NSS_DB/cert9.db" ] && certutil -d sql:"$NSS_DB" -N --empty-password 2>/dev/null || true\n'
+            '        certutil -d sql:"$NSS_DB" -D -n "$CA_NAME" 2>/dev/null || true\n'
+            '        certutil -d sql:"$NSS_DB" -A -t "C,," -n "$CA_NAME" -i "$TMP_PEM"\n'
+            '    fi\n'
+            "}\n"
+            "\n"
+            "do_install() {\n"
+            "    do_download && do_install_system && do_install_chromium\n"
+            "}\n"
+            "\n"
+            "do_remove_system() {\n"
+            '    [ -f "$CA_CERT" ] && $SUDO rm -f "$CA_CERT" && $SUDO update-ca-certificates --fresh\n'
+            "}\n"
+            "\n"
+            "do_remove_chromium() {\n"
+            '    if command -v certutil >/dev/null 2>&1 && [ -d "$NSS_DB" ]; then\n'
+            '        certutil -d sql:"$NSS_DB" -D -n "$CA_NAME" 2>/dev/null || true\n'
+            '    fi\n'
+            "}\n"
+            "\n"
+            "do_remove() {\n"
+            "    do_remove_system; do_remove_chromium\n"
+            "}\n"
+            "\n"
+            "# ── Show status + menu ──\n"
+            'INSTALLED=$(( INSTALLED_SYSTEM || INSTALLED_CHROMIUM ))\n'
+            "\n"
+            'if [ "$HAS_GUI" -eq 1 ]; then\n'
+            '    if [ "$INSTALLED" -eq 1 ]; then\n'
+            '        CHOICE=$(zenity --list \\\n'
+            '            --title="Re-DDNS CA Certificate Tool" \\\n'
+            '            --text="$STATUS_ICON  Re-DDNS Root CA\\n\\nStatus:  $STATUS_TEXT\\n\\nWhat would you like to do?" \\\n'
+            '            --radiolist --column="" --column="Action" \\\n'
+            '            TRUE "Reinstall" \\\n'
+            '            FALSE "Remove" \\\n'
+            '            --width=450 --height=300 2>/dev/null) || { echo "Cancelled."; exit 0; }\n'
+            '    else\n'
+            '        CHOICE=$(zenity --list \\\n'
+            '            --title="Re-DDNS CA Certificate Tool" \\\n'
+            '            --text="$STATUS_ICON  Re-DDNS Root CA\\n\\nStatus:  $STATUS_TEXT\\n\\nInstall the CA certificate to trust all\\n*.reflex-ddns.com HTTPS sites?" \\\n'
+            '            --radiolist --column="" --column="Action" \\\n'
+            '            TRUE "Install" \\\n'
+            '            --width=450 --height=280 2>/dev/null) || { echo "Cancelled."; exit 0; }\n'
+            '    fi\n'
+            'else\n'
+            '    echo "================================================"\n'
+            '    echo "$STATUS_ICON  Re-DDNS Root CA"\n'
+            '    echo "Status:  $STATUS_TEXT"\n'
+            '    echo "================================================"\n'
+            '    if [ "$INSTALLED" -eq 1 ]; then\n'
+            '        echo ""\n'
+            '        echo "  1) Reinstall"\n'
+            '        echo "  2) Remove"\n'
+            '        echo "  3) Cancel"\n'
+            '        read -rp "Choose [1-3]: " pick\n'
+            '        case "$pick" in\n'
+            '            1) CHOICE="Reinstall" ;;\n'
+            '            2) CHOICE="Remove" ;;\n'
+            '            *) echo "Cancelled."; exit 0 ;;\n'
+            '        esac\n'
+            '    else\n'
+            '        echo ""\n'
+            '        echo "  1) Install"\n'
+            '        echo "  2) Cancel"\n'
+            '        read -rp "Choose [1-2]: " pick\n'
+            '        case "$pick" in\n'
+            '            1) CHOICE="Install" ;;\n'
+            '            *) echo "Cancelled."; exit 0 ;;\n'
+            '        esac\n'
+            '    fi\n'
+            'fi\n'
+            "\n"
+            "# ── Execute chosen action ──\n"
+            'case "$CHOICE" in\n'
+            '    "Install")\n'
+            "        do_install \\\n"
+            f'            && gui_info "✅ CA certificate installed!\\n\\nAll HTTPS sites under {host} are now trusted.\\nPlease restart Chromium." \\\n'
+            '            || gui_error "Installation failed. Please try again."\n'
+            "        ;;\n"
+            '    "Reinstall")\n'
+            "        do_remove 2>/dev/null || true\n"
+            "        do_install \\\n"
+            f'            && gui_info "✅ CA certificate reinstalled!\\n\\nThe latest certificate for {host} is now active.\\nPlease restart Chromium." \\\n'
+            '            || gui_error "Reinstallation failed. Please try again."\n'
+            "        ;;\n"
+            '    "Remove")\n'
+            "        do_remove \\\n"
+            '            && gui_info "✅ CA certificate removed.\\n\\nHTTPS sites under *.reflex-ddns.com will no longer be trusted.\\nPlease restart Chromium." \\\n'
+            '            || gui_error "Removal failed. The certificate may have been removed already."\n'
+            "        ;;\n"
+            "    *)\n"
+            '        echo "Cancelled."\n'
+            "        ;;\n"
+            "esac\n"
         ),
         "windows": (
             "# Re-DDNS Local CA — Windows installer (PowerShell, run as Admin)\n"
