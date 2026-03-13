@@ -69,7 +69,7 @@ sleep 3
 log "Virtual display is ready."
 
 # ──────────────────────────────────────────────
-# 5. Launch Chromium in the virtual display
+# 5. Launch Chromium + Terminal in the virtual display
 # ──────────────────────────────────────────────
 CHROMIUM_URL="${CHROMIUM_START_URL:-about:blank}"
 log "Launching Chromium → ${CHROMIUM_URL}"
@@ -82,6 +82,11 @@ DISPLAY=:99 chromium \
     --window-size="${SCREEN_WIDTH},${SCREEN_HEIGHT}" \
     --start-maximized \
     "${CHROMIUM_URL}" &
+
+# Launch a terminal so the user can run CA-install scripts etc.
+sleep 2
+DISPLAY=:99 xterm -fa "Monospace" -fs 12 -geometry 100x24+0+500 -title "Terminal" &
+log "Terminal (xterm) launched."
 
 log "All services started. Container is ready."
 

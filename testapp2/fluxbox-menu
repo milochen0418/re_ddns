@@ -1,0 +1,6 @@
+[begin] (Fluxbox)
+  [exec] (Terminal) {xterm -fa "Monospace" -fs 12}
+  [exec] (Chromium) {chromium --no-sandbox --disable-gpu --disable-dev-shm-usage}
+  [separator]
+  [restart] (Restart Fluxbox)
+[end]

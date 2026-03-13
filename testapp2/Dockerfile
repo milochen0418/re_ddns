@@ -55,6 +55,7 @@ RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts:
 
 # ── Copy config files ──
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY fluxbox-menu /root/.fluxbox/menu
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
