@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         supervisor \
         # Misc X11 utilities
         xterm dbus-x11 \
+        # NSS tools (certutil) for Chromium CA install
+        libnss3-tools \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g bun \

@@ -561,18 +561,34 @@ async def ca_install_script(platform: str, request: Request):
             "#!/bin/bash\n"
             "# Re-DDNS Local CA — Linux installer (Debian/Ubuntu)\n"
             "set -e\n"
+            "# Use sudo only if not already root\n"
+            'SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"\n'
             f'echo "Downloading CA certificate from {download} ..."\n'
             f'curl -sSfL -o /tmp/re_ddns_ca.pem "{download}"\n'
             'echo "Installing system-wide (requires root) ..."\n'
-            "sudo cp /tmp/re_ddns_ca.pem /usr/local/share/ca-certificates/re_ddns_ca.crt\n"
-            "sudo update-ca-certificates\n"
+            "$SUDO cp /tmp/re_ddns_ca.pem /usr/local/share/ca-certificates/re_ddns_ca.crt\n"
+            "$SUDO update-ca-certificates\n"
             'echo ""\n'
             f'echo "Done! System tools (curl, wget) now trust *{host} domains."\n'
             'echo ""\n'
-            'echo "For browsers:"\n'
-            'echo "  Chrome: Settings → Privacy → Manage certificates → Authorities → Import"\n'
-            'echo "  Firefox: Settings → Privacy → View Certificates → Authorities → Import"\n'
-            'echo "  Import the file: /tmp/re_ddns_ca.pem"\n'
+            '# Install into Chromium/Chrome NSS database (if certutil is available)\n'
+            'if command -v certutil >/dev/null 2>&1; then\n'
+            '    NSS_DB="$HOME/.pki/nssdb"\n'
+            '    mkdir -p "$NSS_DB"\n'
+            '    # Initialize NSS DB if it does not exist\n'
+            '    [ ! -f "$NSS_DB/cert9.db" ] && certutil -d sql:"$NSS_DB" -N --empty-password 2>/dev/null || true\n'
+            '    # Remove old entry if present, then add\n'
+            '    certutil -d sql:"$NSS_DB" -D -n "Re-DDNS CA" 2>/dev/null || true\n'
+            '    certutil -d sql:"$NSS_DB" -A -t "C,," -n "Re-DDNS CA" -i /tmp/re_ddns_ca.pem\n'
+            '    echo "Installed into Chromium NSS database."\n'
+            '    echo ">>> Please RESTART Chromium for the CA to take effect. <<<"\n'
+            'else\n'
+            '    echo "certutil not found — install libnss3-tools to auto-configure Chromium."\n'
+            '    echo "For browsers, import manually:"\n'
+            '    echo "  Chrome: Settings → Privacy → Manage certificates → Authorities → Import"\n'
+            '    echo "  Firefox: Settings → Privacy → View Certificates → Authorities → Import"\n'
+            '    echo "  Import the file: /tmp/re_ddns_ca.pem"\n'
+            'fi\n'
         ),
         "windows": (
             "# Re-DDNS Local CA — Windows installer (PowerShell, run as Admin)\n"
