@@ -30,9 +30,26 @@ import httpx
 API_URL = os.environ.get("RE_DDNS_API_URL", "http://re-ddns:8000")
 SUBDOMAIN = os.environ.get("SERVICE_SUBDOMAIN", "testapp2")
 ZONE = os.environ.get("SERVICE_ZONE", "reflex-ddns.com")
-IP = os.environ.get("SERVICE_IP", "127.0.0.1")
 # Docker service name / hostname — defaults to the container hostname
 UPSTREAM_HOST = os.environ.get("SERVICE_UPSTREAM_HOST", socket.gethostname())
+
+
+def _detect_container_ip() -> str:
+    """Auto-detect the container's network IP for DNS registration."""
+    # 1. Explicit env var overrides auto-detection
+    env_ip = os.environ.get("SERVICE_IP", "")
+    if env_ip:
+        return env_ip
+    # 2. Resolve own hostname → Docker assigns the container network IP
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except socket.gaierror:
+        pass
+    # 3. Fallback
+    return "127.0.0.1"
+
+
+IP = _detect_container_ip()
 
 
 def wait_for_api(url: str, retries: int = 30, delay: float = 2.0) -> bool:

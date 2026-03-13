@@ -94,7 +94,8 @@ services:
     hostname: test-app
 
     networks:
-      - ddns-net
+      ddns-net:
+        ipv4_address: 172.28.0.20
 
     depends_on:
       - re-ddns
@@ -108,7 +109,6 @@ services:
       # Service registration details
       - SERVICE_SUBDOMAIN=testapp
       - SERVICE_ZONE=reflex-ddns.com
-      - SERVICE_IP=127.0.0.1
       # Reflex listen addresses
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
@@ -127,7 +127,8 @@ services:
     hostname: test-app2
 
     networks:
-      - ddns-net
+      ddns-net:
+        ipv4_address: 172.28.0.30
 
     depends_on:
       - re-ddns
@@ -142,7 +143,6 @@ services:
       # Service registration details
       - SERVICE_SUBDOMAIN=testapp2
       - SERVICE_ZONE=reflex-ddns.com
-      - SERVICE_IP=127.0.0.1
       # Reflex listen addresses
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0

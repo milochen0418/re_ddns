@@ -98,6 +98,23 @@ for tmpl in "$ZONES_DIR"/*.template; do
     cp "$tmpl" "$dest"
     log "Zone template expanded: $(basename "$dest")"
 done
+
+# Replace __CONTAINER_IP__ placeholder with the container's actual network IP.
+# This lets sibling Docker containers reach us, while Mac host uses /etc/hosts.
+CONTAINER_IP=$(hostname -i 2>/dev/null | awk '{print $1}')
+if [[ -z "$CONTAINER_IP" || "$CONTAINER_IP" == "127.0.0.1" ]]; then
+    # Fallback: use Python (guaranteed in this image) to resolve hostname
+    CONTAINER_IP=$(python3 -c "import socket; print(socket.gethostbyname(socket.gethostname()))" 2>/dev/null || true)
+fi
+log "Detected container IP: $CONTAINER_IP"
+for zf in "$ZONES_DIR"/db.*; do
+    [[ -f "$zf" ]] || continue
+    if grep -q '__CONTAINER_IP__' "$zf"; then
+        sed -i "s/__CONTAINER_IP__/$CONTAINER_IP/g" "$zf"
+        log "Zone $(basename "$zf"): __CONTAINER_IP__ → $CONTAINER_IP"
+    fi
+done
+
 chown -R bind:bind "$ZONES_DIR"
 
 # ──────────────────────────────────────────────
