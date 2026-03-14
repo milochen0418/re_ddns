@@ -1,0 +1,169 @@
+# docker-compose.test.yml
+#
+# Brings up the full re-ddns stack (BIND9 + nginx + Reflex DDNS UI)
+# together with a lightweight test-app (Reflex Hello World).
+#
+# re-ddns container serves as the "control plane":
+#   - BIND9     on port 53  (DNS)
+#   - nginx     on port 80+443  (reverse proxy with auto-HTTPS)
+#   - Reflex    on 3000/8000 internally
+#
+# Routing (via nginx inside re-ddns):
+#   https://home.reflex-ddns.com       → re-ddns Reflex frontend
+#   https://api.reflex-ddns.com/api/   → re-ddns Reflex backend (FastAPI)
+#   https://testapp.reflex-ddns.com    → test-app container
+#   (HTTP automatically redirects to HTTPS when TLS_MODE != none)
+#
+# Service registry lives in /app/data/registry.json (persisted via volume).
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up --build
+#
+# After startup (with Mac DNS set to 127.0.0.1):
+#   http://home.reflex-ddns.com       → re-ddns UI
+#   http://api.reflex-ddns.com/api/   → re-ddns API
+#   http://testapp.reflex-ddns.com    → test-app Hello World
+#   http://testapp2.reflex-ddns.com   → test-app2 (with in-container browser)
+#   http://localhost:6080/vnc.html    → noVNC (testapp2 container desktop)
+
+networks:
+  ddns-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+services:
+  # ── Main DDNS service (BIND9 + nginx + Reflex) ────────────────────────
+  re-ddns:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: re-ddns
+    hostname: re-ddns
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.10
+
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:80"
+      - "443:443"
+      # Uncomment for direct debugging (bypassing nginx):
+      # - "3000:3000"
+      # - "8000:8000"
+
+    volumes:
+      - ./re_ddns:/app/re_ddns
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./assets:/app/assets
+      - ./reflex_rerun.sh:/app/reflex_rerun.sh
+      - ./docker/entrypoint.sh:/entrypoint.sh
+      - ./docker/generate_tsig_key.sh:/usr/local/bin/generate_tsig_key.sh
+      - bind-data:/var/cache/bind
+      - bind-log:/var/log/bind
+      - registry-data:/app/data
+      - reflex-db:/app
+
+    environment:
+      - BIND9_HOST=127.0.0.1
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      # Tell Reflex frontend to connect to backend via nginx (port 80)
+      # instead of directly to port 8000 (not exposed to host).
+      - API_URL=http://home.reflex-ddns.com
+      # TLS_MODE: local-ca (default) | letsencrypt | none
+      - TLS_MODE=local-ca
+      # For letsencrypt mode, set your email:
+      # - LETSENCRYPT_EMAIL=you@example.com
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_RESOURCE
+
+    restart: unless-stopped
+
+  # ── Test app (Reflex Hello World) ──────────────────────────────────────
+  test-app:
+    build:
+      context: ./testapp
+      dockerfile: Dockerfile
+    container_name: test-app
+    hostname: test-app
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.20
+
+    depends_on:
+      - re-ddns
+
+    # No ports published — nginx inside re-ddns routes by Host header.
+    # Reflex uses 3000/8000 internally (no conflict between containers).
+
+    environment:
+      # re-ddns API base URL (Docker DNS resolves "re-ddns" → container IP)
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      # Service registration details
+      - SERVICE_SUBDOMAIN=testapp
+      - SERVICE_ZONE=reflex-ddns.com
+      # Reflex listen addresses
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+
+    restart: unless-stopped
+
+  # ── Test app 2 (Reflex + Chromium + noVNC) ─────────────────────────────
+  # Like test-app but with an in-container Chromium browser visible via
+  # noVNC at http://localhost:6080/vnc.html on your Mac.
+  # Use the browser to test CA download, certificate install, and HTTPS.
+  test-app2:
+    build:
+      context: ./testapp2
+      dockerfile: Dockerfile
+    container_name: test-app2
+    hostname: test-app2
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.30
+
+    depends_on:
+      - re-ddns
+
+    ports:
+      # noVNC — view the container browser from your Mac
+      - "6080:6080"
+
+    environment:
+      # re-ddns API base URL (Docker DNS resolves "re-ddns" → container IP)
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      # Service registration details
+      - SERVICE_SUBDOMAIN=testapp2
+      - SERVICE_ZONE=reflex-ddns.com
+      # Reflex listen addresses
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      # Display settings
+      - SCREEN_WIDTH=1280
+      - SCREEN_HEIGHT=800
+      - SCREEN_DEPTH=24
+      # Chromium start URL (open re-ddns UI on launch)
+      - CHROMIUM_START_URL=http://home.reflex-ddns.com
+
+    # Chromium needs /dev/shm for shared memory
+    shm_size: '512m'
+
+    dns:
+      # Use re-ddns container's BIND9 so *.reflex-ddns.com resolves
+      - 172.28.0.10
+
+    restart: unless-stopped
+
+volumes:
+  bind-data:
+  bind-log:
+  registry-data:
+  reflex-db:

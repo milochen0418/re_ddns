@@ -1,8 +1,11 @@
 FROM python:3.11-slim-bookworm
 
-# ── System deps: BIND9, Node.js (for Reflex frontend build), utilities ──
+# ── System deps: BIND9, nginx, Node.js (for Reflex frontend build), utilities ──
 RUN apt-get update && apt-get install -y --no-install-recommends \
         bind9 bind9utils bind9-dnsutils \
+        nginx \
+        certbot \
+        openssl \
         curl unzip git lsof procps \
         gcc libffi-dev \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -22,12 +25,17 @@ RUN curl -sSL https://install.python-poetry.org | python - \
 RUN mkdir -p /etc/bind/zones /var/cache/bind /var/log/bind /run/named \
     && chown -R bind:bind /var/cache/bind /var/log/bind /run/named /etc/bind/zones
 
+# ── nginx: remove default site, prepare dynamic config directory ──
+RUN rm -f /etc/nginx/sites-enabled/default \
+    && mkdir -p /etc/nginx/conf.d /var/log/nginx /var/www/acme
+
 # ── Copy BIND9 configuration ──
 # named.conf.local.template uses __TSIG_SECRET__ placeholder;
 # entrypoint.sh copies it to named.conf.local and injects the real key at runtime.
 COPY docker/named.conf                  /etc/bind/named.conf.template
 COPY docker/named.conf.local.template  /etc/bind/named.conf.local.template
 COPY docker/rndc.conf                   /etc/bind/rndc.conf
+COPY docker/rndc.conf.template          /etc/bind/rndc.conf.template
 # zones/*.template files are expanded to their runtime paths by entrypoint.sh
 COPY docker/zones/           /etc/bind/zones/
 RUN chown -R bind:bind /etc/bind
@@ -55,7 +63,7 @@ RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts:
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Ports: DNS 53 (TCP+UDP), Reflex frontend 3000, Reflex backend 8000
-EXPOSE 53/tcp 53/udp 3000 8000
+# Ports: DNS 53 (TCP+UDP), HTTP 80, HTTPS 443 (nginx proxy), Reflex 3000/8000
+EXPOSE 53/tcp 53/udp 80 443 3000 8000
 
 ENTRYPOINT ["/entrypoint.sh"]

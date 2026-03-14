@@ -16,8 +16,10 @@ $TTL    300
 @       IN      NS      ns1.reflex-ddns.com.
 
 ; ── NS glue record (point to this server's public IP) ──
-ns1     IN      A       127.0.0.1
+; __CONTAINER_IP__ is replaced at startup by entrypoint.sh
+; with the container's actual network IP.
+ns1     IN      A       __CONTAINER_IP__
 
 ; ── Dynamic record managed by re_ddns ──
 ; This will be updated via RFC 2136 by the Reflex app.
-home    IN      A       127.0.0.1
+home    IN      A       __CONTAINER_IP__

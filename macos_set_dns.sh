@@ -17,6 +17,10 @@ set -euo pipefail
 # ── Defaults ──────────────────────────────────────────────────────────────
 IFACE="Wi-Fi"
 LOCAL_DNS="127.0.0.1"
+DOMAIN="reflex-ddns.com"
+RESOLVER_DIR="/etc/resolver"
+HOSTS_FILE="/etc/hosts"
+HOSTS_MARKER="# re-ddns-managed"
 CMD=""
 
 # ── Parse arguments ────────────────────────────────────────────────────────
@@ -167,6 +171,21 @@ case "$CMD" in
             fi
         done
     fi
+    # Show /etc/resolver status
+    if [[ -f "$RESOLVER_DIR/$DOMAIN" ]]; then
+        echo "Resolver  : $RESOLVER_DIR/$DOMAIN → $(cat "$RESOLVER_DIR/$DOMAIN" | awk '/nameserver/{print $2}')"
+    else
+        echo "Resolver  : $RESOLVER_DIR/$DOMAIN (not set)"
+    fi
+    # Show /etc/hosts entries
+    if grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
+        echo "Hosts     : (managed entries found)"
+        grep "$HOSTS_MARKER" "$HOSTS_FILE" | while read -r line; do
+            echo "  $line"
+        done
+    else
+        echo "Hosts     : (no managed entries)"
+    fi
     ;;
 
   join)
@@ -195,6 +214,22 @@ case "$CMD" in
     sudo networksetup -setdnsservers "$IFACE" $new_list
     echo "[$IFACE] New DNS list:"
     networksetup -getdnsservers "$IFACE"
+    # Create /etc/resolver entry so mDNSResponder routes *.reflex-ddns.com
+    # queries to our local BIND9 (this is what curl/python/apps actually use).
+    sudo mkdir -p "$RESOLVER_DIR"
+    echo "nameserver $LOCAL_DNS" | sudo tee "$RESOLVER_DIR/$DOMAIN" > /dev/null
+    echo "[$IFACE] Created $RESOLVER_DIR/$DOMAIN → $LOCAL_DNS"
+    # Add /etc/hosts entries so Mac resolves *.reflex-ddns.com to 127.0.0.1
+    # (BIND9 zone uses container IPs for inter-container routing, but Mac
+    # accesses Docker via published ports on localhost)
+    if ! grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
+        {
+            echo "$LOCAL_DNS home.$DOMAIN  $HOSTS_MARKER"
+        } | sudo tee -a "$HOSTS_FILE" > /dev/null
+        echo "[$IFACE] Added *.${DOMAIN} entries to /etc/hosts → $LOCAL_DNS"
+    else
+        echo "[$IFACE] /etc/hosts entries already present"
+    fi
     # Flush macOS DNS cache
     sudo dscacheutil -flushcache
     sudo killall -HUP mDNSResponder 2>/dev/null || true
@@ -237,6 +272,16 @@ case "$CMD" in
         sudo networksetup -setdnsservers "$IFACE" $new_list
         echo "[$IFACE] New DNS list:"
         networksetup -getdnsservers "$IFACE"
+    fi
+    # Remove /etc/resolver entry
+    if [[ -f "$RESOLVER_DIR/$DOMAIN" ]]; then
+        sudo rm -f "$RESOLVER_DIR/$DOMAIN"
+        echo "[$IFACE] Removed $RESOLVER_DIR/$DOMAIN"
+    fi
+    # Remove /etc/hosts entries
+    if grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
+        sudo sed -i '' "/$HOSTS_MARKER/d" "$HOSTS_FILE"
+        echo "[$IFACE] Removed managed entries from /etc/hosts"
     fi
     # Flush macOS DNS cache
     sudo dscacheutil -flushcache

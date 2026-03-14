@@ -1,7 +1,7 @@
 [project]
-name = "re-ddns"
+name = "testapp"
 version = "0.1.0"
-description = "Dynamic DNS Client Interface for BIND9"
+description = "Simple Reflex Hello World app for testing Re-DDNS"
 requires-python = "~=3.11"
 
 [tool.poetry]
@@ -10,8 +10,6 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "~3.11"
 reflex = "0.8.24.post1"
-fastapi = "*"
-dnspython = "*"
 httpx = "*"
 
 [build-system]

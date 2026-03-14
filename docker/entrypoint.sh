@@ -22,11 +22,13 @@ log "Hello, ^^ entrypoint.sh — last modified: $(stat -c '%y' "$0" 2>/dev/null 
 
 BIND_TEMPLATE="/etc/bind/named.conf.local.template"
 BIND_LOCAL="/etc/bind/named.conf.local"
+RNDC_TEMPLATE="/etc/bind/rndc.conf.template"
 RNDC_CONF="/etc/bind/rndc.conf"
 SECRET_EXPORT="/etc/bind/tsig-secret.env"   # readable by the Reflex app
 
-# Always start from a clean copy of the template
+# Always start from clean copies of the templates
 cp "$BIND_TEMPLATE" "$BIND_LOCAL"
+cp "$RNDC_TEMPLATE" "$RNDC_CONF"
 
 if [[ -n "${TSIG_SECRET:-}" ]]; then
     log "Using TSIG_SECRET from environment variable"
@@ -96,6 +98,23 @@ for tmpl in "$ZONES_DIR"/*.template; do
     cp "$tmpl" "$dest"
     log "Zone template expanded: $(basename "$dest")"
 done
+
+# Replace __CONTAINER_IP__ placeholder with the container's actual network IP.
+# This lets sibling Docker containers reach us, while Mac host uses /etc/hosts.
+CONTAINER_IP=$(hostname -i 2>/dev/null | awk '{print $1}')
+if [[ -z "$CONTAINER_IP" || "$CONTAINER_IP" == "127.0.0.1" ]]; then
+    # Fallback: use Python (guaranteed in this image) to resolve hostname
+    CONTAINER_IP=$(python3 -c "import socket; print(socket.gethostbyname(socket.gethostname()))" 2>/dev/null || true)
+fi
+log "Detected container IP: $CONTAINER_IP"
+for zf in "$ZONES_DIR"/db.*; do
+    [[ -f "$zf" ]] || continue
+    if grep -q '__CONTAINER_IP__' "$zf"; then
+        sed -i "s/__CONTAINER_IP__/$CONTAINER_IP/g" "$zf"
+        log "Zone $(basename "$zf"): __CONTAINER_IP__ → $CONTAINER_IP"
+    fi
+done
+
 chown -R bind:bind "$ZONES_DIR"
 
 # ──────────────────────────────────────────────
@@ -128,6 +147,41 @@ for i in $(seq 1 15); do
     fi
     sleep 1
 done
+
+# ──────────────────────────────────────────────
+# 2.5 Initialise registry + nginx reverse proxy
+# ──────────────────────────────────────────────
+log "Initialising service registry + nginx …"
+cd /app
+
+# 1) Init registry + cert manager
+# 2) Generate TLS certs for base domains (home / api / fallback)
+# 3) Write base nginx config (with HTTPS if certs exist)
+# 4) Sync any previously-registered services + their certs
+poetry run python -c "
+from re_ddns.api import registry_api, cert_manager, nginx_manager
+
+registry_api.init()
+cert_manager.init()
+
+# Generate certs for re-ddns's own domains
+for domain in ('home.reflex-ddns.com', 'api.reflex-ddns.com', 'reflex-ddns.com'):
+    cert_manager.ensure_cert(domain)
+
+nginx_manager.write_base_config()
+
+# Restore certs for previously registered services
+for svc in registry_api.list_services():
+    fqdn = f\"{svc['subdomain']}.{svc['zone']}\"
+    cert_manager.ensure_cert(fqdn)
+
+nginx_manager.sync()
+" || log "WARNING: registry / cert / nginx init had errors"
+
+log "Starting nginx …"
+nginx -g 'daemon off;' &
+NGINX_PID=$!
+log "nginx started (PID $NGINX_PID)"
 
 # ──────────────────────────────────────────────
 # 3. Start Reflex dev server
@@ -169,6 +223,7 @@ log "Reflex started (PID $REFLEX_PID)"
 cleanup() {
     log "Shutting down …"
     kill "$REFLEX_PID" 2>/dev/null || true
+    nginx -s quit 2>/dev/null || kill "$NGINX_PID" 2>/dev/null || true
     rndc stop 2>/dev/null || kill "$NAMED_PID" 2>/dev/null || true
     wait
     log "All processes stopped"
@@ -178,6 +233,6 @@ trap cleanup SIGTERM SIGINT
 # ──────────────────────────────────────────────
 # 5. Wait for either process to exit
 # ──────────────────────────────────────────────
-wait -n "$NAMED_PID" "$REFLEX_PID" 2>/dev/null || true
+wait -n "$NAMED_PID" "$NGINX_PID" "$REFLEX_PID" 2>/dev/null || true
 log "A child process exited – shutting down the other"
 cleanup

@@ -1,0 +1,12 @@
+// /etc/bind/rndc.conf – rndc control configuration
+// Uses the same TSIG key for administrative control.
+key "ddns-key" {
+    algorithm hmac-sha256;
+    secret "__TSIG_SECRET__";
+};
+
+options {
+    default-key "ddns-key";
+    default-server 127.0.0.1;
+    default-port 953;
+};

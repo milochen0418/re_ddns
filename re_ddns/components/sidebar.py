@@ -34,6 +34,7 @@ def sidebar() -> rx.Component:
                 nav_item("Dashboard", "layout-dashboard"),
                 nav_item("Configuration", "settings"),
                 nav_item("Activity Log", "list-tree"),
+                nav_item("CA Setup", "shield-check"),
                 class_name="px-4 space-y-2",
             ),
             class_name="flex-1",
