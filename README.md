@@ -209,6 +209,10 @@ After startup:
 
 ### testapp — Lightweight Service Registration Test
 
+<p align="center">
+  <img src="docs/images/mac-browser-testapp-https.png" width="720" alt="testapp accessed via HTTPS on Mac browser">
+</p>
+
 A minimal Reflex "Hello World" app that verifies the **DNS + nginx auto-registration** flow:
 
 - On startup, calls `POST /api/service/register` to register itself in BIND9 and nginx.
@@ -217,6 +221,10 @@ A minimal Reflex "Hello World" app that verifies the **DNS + nginx auto-registra
 
 ### testapp2 — In-Container Browser Test Environment
 
+<p align="center">
+  <img src="docs/images/mac-browser-testapp2-https.png" width="720" alt="testapp2 accessed via HTTPS on Mac browser">
+</p>
+
 Extends testapp with a **full GUI desktop** (Xvfb + Fluxbox + Chromium + noVNC), designed for testing flows that require a real browser:
 
 - **CA certificate install**: Test the Linux CA install script (with zenity GUI) inside the container's terminal.
@@ -224,6 +232,10 @@ Extends testapp with a **full GUI desktop** (Xvfb + Fluxbox + Chromium + noVNC),
 - **Remote machine simulation**: The container acts as a separate "machine" on the Docker network, proving cross-host DNS resolution and certificate trust.
 
 View the container's desktop from your Mac at `http://localhost:6080/vnc.html`. An **xterm terminal** and **Chromium browser** are auto-launched on startup. Right-click the desktop to open more windows via the Fluxbox menu.
+
+<p align="center">
+  <img src="docs/images/novnc-ca-setup-page.png" width="720" alt="noVNC desktop showing CA Setup page and terminal">
+</p>
 
 See [testapp/README.md](testapp/README.md) and [testapp2/README.md](testapp2/README.md) for detailed architecture diagrams.
 
