@@ -34,8 +34,8 @@ RUN curl -sSL https://install.python-poetry.org | python - \
 
 # ── Display environment ──
 ENV DISPLAY=:99 \
-    SCREEN_WIDTH=1280 \
-    SCREEN_HEIGHT=800 \
+    SCREEN_WIDTH=1440 \
+    SCREEN_HEIGHT=900 \
     SCREEN_DEPTH=24 \
     VNC_PORT=5900 \
     NOVNC_PORT=6080

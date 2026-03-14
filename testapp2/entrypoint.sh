@@ -79,13 +79,13 @@ DISPLAY=:99 chromium \
     --disable-gpu \
     --disable-dev-shm-usage \
     --disable-software-rasterizer \
-    --window-size="${SCREEN_WIDTH},${SCREEN_HEIGHT}" \
-    --start-maximized \
+    --window-size="${SCREEN_WIDTH},580" \
+    --window-position=0,0 \
     "${CHROMIUM_URL}" &
 
-# Launch a terminal so the user can run CA-install scripts etc.
+# Launch a terminal below the browser so they don't overlap
 sleep 2
-DISPLAY=:99 xterm -fa "Monospace" -fs 12 -geometry 100x24+0+500 -title "Terminal" &
+DISPLAY=:99 xterm -fa "Monospace" -fs 11 -geometry 120x14+0+610 -title "Terminal" &
 log "Terminal (xterm) launched."
 
 log "All services started. Container is ready."
