@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import logging
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -66,6 +67,17 @@ _lock = Lock()
 
 # Module-level path — can be overridden via ``init()``.
 _registry_path: Path = _DEFAULT_PATH
+
+
+def _own_ip() -> str:
+    """Return this container's network IP (for DNS A records).
+
+    All registered services should have DNS pointing to re-ddns (the
+    nginx proxy), NOT to their own container IPs."""
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except socket.gaierror:
+        return "127.0.0.1"
 
 
 def _empty_registry() -> dict[str, Any]:
@@ -259,9 +271,12 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
     """Register a service: registry → DNS → TLS cert → nginx (with HTTPS)."""
 
     fqdn = f"{req.subdomain}.{req.zone_name}"
+    # DNS A records must point to re-ddns (the nginx proxy), not to the
+    # service container's own IP — HTTPS terminates here.
+    proxy_ip = _own_ip()
     logger.info(
-        "service/register: %s -> upstream=%s:%d, dns=%s",
-        fqdn, req.upstream_host, req.frontend_port, req.ip_address,
+        "service/register: %s -> upstream=%s:%d, dns=%s (client sent %s)",
+        fqdn, req.upstream_host, req.frontend_port, proxy_ip, req.ip_address,
     )
 
     # 1) Registry (source of truth) — write JSON first
@@ -271,13 +286,13 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
         upstream_host=req.upstream_host,
         frontend_port=req.frontend_port,
         backend_port=req.backend_port,
-        ip_address=req.ip_address,
+        ip_address=proxy_ip,
         ttl=req.ttl,
     )
 
-    # 2) DNS A record
+    # 2) DNS A record — point to re-ddns (nginx proxy)
     dns_ok, dns_msg = dns_manager.do_dns_update(
-        req.subdomain, req.zone_name, req.ip_address, req.ttl,
+        req.subdomain, req.zone_name, proxy_ip, req.ttl,
     )
     if not dns_ok:
         logger.warning("DNS failed for %s: %s", fqdn, dns_msg)
@@ -305,7 +320,7 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
     success = dns_ok and nginx_ok
     parts = []
     if dns_ok:
-        parts.append(f"DNS: {fqdn} -> {req.ip_address}")
+        parts.append(f"DNS: {fqdn} -> {proxy_ip}")
     else:
         parts.append(f"DNS failed: {dns_msg}")
     if nginx_ok:

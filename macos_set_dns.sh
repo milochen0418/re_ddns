@@ -232,6 +232,8 @@ case "$CMD" in
     if ! grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
         {
             echo "$LOCAL_DNS home.$DOMAIN  $HOSTS_MARKER"
+            echo "$LOCAL_DNS testapp.$DOMAIN  $HOSTS_MARKER"
+            echo "$LOCAL_DNS testapp2.$DOMAIN  $HOSTS_MARKER"
         } | sudo tee -a "$HOSTS_FILE" > /dev/null
         echo "[$IFACE] Added *.${DOMAIN} entries to /etc/hosts → $LOCAL_DNS"
     else
