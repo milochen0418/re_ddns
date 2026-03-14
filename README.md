@@ -226,3 +226,87 @@ Extends testapp with a **full GUI desktop** (Xvfb + Fluxbox + Chromium + noVNC),
 View the container's desktop from your Mac at `http://localhost:6080/vnc.html`. An **xterm terminal** and **Chromium browser** are auto-launched on startup. Right-click the desktop to open more windows via the Fluxbox menu.
 
 See [testapp/README.md](testapp/README.md) and [testapp2/README.md](testapp2/README.md) for detailed architecture diagrams.
+
+### How Container-to-Container HTTPS Works
+
+When testapp2's Chromium opens `https://testapp.reflex-ddns.com`, several layers work together to make this possible. Here is the full chain:
+
+```
+testapp2 (Chromium)                      re-ddns                           test-app
+  │                                        │                                 │
+  │ 1. DNS query:                          │                                 │
+  │    testapp.reflex-ddns.com → ?         │                                 │
+  │ ──────────────────────────────────► BIND9 (port 53)                      │
+  │ ◄────────────────────────────────── A 172.28.0.10  ← re-ddns's own IP    │
+  │                                        │                                 │
+  │ 2. TLS handshake (HTTPS):              │                                 │
+  │ ──────────────────────────────────► nginx (port 443)                     │
+  │    verify cert → Local CA signed ✅     │                                 │
+  │                                        │                                 │
+  │ 3. Reverse proxy:                      │                                 │
+  │                                    nginx routes to ──────────────────► Reflex
+  │                                    test-app:3000/8000                  (port 3000)
+  │                                        │                                 │
+  │ 4. Response flows back:                │                                 │
+  │ ◄────────────────────────────────── ◄──────────────────────────────── HTML/WS
+```
+
+This chain involves **five key subsystems**, each solving a different problem:
+
+#### 1. DNS — All domains resolve to re-ddns (the proxy)
+
+When a service (testapp, testapp2) starts, it calls `POST /api/service/register` on re-ddns. The re-ddns server uses **its own container IP** (e.g. `172.28.0.10`) — not the caller's IP — to create the BIND9 A record. This is critical: HTTPS terminates at re-ddns's nginx, so all `*.reflex-ddns.com` DNS records must point there.
+
+```
+testapp.reflex-ddns.com   → 172.28.0.10   (re-ddns, where nginx lives)
+testapp2.reflex-ddns.com  → 172.28.0.10   (same)
+home.reflex-ddns.com      → 172.28.0.10   (same)
+```
+
+If DNS pointed to the service containers directly (e.g. `172.28.0.20`), HTTPS would fail because those containers don't run nginx or have TLS certificates.
+
+#### 2. TLS Certificates — Local CA with wildcard support
+
+re-ddns runs a **Local Certificate Authority** (`cert_manager.py`). When a service registers, re-ddns automatically:
+
+1. Generates a private key + CSR for `<subdomain>.reflex-ddns.com`
+2. Signs it with the Local CA root certificate
+3. Stores it at `/app/data/certs/<domain>/fullchain.pem`
+
+The CA root certificate (`re_ddns_ca.pem`) is the trust anchor — any browser that imports it will trust all `*.reflex-ddns.com` certificates.
+
+#### 3. nginx — Unified HTTPS reverse proxy
+
+re-ddns's nginx (`nginx_manager.py`) generates a config file per service:
+
+- **Port 443 (HTTPS)**: Terminates TLS using the Local CA-signed certificate, then proxies to the upstream service's Reflex ports (3000 for frontend, 8000 for backend/WebSocket).
+- **Port 80 (HTTP)**: Redirects to HTTPS.
+- **WebSocket support**: Passes `Upgrade` / `Connection` headers for Reflex's real-time `/_event` channel.
+
+The nginx config uses Docker service names (e.g. `test-app:3000`) for upstream routing — Docker's internal DNS resolves these to the correct container IPs.
+
+#### 4. CA Trust — Install script with GUI
+
+For Chromium to show the green lock icon (not "Your connection is not private"), the Local CA certificate must be imported into the browser's trust store. re-ddns provides install scripts at `GET /api/ca/install-script/{platform}`:
+
+| Platform | Trust mechanism |
+|----------|----------------|
+| **macOS** | `security add-trusted-cert` → System Keychain (AppleScript GUI) |
+| **Linux** (testapp2) | `update-ca-certificates` (system) + `certutil` (Chromium NSS DB) with zenity GUI |
+
+Inside testapp2's noVNC desktop, the user runs the Linux install script from the xterm terminal. The script auto-installs `zenity` and `libnss3-tools` if missing, then presents a GUI dialog.
+
+#### 5. Smart protocol detection — ws:// → wss://
+
+Reflex defaults to `ws://` for WebSocket connections. When served over HTTPS, the browser blocks mixed content (`wss://` is required). re-ddns injects a JavaScript snippet that monkey-patches the `WebSocket` constructor to auto-upgrade `ws://` → `wss://` when the page is loaded over HTTPS.
+
+#### Summary: What makes it all work together
+
+| Problem | Solution |
+|---------|----------|
+| Service containers don't have HTTPS | nginx on re-ddns terminates TLS for all services |
+| DNS must route to to the proxy, not the service itself | Server-side registration overrides IP to re-ddns's own IP |
+| Browsers don't trust self-signed certs | Local CA + install scripts for each OS |
+| Chromium has its own cert store (NSS) | `certutil` installs CA into `~/.pki/nssdb` |
+| WebSocket fails over HTTPS with ws:// | JavaScript monkey-patch auto-upgrades to wss:// |
+| Need to test from a "remote" browser | testapp2 provides Chromium + noVNC inside Docker |
