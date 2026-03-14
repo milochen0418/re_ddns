@@ -186,3 +186,43 @@ docker compose up --build
 # Stop everything
 docker compose down
 ```
+
+---
+
+## Test Containers: testapp & testapp2
+
+The project includes two test containers for integration testing and development. They are orchestrated alongside the main re-ddns container via `docker-compose.test.yml`.
+
+### Quick Start
+
+```bash
+docker compose -f docker-compose.test.yml up --build
+```
+
+After startup:
+| URL | Description |
+|-----|-------------|
+| `http://home.reflex-ddns.com` | Re-DDNS dashboard |
+| `http://testapp.reflex-ddns.com` | testapp Hello World |
+| `http://testapp2.reflex-ddns.com` | testapp2 Hello World |
+| `http://localhost:6080/vnc.html` | noVNC — view testapp2's in-container browser |
+
+### testapp — Lightweight Service Registration Test
+
+A minimal Reflex "Hello World" app that verifies the **DNS + nginx auto-registration** flow:
+
+- On startup, calls `POST /api/service/register` to register itself in BIND9 and nginx.
+- Auto-detects its own container IP for DNS registration (no hardcoding needed).
+- Proves that a new service can join the re-ddns network with a single API call.
+
+### testapp2 — In-Container Browser Test Environment
+
+Extends testapp with a **full GUI desktop** (Xvfb + Fluxbox + Chromium + noVNC), designed for testing flows that require a real browser:
+
+- **CA certificate install**: Test the Linux CA install script (with zenity GUI) inside the container's terminal.
+- **HTTPS verification**: After installing the CA, restart Chromium and verify `https://home.reflex-ddns.com` shows a trusted lock icon.
+- **Remote machine simulation**: The container acts as a separate "machine" on the Docker network, proving cross-host DNS resolution and certificate trust.
+
+View the container's desktop from your Mac at `http://localhost:6080/vnc.html`. An **xterm terminal** and **Chromium browser** are auto-launched on startup. Right-click the desktop to open more windows via the Fluxbox menu.
+
+See [testapp/README.md](testapp/README.md) and [testapp2/README.md](testapp2/README.md) for detailed architecture diagrams.
