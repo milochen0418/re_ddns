@@ -192,10 +192,9 @@ case "$CMD" in
     servers=$(current_dns)
     case " $servers " in
         *" $LOCAL_DNS "*)
-            echo "[$IFACE] $LOCAL_DNS already in DNS list. Nothing to do."
-            exit 0
+            echo "[$IFACE] $LOCAL_DNS already in DNS list."
             ;;
-    esac
+        *)
 
     # If no manual DNS is set, discover DHCP-provided DNS so we can keep
     # them as fallbacks.  Without this, setting only 127.0.0.1 would make
@@ -214,11 +213,19 @@ case "$CMD" in
     sudo networksetup -setdnsservers "$IFACE" $new_list
     echo "[$IFACE] New DNS list:"
     networksetup -getdnsservers "$IFACE"
+            ;;
+    esac
+
     # Create /etc/resolver entry so mDNSResponder routes *.reflex-ddns.com
     # queries to our local BIND9 (this is what curl/python/apps actually use).
-    sudo mkdir -p "$RESOLVER_DIR"
-    echo "nameserver $LOCAL_DNS" | sudo tee "$RESOLVER_DIR/$DOMAIN" > /dev/null
-    echo "[$IFACE] Created $RESOLVER_DIR/$DOMAIN → $LOCAL_DNS"
+    if [[ ! -f "$RESOLVER_DIR/$DOMAIN" ]]; then
+        sudo mkdir -p "$RESOLVER_DIR"
+        echo "nameserver $LOCAL_DNS" | sudo tee "$RESOLVER_DIR/$DOMAIN" > /dev/null
+        echo "[$IFACE] Created $RESOLVER_DIR/$DOMAIN → $LOCAL_DNS"
+    else
+        echo "[$IFACE] $RESOLVER_DIR/$DOMAIN already exists."
+    fi
+
     # Add /etc/hosts entries so Mac resolves *.reflex-ddns.com to 127.0.0.1
     # (BIND9 zone uses container IPs for inter-container routing, but Mac
     # accesses Docker via published ports on localhost)
