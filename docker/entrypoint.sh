@@ -107,11 +107,22 @@ if [[ -z "$CONTAINER_IP" || "$CONTAINER_IP" == "127.0.0.1" ]]; then
     CONTAINER_IP=$(python3 -c "import socket; print(socket.gethostbyname(socket.gethostname()))" 2>/dev/null || true)
 fi
 log "Detected container IP: $CONTAINER_IP"
+
+# EXTERNAL_IP is the address that non-Docker clients (e.g. macOS host)
+# should use to reach the services. Defaults to 127.0.0.1 (Docker Desktop
+# publishes ports on localhost).
+EXTERNAL_IP="${EXTERNAL_IP:-127.0.0.1}"
+log "External IP for DNS records: $EXTERNAL_IP"
+
 for zf in "$ZONES_DIR"/db.*; do
     [[ -f "$zf" ]] || continue
     if grep -q '__CONTAINER_IP__' "$zf"; then
         sed -i "s/__CONTAINER_IP__/$CONTAINER_IP/g" "$zf"
         log "Zone $(basename "$zf"): __CONTAINER_IP__ → $CONTAINER_IP"
+    fi
+    if grep -q '__EXTERNAL_IP__' "$zf"; then
+        sed -i "s/__EXTERNAL_IP__/$EXTERNAL_IP/g" "$zf"
+        log "Zone $(basename "$zf"): __EXTERNAL_IP__ → $EXTERNAL_IP"
     fi
 done
 

@@ -24,6 +24,7 @@
 #   http://api.reflex-ddns.com/api/   → re-ddns API
 #   http://testapp.reflex-ddns.com    → test-app Hello World
 #   http://testapp2.reflex-ddns.com   → test-app2 (with in-container browser)
+#   http://testapp3.reflex-ddns.com   → test-app3 (frontend↔backend integration)
 #   http://localhost:6080/vnc.html    → noVNC (testapp2 container desktop)
 
 networks:
@@ -159,6 +160,38 @@ services:
     dns:
       # Use re-ddns container's BIND9 so *.reflex-ddns.com resolves
       - 172.28.0.10
+
+    restart: unless-stopped
+
+  # ── Test app 3 (Frontend ↔ Backend integration tests) ──────────────
+  # Tests all communication paths between Reflex frontend and backend
+  # when served behind nginx: WebSocket (/_event), file upload (/_upload),
+  # custom API (/api/), and file download.
+  test-app3:
+    build:
+      context: ./testapp3
+      dockerfile: Dockerfile
+    container_name: test-app3
+    hostname: test-app3
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.40
+
+    depends_on:
+      - re-ddns
+
+    # No ports published — nginx inside re-ddns routes by Host header.
+
+    environment:
+      # re-ddns API base URL (Docker DNS resolves "re-ddns" → container IP)
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      # Service registration details
+      - SERVICE_SUBDOMAIN=testapp3
+      - SERVICE_ZONE=reflex-ddns.com
+      # Reflex listen addresses
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
 
     restart: unless-stopped
 

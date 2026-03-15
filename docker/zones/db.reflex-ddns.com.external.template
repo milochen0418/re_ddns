@@ -1,0 +1,26 @@
+; /etc/bind/zones/db.reflex-ddns.com.external
+; ──────────────────────────────────────────
+; Zone file for the "external" BIND9 view.
+; Clients outside the Docker network (e.g. macOS host) see
+; __EXTERNAL_IP__ (typically 127.0.0.1) so that Docker-published
+; ports on localhost are reachable.
+
+$TTL    300
+@       IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. (
+                        2025010101  ; Serial (YYYYMMDDNN)
+                        3600        ; Refresh
+                        900         ; Retry
+                        604800      ; Expire
+                        300 )       ; Negative Cache TTL
+
+; ── Name servers ──
+@       IN      NS      ns1.reflex-ddns.com.
+
+; ── NS glue record ──
+ns1     IN      A       __EXTERNAL_IP__
+
+; ── Static records ──
+home    IN      A       __EXTERNAL_IP__
+
+; ── Wildcard: any subdomain → localhost (Docker-published ports) ──
+*       IN      A       __EXTERNAL_IP__

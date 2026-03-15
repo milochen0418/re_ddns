@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,6 +58,11 @@ from re_ddns.api import cert_manager, dns_manager, nginx_manager
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["dns", "service"])
+
+# IP address written into DNS A records.
+# For local Docker Desktop development this is 127.0.0.1 so macOS can
+# reach the services via Docker-published ports on localhost.
+_DNS_RECORD_IP = os.environ.get("EXTERNAL_IP", "127.0.0.1")
 
 # ---------------------------------------------------------------------------
 # Registry data layer
@@ -271,9 +277,11 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
     """Register a service: registry → DNS → TLS cert → nginx (with HTTPS)."""
 
     fqdn = f"{req.subdomain}.{req.zone_name}"
-    # DNS A records must point to re-ddns (the nginx proxy), not to the
-    # service container's own IP — HTTPS terminates here.
-    proxy_ip = _own_ip()
+    # DNS A records point to the external IP (127.0.0.1 on Docker Desktop)
+    # so that macOS host can reach services through Docker-published ports.
+    # The BIND9 "docker" view uses a wildcard to route container queries
+    # to the real container IP; only the "external" view needs updates.
+    proxy_ip = _DNS_RECORD_IP
     logger.info(
         "service/register: %s -> upstream=%s:%d, dns=%s (client sent %s)",
         fqdn, req.upstream_host, req.frontend_port, proxy_ip, req.ip_address,

@@ -20,6 +20,11 @@ $TTL    300
 ; with the container's actual network IP.
 ns1     IN      A       __CONTAINER_IP__
 
-; ── Dynamic record managed by re_ddns ──
-; This will be updated via RFC 2136 by the Reflex app.
+; ── Static records ──
+; All subdomains point to the re-ddns nginx proxy container.
 home    IN      A       __CONTAINER_IP__
+
+; ── Wildcard: any subdomain → re-ddns proxy ──
+; Dynamic services register via nginx (Host header routing),
+; so every name should resolve to the same proxy IP.
+*       IN      A       __CONTAINER_IP__
