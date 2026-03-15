@@ -1,0 +1,18 @@
+[project]
+name = "testapp3"
+version = "0.1.0"
+description = "Reflex integration test app – frontend/backend communication through nginx proxy"
+requires-python = "~=3.11"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "~3.11"
+reflex = "0.8.24.post1"
+httpx = "*"
+fastapi = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

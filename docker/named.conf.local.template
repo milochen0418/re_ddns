@@ -1,5 +1,8 @@
-// /etc/bind/named.conf.local  –  TSIG key + zone declarations
+// /etc/bind/named.conf.local  –  TSIG key definition
 // ─────────────────────────────────────────────────────────────
+//
+// Zone declarations have moved into BIND9 views (see named.conf).
+// This file now contains only the TSIG key used for RFC 2136 updates.
 
 // ── TSIG Key for dynamic updates (RFC 2136) ──
 // Generate your own key with:
@@ -8,17 +11,4 @@
 key "ddns-key" {
     algorithm hmac-sha256;
     secret "__TSIG_SECRET__";
-};
-
-// ── Example authoritative zone: reflex-ddns.com ──
-// Change "reflex-ddns.com" to your actual domain.
-zone "reflex-ddns.com" {
-    type master;
-    file "/etc/bind/zones/db.reflex-ddns.com";
-
-    // Allow dynamic updates only from localhost with the TSIG key
-    allow-update { key "ddns-key"; };
-
-    // Optional: also allow updates from the trusted ACL
-    // allow-update { key "ddns-key"; trusted; };
 };
