@@ -78,6 +78,12 @@ fi
 # ──────────────────────────────────────────────
 CLONE_DIR="/app/source"
 
+# Clean previous clone (handles container restarts)
+if [[ -d "$CLONE_DIR" ]]; then
+    log "Removing previous clone ..."
+    rm -rf "$CLONE_DIR"
+fi
+
 log "Cloning $GITHUB_REPO (branch: $GITHUB_BRANCH) ..."
 git clone --depth 1 --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
 
@@ -160,7 +166,67 @@ fi
 # ──────────────────────────────────────────────
 if [[ -f "pyproject.toml" ]]; then
     log "Installing dependencies with Poetry ..."
-    poetry install --no-root || (poetry lock && poetry install --no-root)
+    # Ensure package-mode is off (some projects use [project] table without
+    # [tool.poetry] name/version, which Poetry 1.x rejects in package mode).
+    if ! grep -q 'package-mode' pyproject.toml; then
+        # Add package-mode = false under [tool.poetry] (create section if needed)
+        if grep -q '\[tool\.poetry\]' pyproject.toml; then
+            sed -i '/\[tool\.poetry\]/a package-mode = false' pyproject.toml
+        else
+            printf '\n[tool.poetry]\npackage-mode = false\n' >> pyproject.toml
+        fi
+        log "Added package-mode = false to pyproject.toml"
+    fi
+
+    # Poetry 1.x ignores PEP 621 [project].dependencies — it only reads
+    # [tool.poetry.dependencies]. Convert them if the project uses [project]
+    # format and has no [tool.poetry.dependencies] section.
+    if grep -q '^\[project\]' pyproject.toml && \
+       ! grep -q '^\[tool\.poetry\.dependencies\]' pyproject.toml; then
+        log "Converting [project].dependencies to [tool.poetry.dependencies] ..."
+        python3 -c "
+import re, sys
+
+text = open('pyproject.toml').read()
+
+# Extract dependencies from [project] section
+m = re.search(r'dependencies\s*=\s*\[(.*?)\]', text, re.DOTALL)
+if not m:
+    sys.exit(0)
+
+raw = m.group(1)
+deps = []
+for line in raw.split('\n'):
+    line = line.strip().strip(',').strip('\"').strip(\"'\")
+    if not line:
+        continue
+    # Parse 'reflex==0.8.25' or 'reflex>=0.8.23' or 'python-dotenv'
+    match = re.match(r'^([a-zA-Z0-9_-]+)(.*)', line)
+    if match:
+        name = match.group(1)
+        ver = match.group(2).strip()
+        if ver:
+            deps.append(f'{name} = \"{ver}\"')
+        else:
+            deps.append(f'{name} = \"*\"')
+
+if deps:
+    section = '\n[tool.poetry.dependencies]\npython = \">=3.11,<4.0\"\n'
+    for d in deps:
+        section += d + '\n'
+    text += section
+    open('pyproject.toml', 'w').write(text)
+    print(f'Added {len(deps)} dependencies to [tool.poetry.dependencies]')
+" 2>/dev/null || log "WARNING: dependency conversion had issues"
+    fi
+
+    # Remove stale lockfile from the cloned repo to avoid compatibility issues.
+    rm -f poetry.lock
+    log "Running poetry lock ..."
+    poetry lock
+    log "Running poetry install ..."
+    poetry install --no-root
+    log "Poetry install completed"
 else
     log "No pyproject.toml found — creating a minimal one"
     cat > pyproject.toml << TOMLEOF
@@ -189,6 +255,9 @@ if [[ -n "${EXTRA_PIP_PACKAGES:-}" ]]; then
     log "Installing extra pip packages: $EXTRA_PIP_PACKAGES"
     poetry run pip install $EXTRA_PIP_PACKAGES
 fi
+
+# Ensure httpx is available (needed by register_dns.py)
+poetry run python -c "import httpx" 2>/dev/null || poetry run pip install httpx
 
 # ──────────────────────────────────────────────
 # 4.5 Generate .env from .env.template if needed
