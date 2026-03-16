@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ── smart_launcher entrypoint ──
+#
+# A generic Docker entrypoint that can launch ANY Reflex app from a
+# GitHub repo.  Just provide environment variables and let it handle
+# everything: clone → install → register DNS → patch Vite → start.
+#
+# Required environment variables:
+#   GITHUB_REPO        – Full GitHub clone URL (HTTPS)
+#                        e.g. https://github.com/user/my-reflex-app.git
+#   APP_NAME           – Reflex app module name (the folder with __init__.py)
+#                        e.g. my_app
+#
+# Optional environment variables:
+#   GITHUB_BRANCH      – Branch/tag to checkout (default: main)
+#   GITHUB_SUBDIR      – Subdirectory within repo containing the Reflex project
+#                        (default: "" = repo root)
+#   SERVICE_SUBDOMAIN  – Subdomain for DNS registration (default: APP_NAME)
+#   SERVICE_ZONE       – DNS zone (default: reflex-ddns.com)
+#   SERVICE_IP         – IP for DNS A record (auto-detected if unset)
+#   RE_DDNS_API_URL    – re-ddns API base URL (default: http://re-ddns:8000)
+#   FRONTEND_PORT      – Reflex frontend port (default: 3000)
+#   BACKEND_PORT       – Reflex backend port (default: 8000)
+#   SKIP_DNS_REGISTER  – Set to "1" to skip DNS registration
+#   EXTRA_PIP_PACKAGES – Space-separated extra pip packages to install
+#   EXTRA_APT_PACKAGES – Space-separated extra apt packages to install
+
+log() { echo "[smart-launcher] $(date '+%H:%M:%S') $*"; }
+
+# ──────────────────────────────────────────────
+# 0. Validate required environment variables
+# ──────────────────────────────────────────────
+if [[ -z "${GITHUB_REPO:-}" ]]; then
+    log "ERROR: GITHUB_REPO is required (e.g. https://github.com/user/my-app.git)"
+    exit 1
+fi
+if [[ -z "${APP_NAME:-}" ]]; then
+    log "ERROR: APP_NAME is required (the Reflex app module name)"
+    exit 1
+fi
+
+GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_SUBDIR="${GITHUB_SUBDIR:-}"
+SERVICE_SUBDOMAIN="${SERVICE_SUBDOMAIN:-$APP_NAME}"
+SERVICE_ZONE="${SERVICE_ZONE:-reflex-ddns.com}"
+RE_DDNS_API_URL="${RE_DDNS_API_URL:-http://re-ddns:8000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+SKIP_DNS_REGISTER="${SKIP_DNS_REGISTER:-0}"
+
+log "=== Smart Launcher Configuration ==="
+log "  GITHUB_REPO:       $GITHUB_REPO"
+log "  GITHUB_BRANCH:     $GITHUB_BRANCH"
+log "  GITHUB_SUBDIR:     ${GITHUB_SUBDIR:-(root)}"
+log "  APP_NAME:          $APP_NAME"
+log "  SERVICE_SUBDOMAIN: $SERVICE_SUBDOMAIN"
+log "  SERVICE_ZONE:      $SERVICE_ZONE"
+log "  FRONTEND_PORT:     $FRONTEND_PORT"
+log "  BACKEND_PORT:      $BACKEND_PORT"
+log "=================================="
+
+# ──────────────────────────────────────────────
+# 1. Install extra APT packages (if any)
+# ──────────────────────────────────────────────
+if [[ -n "${EXTRA_APT_PACKAGES:-}" ]]; then
+    log "Installing extra APT packages: $EXTRA_APT_PACKAGES"
+    apt-get update && apt-get install -y --no-install-recommends $EXTRA_APT_PACKAGES \
+        && apt-get clean && rm -rf /var/lib/apt/lists/*
+fi
+
+# ──────────────────────────────────────────────
+# 2. Clone the GitHub repository
+# ──────────────────────────────────────────────
+CLONE_DIR="/app/source"
+
+log "Cloning $GITHUB_REPO (branch: $GITHUB_BRANCH) ..."
+git clone --depth 1 --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+
+# Navigate to the project directory
+PROJECT_DIR="$CLONE_DIR"
+if [[ -n "$GITHUB_SUBDIR" ]]; then
+    PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
+    if [[ ! -d "$PROJECT_DIR" ]]; then
+        log "ERROR: Subdirectory '$GITHUB_SUBDIR' not found in cloned repo"
+        ls -la "$CLONE_DIR"
+        exit 1
+    fi
+fi
+
+cd "$PROJECT_DIR"
+log "Working directory: $(pwd)"
+
+# ──────────────────────────────────────────────
+# 3. Generate rxconfig.py if it needs patching
+# ──────────────────────────────────────────────
+# If rxconfig.py exists, verify APP_NAME matches. If not, create one.
+if [[ -f "rxconfig.py" ]]; then
+    log "Found existing rxconfig.py"
+    # Show it for debugging
+    cat rxconfig.py
+else
+    log "No rxconfig.py found — creating one for app '$APP_NAME'"
+    cat > rxconfig.py << PYEOF
+import reflex as rx
+
+config = rx.Config(
+    app_name="${APP_NAME}",
+    plugins=[rx.plugins.TailwindV3Plugin()],
+    cors_allowed_origins=["*"],
+)
+PYEOF
+fi
+
+# ──────────────────────────────────────────────
+# 4. Install Python dependencies
+# ──────────────────────────────────────────────
+if [[ -f "pyproject.toml" ]]; then
+    log "Installing dependencies with Poetry ..."
+    poetry install --no-root || (poetry lock && poetry install --no-root)
+else
+    log "No pyproject.toml found — creating a minimal one"
+    cat > pyproject.toml << TOMLEOF
+[project]
+name = "${APP_NAME}"
+version = "0.1.0"
+requires-python = "~=3.11"
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "~3.11"
+reflex = "0.8.24.post1"
+httpx = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+TOMLEOF
+    poetry install --no-root || (poetry lock && poetry install --no-root)
+fi
+
+# Install extra pip packages if specified
+if [[ -n "${EXTRA_PIP_PACKAGES:-}" ]]; then
+    log "Installing extra pip packages: $EXTRA_PIP_PACKAGES"
+    poetry run pip install $EXTRA_PIP_PACKAGES
+fi
+
+# ──────────────────────────────────────────────
+# 5. Initialize Reflex
+# ──────────────────────────────────────────────
+log "Running reflex init ..."
+poetry run reflex init || true
+
+# Patch Reflex Vite config template to allow any hostname
+sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: true,/' \
+    .venv/lib/python3.11/site-packages/reflex/compiler/templates.py 2>/dev/null || true
+
+# ──────────────────────────────────────────────
+# 6. Register DNS record via re-ddns API
+# ──────────────────────────────────────────────
+if [[ "$SKIP_DNS_REGISTER" != "1" ]]; then
+    log "Registering DNS record via re-ddns API ..."
+    # Copy register_dns.py into the project if not present
+    if [[ ! -f "register_dns.py" ]]; then
+        cp /app/register_dns.py .
+    fi
+    poetry run python register_dns.py || log "WARNING: DNS registration failed — continuing anyway"
+else
+    log "Skipping DNS registration (SKIP_DNS_REGISTER=1)"
+fi
+
+# ──────────────────────────────────────────────
+# 7. Patch Vite allowedHosts (runtime)
+# ──────────────────────────────────────────────
+VITE_CFG=".web/vite.config.js"
+if [[ -f "$VITE_CFG" ]]; then
+    if grep -q 'allowedHosts: "all"' "$VITE_CFG"; then
+        sed -i 's|allowedHosts: "all"|allowedHosts: true|' "$VITE_CFG"
+        log "Patched vite.config.js: allowedHosts = true"
+    elif ! grep -q "allowedHosts" "$VITE_CFG"; then
+        sed -i 's|port: process.env.PORT,|port: process.env.PORT,\n    allowedHosts: true,|' "$VITE_CFG"
+        log "Patched vite.config.js: allowedHosts = true"
+    fi
+fi
+
+# ──────────────────────────────────────────────
+# 8. Create upload directory (common for Reflex apps)
+# ──────────────────────────────────────────────
+mkdir -p uploaded_files
+
+# ──────────────────────────────────────────────
+# 9. Start Reflex dev server
+# ──────────────────────────────────────────────
+log "Starting Reflex dev server on ports $FRONTEND_PORT/$BACKEND_PORT ..."
+exec poetry run reflex run \
+    --env dev \
+    --frontend-port "$FRONTEND_PORT" \
+    --backend-port "$BACKEND_PORT" \
+    --loglevel info
