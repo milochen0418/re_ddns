@@ -26,6 +26,9 @@ set -euo pipefail
 #   SKIP_DNS_REGISTER  – Set to "1" to skip DNS registration
 #   EXTRA_PIP_PACKAGES – Space-separated extra pip packages to install
 #   EXTRA_APT_PACKAGES – Space-separated extra apt packages to install
+#   ENV_FILE_VARS      – Space-separated list of env var names to write
+#                        into .env (fallback when no .env.template exists)
+#                        e.g. "GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET"
 
 log() { echo "[smart-launcher] $(date '+%H:%M:%S') $*"; }
 
@@ -93,6 +96,45 @@ cd "$PROJECT_DIR"
 log "Working directory: $(pwd)"
 
 # ──────────────────────────────────────────────
+# 2.5 Generate .env file from environment variables
+# ──────────────────────────────────────────────
+# Many Reflex apps use python-dotenv to load a .env file.
+# If a .env.template exists, generate .env from current environment variables.
+if [[ -f ".env.template" && ! -f ".env" ]]; then
+    log "Found .env.template — generating .env from environment variables ..."
+    # Read each KEY=placeholder line from the template and substitute
+    # with actual environment variable values (if set).
+    while IFS= read -r line; do
+        # Skip comments and empty lines
+        if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "$line" ]]; then
+            echo "$line"
+            continue
+        fi
+        # Extract the variable name (everything before the first '=')
+        var_name="${line%%=*}"
+        var_name="$(echo "$var_name" | xargs)"  # trim whitespace
+        if [[ -n "${!var_name:-}" ]]; then
+            echo "${var_name}=${!var_name}"
+        else
+            echo "$line"
+        fi
+    done < .env.template > .env
+    log ".env file generated"
+elif [[ ! -f ".env" ]]; then
+    # No template — dump all ENV_FILE_VARS into .env if the variable is set
+    # This is a fallback for apps that expect .env but don't ship a template.
+    log "No .env found — creating from environment (ENV_FILE_VARS) ..."
+    if [[ -n "${ENV_FILE_VARS:-}" ]]; then
+        for var_name in $ENV_FILE_VARS; do
+            if [[ -n "${!var_name:-}" ]]; then
+                echo "${var_name}=${!var_name}" >> .env
+            fi
+        done
+        log ".env file created with specified variables"
+    fi
+fi
+
+# ──────────────────────────────────────────────
 # 3. Generate rxconfig.py if it needs patching
 # ──────────────────────────────────────────────
 # If rxconfig.py exists, verify APP_NAME matches. If not, create one.
@@ -146,6 +188,22 @@ fi
 if [[ -n "${EXTRA_PIP_PACKAGES:-}" ]]; then
     log "Installing extra pip packages: $EXTRA_PIP_PACKAGES"
     poetry run pip install $EXTRA_PIP_PACKAGES
+fi
+
+# ──────────────────────────────────────────────
+# 4.5 Generate .env from .env.template if needed
+# ──────────────────────────────────────────────
+# Many Reflex apps use python-dotenv and expect a .env file.
+# If the repo ships a .env.template but no .env, copy it as a starting point.
+# Docker environment variables (set in docker-compose) will override .env values
+# at runtime anyway.
+if [[ ! -f ".env" && -f ".env.template" ]]; then
+    cp .env.template .env
+    log "Created .env from .env.template"
+elif [[ ! -f ".env" ]]; then
+    # Create an empty .env so load_dotenv() in rxconfig.py doesn't complain
+    touch .env
+    log "Created empty .env"
 fi
 
 # ──────────────────────────────────────────────

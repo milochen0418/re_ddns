@@ -112,18 +112,19 @@ services:
 
     environment:
       # ── Required: Your GitHub repo ──
-      - GITHUB_REPO=https://github.com/reflex-dev/reflex-chat.git
-      - APP_NAME=reflex_chat
+      - GITHUB_REPO=https://github.com/milochen0418/codoc_in_plantuml.git
+      - APP_NAME=codoc_in_plantuml
       # ── Optional: Customize ──
       - GITHUB_BRANCH=main
       # - GITHUB_SUBDIR=
-      - SERVICE_SUBDOMAIN=chat
+      - SERVICE_SUBDOMAIN=codoc
       - SERVICE_ZONE=reflex-ddns.com
       - RE_DDNS_API_URL=http://re-ddns:8000
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
-      # - EXTRA_PIP_PACKAGES=openai langchain
-      # - EXTRA_APT_PACKAGES=ffmpeg
+      # PlantUML uses public server by default (from .env.template)
+      # To use a self-hosted server, uncomment:
+      # - CODOC_PLANTUML_SERVER=http://your-plantuml-server:8080/plantuml
 
     restart: unless-stopped
 
