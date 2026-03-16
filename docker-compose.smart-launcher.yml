@@ -1,0 +1,163 @@
+# docker-compose.smart-launcher.yml
+#
+# Demonstrates the "smart launcher" — a generic Docker container that
+# can clone ANY Reflex app from GitHub and serve it behind re-ddns
+# with automatic DNS, TLS, and nginx reverse proxy.
+#
+# ┌─────────────────────────────────────────────────────────────────┐
+# │  How it works:                                                   │
+# │                                                                  │
+# │  1. re-ddns starts first (BIND9 + nginx + Reflex DDNS UI)       │
+# │  2. Each "smart-app-*" container:                                │
+# │     a. Clones the specified GitHub repo                          │
+# │     b. Installs Python/Node dependencies via Poetry              │
+# │     c. Runs `reflex init`                                        │
+# │     d. Registers with re-ddns API (DNS + nginx + TLS)            │
+# │     e. Starts `reflex run` on ports 3000/8000                    │
+# │  3. Access via: https://<subdomain>.reflex-ddns.com              │
+# └─────────────────────────────────────────────────────────────────┘
+#
+# Usage:
+#   docker compose -f docker-compose.smart-launcher.yml up --build
+#
+# After startup (with Mac DNS set to 127.0.0.1 or /etc/hosts):
+#   https://home.reflex-ddns.com     → re-ddns management UI
+#   https://myapp.reflex-ddns.com    → your cloned Reflex app
+#
+# To add more apps, just copy the "smart-app" service block and
+# change the environment variables.
+
+networks:
+  ddns-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+services:
+  # ── Main DDNS service (BIND9 + nginx + Reflex) ────────────────────────
+  re-ddns:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: re-ddns
+    hostname: re-ddns
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.10
+
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./re_ddns:/app/re_ddns
+      - ./rxconfig.py:/app/rxconfig.py
+      - ./assets:/app/assets
+      - ./reflex_rerun.sh:/app/reflex_rerun.sh
+      - ./docker/entrypoint.sh:/entrypoint.sh
+      - ./docker/generate_tsig_key.sh:/usr/local/bin/generate_tsig_key.sh
+      - bind-data:/var/cache/bind
+      - bind-log:/var/log/bind
+      - registry-data:/app/data
+      - reflex-db:/app
+
+    environment:
+      - BIND9_HOST=127.0.0.1
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      - API_URL=http://home.reflex-ddns.com
+      - TLS_MODE=local-ca
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_RESOURCE
+
+    restart: unless-stopped
+
+  # ── Example: Launch a Reflex app from GitHub ───────────────────────────
+  # Replace the environment variables below to deploy YOUR app.
+  #
+  # Minimal required variables:
+  #   GITHUB_REPO  – The Git clone URL
+  #   APP_NAME     – The Reflex app module name (folder with __init__.py)
+  #
+  # Optional variables:
+  #   GITHUB_BRANCH       – Branch/tag to clone (default: main)
+  #   GITHUB_SUBDIR       – Subdirectory if app is in a monorepo
+  #   SERVICE_SUBDOMAIN   – Subdomain (default: same as APP_NAME)
+  #   SERVICE_ZONE        – DNS zone (default: reflex-ddns.com)
+  #   FRONTEND_PORT       – Frontend port (default: 3000)
+  #   BACKEND_PORT        – Backend port (default: 8000)
+  #   EXTRA_PIP_PACKAGES  – Additional pip packages to install
+  #   EXTRA_APT_PACKAGES  – Additional apt packages to install
+  #   SKIP_DNS_REGISTER   – Set to "1" to skip DNS registration
+
+  smart-app:
+    build:
+      context: ./smart_launcher
+      dockerfile: Dockerfile
+    container_name: smart-app
+    hostname: smart-app
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.50
+
+    depends_on:
+      - re-ddns
+
+    environment:
+      # ── Required: Your GitHub repo ──
+      - GITHUB_REPO=https://github.com/milochen0418/codoc_in_plantuml.git
+      - APP_NAME=codoc_in_plantuml
+      # ── Optional: Customize ──
+      - GITHUB_BRANCH=main
+      # - GITHUB_SUBDIR=
+      - SERVICE_SUBDOMAIN=codoc
+      - SERVICE_ZONE=reflex-ddns.com
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      # PlantUML uses public server by default (from .env.template)
+      # To use a self-hosted server, uncomment:
+      # - CODOC_PLANTUML_SERVER=http://your-plantuml-server:8080/plantuml
+
+    restart: unless-stopped
+
+  # ── Example 2: Another app from a different repo ──────────────────────
+  # Uncomment and customize to launch a second app:
+  #
+  # smart-app2:
+  #   build:
+  #     context: ./smart_launcher
+  #     dockerfile: Dockerfile
+  #   container_name: smart-app2
+  #   hostname: smart-app2
+  #
+  #   networks:
+  #     ddns-net:
+  #       ipv4_address: 172.28.0.51
+  #
+  #   depends_on:
+  #     - re-ddns
+  #
+  #   environment:
+  #     - GITHUB_REPO=https://github.com/user/another-reflex-app.git
+  #     - APP_NAME=another_app
+  #     - SERVICE_SUBDOMAIN=another
+  #     - SERVICE_ZONE=reflex-ddns.com
+  #     - RE_DDNS_API_URL=http://re-ddns:8000
+  #     - REFLEX_FRONTEND_HOST=0.0.0.0
+  #     - REFLEX_BACKEND_HOST=0.0.0.0
+  #
+  #   restart: unless-stopped
+
+volumes:
+  bind-data:
+  bind-log:
+  registry-data:
+  reflex-db:
