@@ -102,42 +102,21 @@ cd "$PROJECT_DIR"
 log "Working directory: $(pwd)"
 
 # ──────────────────────────────────────────────
-# 2.5 Generate .env file from environment variables
+# 2.5 Inject .env file
 # ──────────────────────────────────────────────
-# Many Reflex apps use python-dotenv to load a .env file.
-# If a .env.template exists, generate .env from current environment variables.
-if [[ -f ".env.template" && ! -f ".env" ]]; then
-    log "Found .env.template — generating .env from environment variables ..."
-    # Read each KEY=placeholder line from the template and substitute
-    # with actual environment variable values (if set).
-    while IFS= read -r line; do
-        # Skip comments and empty lines
-        if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "$line" ]]; then
-            echo "$line"
-            continue
-        fi
-        # Extract the variable name (everything before the first '=')
-        var_name="${line%%=*}"
-        var_name="$(echo "$var_name" | xargs)"  # trim whitespace
-        if [[ -n "${!var_name:-}" ]]; then
-            echo "${var_name}=${!var_name}"
-        else
-            echo "$line"
-        fi
-    done < .env.template > .env
-    log ".env file generated"
+# Priority:
+#   1. /app/injected.env (mounted by smart_launch.sh via -v)
+#   2. .env.template in the repo (copy as-is)
+#   3. No .env → create empty so load_dotenv() won't error
+if [[ -f "/app/injected.env" ]]; then
+    cp /app/injected.env .env
+    log "Using injected .env file (mounted from host)"
+elif [[ -f ".env.template" && ! -f ".env" ]]; then
+    cp .env.template .env
+    log "Created .env from .env.template"
 elif [[ ! -f ".env" ]]; then
-    # No template — dump all ENV_FILE_VARS into .env if the variable is set
-    # This is a fallback for apps that expect .env but don't ship a template.
-    log "No .env found — creating from environment (ENV_FILE_VARS) ..."
-    if [[ -n "${ENV_FILE_VARS:-}" ]]; then
-        for var_name in $ENV_FILE_VARS; do
-            if [[ -n "${!var_name:-}" ]]; then
-                echo "${var_name}=${!var_name}" >> .env
-            fi
-        done
-        log ".env file created with specified variables"
-    fi
+    touch .env
+    log "Created empty .env"
 fi
 
 # ──────────────────────────────────────────────
