@@ -23,8 +23,12 @@ set -euo pipefail
 #   5. Builds and starts the smart-app container
 #   6. Tails logs until the app is ready
 #
-# To stop:
-#   docker compose -f docker-compose.smart-launcher.yml -f docker-compose.smart-app.yml down smart-app
+# To stop a specific app:
+#   docker compose -f docker-compose.smart-launcher.yml -f docker-compose.smart-app-<SUBDOMAIN>.yml down smart-app-<SUBDOMAIN>
+#
+# You can launch multiple apps simultaneously:
+#   ./smart_launch.sh https://github.com/user/app1.git app1 app1
+#   ./smart_launch.sh https://github.com/user/app2.git app2 app2
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -93,26 +97,27 @@ echo ""
 # ──────────────────────────────────────────────
 # 1. Prepare .env file (copy to smart_launcher/)
 # ──────────────────────────────────────────────
+CONTAINER_NAME="smart-app-${SUBDOMAIN}"
+COMPOSE_OVERRIDE="$SCRIPT_DIR/docker-compose.smart-app-${SUBDOMAIN}.yml"
+
 MOUNTED_ENV=""
 if [[ -n "$ENV_FILE" ]]; then
     # Copy the .env file to a known location for Docker volume mount
-    ENV_DEST="$SCRIPT_DIR/smart_launcher/.env.mount"
+    ENV_DEST="$SCRIPT_DIR/smart_launcher/.env.mount.${SUBDOMAIN}"
     cp "$ENV_FILE" "$ENV_DEST"
     MOUNTED_ENV="$ENV_DEST"
-    log "Copied .env to smart_launcher/.env.mount"
+    log "Copied .env to smart_launcher/.env.mount.${SUBDOMAIN}"
 fi
 
 # ──────────────────────────────────────────────
-# 2. Generate docker-compose.smart-app.yml
+# 2. Generate docker-compose.smart-app-${SUBDOMAIN}.yml
 # ──────────────────────────────────────────────
-COMPOSE_OVERRIDE="$SCRIPT_DIR/docker-compose.smart-app.yml"
-
 # Build the volumes section conditionally
 VOLUMES_SECTION=""
 if [[ -n "$MOUNTED_ENV" ]]; then
     VOLUMES_SECTION="
     volumes:
-      - ./smart_launcher/.env.mount:/app/injected.env:ro"
+      - ./smart_launcher/.env.mount.${SUBDOMAIN}:/app/injected.env:ro"
 fi
 
 cat > "$COMPOSE_OVERRIDE" <<YAML
@@ -120,16 +125,15 @@ cat > "$COMPOSE_OVERRIDE" <<YAML
 # Re-run smart_launch.sh to regenerate.
 
 services:
-  smart-app:
+  smart-app-${SUBDOMAIN}:
     build:
       context: ./smart_launcher
       dockerfile: Dockerfile
-    container_name: smart-app
-    hostname: smart-app
+    container_name: ${CONTAINER_NAME}
+    hostname: ${CONTAINER_NAME}
 
     networks:
       ddns-net:
-        ipv4_address: 172.28.0.50
 
     depends_on:
       - re-ddns
@@ -153,7 +157,7 @@ log "Generated $COMPOSE_OVERRIDE"
 # 3. Ensure re-ddns is running
 # ──────────────────────────────────────────────
 COMPOSE_BASE="docker-compose.smart-launcher.yml"
-COMPOSE_APP="docker-compose.smart-app.yml"
+COMPOSE_APP="docker-compose.smart-app-${SUBDOMAIN}.yml"
 
 if docker ps --format '{{.Names}}' | grep -q '^re-ddns$'; then
     ok "re-ddns is already running"
@@ -167,24 +171,24 @@ fi
 # ──────────────────────────────────────────────
 # 4. Stop old smart-app if running
 # ──────────────────────────────────────────────
-if docker ps -a --format '{{.Names}}' | grep -q '^smart-app$'; then
-    warn "Stopping existing smart-app ..."
-    docker stop smart-app 2>/dev/null || true
-    docker rm smart-app 2>/dev/null || true
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    warn "Stopping existing ${CONTAINER_NAME} ..."
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm "$CONTAINER_NAME" 2>/dev/null || true
 fi
 
 # ──────────────────────────────────────────────
 # 5. Build and start smart-app
 # ──────────────────────────────────────────────
-log "Building and starting smart-app ..."
-docker compose -f "$COMPOSE_BASE" -f "$COMPOSE_APP" up --build -d smart-app
+log "Building and starting ${CONTAINER_NAME} ..."
+docker compose -f "$COMPOSE_BASE" -f "$COMPOSE_APP" up --build -d "smart-app-${SUBDOMAIN}"
 
 echo ""
 ok "=========================================="
-ok " smart-app is starting!"
+ok " ${CONTAINER_NAME} is starting!"
 ok ""
 ok " App:  https://${SUBDOMAIN}.reflex-ddns.com"
-ok " Logs: docker logs -f smart-app"
+ok " Logs: docker logs -f ${CONTAINER_NAME}"
 ok "=========================================="
 echo ""
 
@@ -195,7 +199,7 @@ log "Tailing logs (Ctrl+C to stop watching — container keeps running) ..."
 echo ""
 
 # Follow logs until "App Running" appears or 5 minutes timeout
-docker logs -f smart-app 2>&1 | while IFS= read -r line; do
+docker logs -f "$CONTAINER_NAME" 2>&1 | while IFS= read -r line; do
     echo "$line"
     if echo "$line" | grep -q "App Running"; then
         echo ""

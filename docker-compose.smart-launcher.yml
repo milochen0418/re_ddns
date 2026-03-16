@@ -96,16 +96,15 @@ services:
   #   EXTRA_APT_PACKAGES  – Additional apt packages to install
   #   SKIP_DNS_REGISTER   – Set to "1" to skip DNS registration
 
-  smart-app:
+  smart-app-codoc:
     build:
       context: ./smart_launcher
       dockerfile: Dockerfile
-    container_name: smart-app
-    hostname: smart-app
+    container_name: smart-app-codoc
+    hostname: smart-app-codoc
 
     networks:
       ddns-net:
-        ipv4_address: 172.28.0.50
 
     depends_on:
       - re-ddns
@@ -129,18 +128,23 @@ services:
     restart: unless-stopped
 
   # ── Example 2: Another app from a different repo ──────────────────────
-  # Uncomment and customize to launch a second app:
+  # Just run smart_launch.sh again with different arguments:
+  #   ./smart_launch.sh https://github.com/user/another-reflex-app.git another_app another
   #
-  # smart-app2:
+  # This creates smart-app-another → https://another.reflex-ddns.com
+  # Each app gets its own container, compose file, and subdomain.
+  #
+  # Or define it manually:
+  #
+  # smart-app-another:
   #   build:
   #     context: ./smart_launcher
   #     dockerfile: Dockerfile
-  #   container_name: smart-app2
-  #   hostname: smart-app2
+  #   container_name: smart-app-another
+  #   hostname: smart-app-another
   #
   #   networks:
   #     ddns-net:
-  #       ipv4_address: 172.28.0.51
   #
   #   depends_on:
   #     - re-ddns
