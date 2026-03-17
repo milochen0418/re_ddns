@@ -120,12 +120,22 @@ elif [[ ! -f ".env" ]]; then
 fi
 
 # ──────────────────────────────────────────────
-# 3. Generate rxconfig.py if it needs patching
+# 3. Generate / patch rxconfig.py
 # ──────────────────────────────────────────────
-# If rxconfig.py exists, verify APP_NAME matches. If not, create one.
+# The key fix: inject api_url so Reflex generates the correct WebSocket URL in
+# env.json.  Without this, the frontend tries ws://localhost:8000/_event which
+# fails when accessed via https://<subdomain>.<zone>.
+EXTERNAL_URL="https://${SERVICE_SUBDOMAIN}.${SERVICE_ZONE}"
+
 if [[ -f "rxconfig.py" ]]; then
-    log "Found existing rxconfig.py"
-    # Show it for debugging
+    log "Found existing rxconfig.py — patching api_url ..."
+    # If api_url is already set, replace it; otherwise inject it after app_name
+    if grep -q 'api_url' rxconfig.py; then
+        sed -i "s|api_url=.*|api_url=\"${EXTERNAL_URL}\",|" rxconfig.py
+    else
+        # Insert api_url right after the app_name line
+        sed -i "/app_name=/a\\        api_url=\"${EXTERNAL_URL}\"," rxconfig.py
+    fi
     cat rxconfig.py
 else
     log "No rxconfig.py found — creating one for app '$APP_NAME'"
@@ -134,6 +144,7 @@ import reflex as rx
 
 config = rx.Config(
     app_name="${APP_NAME}",
+    api_url="${EXTERNAL_URL}",
     plugins=[rx.plugins.TailwindV3Plugin()],
     cors_allowed_origins=["*"],
 )

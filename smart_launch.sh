@@ -10,6 +10,7 @@ set -euo pipefail
 #
 # Examples:
 #   # Without .env:
+#   ./smart_launch.sh https://github.com/milochen0418/codoc_in_vecdraw.git codoc_in_vecdraw vecdraw
 #   ./smart_launch.sh https://github.com/milochen0418/codoc_in_plantuml.git codoc_in_plantuml codoc
 #
 #   # With .env:
@@ -59,6 +60,7 @@ Arguments:
   ENV_FILE      (Optional) Path to .env file to inject into the app
 
 Examples:
+  $0 https://github.com/milochen0418/codoc_in_vecdraw.git codoc_in_vecdraw vecdraw
   $0 https://github.com/milochen0418/codoc_in_plantuml.git codoc_in_plantuml codoc
   $0 https://github.com/milochen0418/relack.git relack relack ./relack.env
 EOF

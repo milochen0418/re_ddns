@@ -37,6 +37,14 @@ Smart Launcher 是一個通用 Docker 容器，能自動從 GitHub 下載任何 
 
 ### 1. 啟動服務
 
+使用 `smart_launch.sh` 一鍵部署（推薦）：
+
+```bash
+./smart_launch.sh https://github.com/milochen0418/codoc_in_vecdraw.git codoc_in_vecdraw vecdraw
+```
+
+或手動用 docker compose：
+
 ```bash
 docker compose -f docker-compose.smart-launcher.yml up --build
 ```
