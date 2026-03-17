@@ -178,6 +178,77 @@ def list_services() -> list[dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Manual DNS records – subdomain → arbitrary IP (no nginx proxy)
+# ---------------------------------------------------------------------------
+
+_MANUAL_DNS_PATH = Path("/app/data/manual_dns.json")
+_manual_lock = Lock()
+
+
+def _empty_manual() -> dict[str, Any]:
+    return {"records": {}}
+
+
+def _ensure_manual_file() -> None:
+    _MANUAL_DNS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not _MANUAL_DNS_PATH.exists():
+        _MANUAL_DNS_PATH.write_text(
+            json.dumps(_empty_manual(), indent=2) + "\n"
+        )
+
+
+def load_manual_dns() -> dict[str, Any]:
+    with _manual_lock:
+        _ensure_manual_file()
+        return json.loads(_MANUAL_DNS_PATH.read_text())
+
+
+def save_manual_dns(data: dict[str, Any]) -> None:
+    with _manual_lock:
+        _ensure_manual_file()
+        tmp = _MANUAL_DNS_PATH.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        tmp.replace(_MANUAL_DNS_PATH)
+
+
+def put_manual_record(
+    subdomain: str,
+    zone: str,
+    ip_address: str,
+    record_type: str = "A",
+    ttl: int = 300,
+) -> dict[str, Any]:
+    entry = {
+        "subdomain": subdomain,
+        "zone": zone,
+        "ip_address": ip_address,
+        "record_type": record_type,
+        "ttl": ttl,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    data = load_manual_dns()
+    data["records"][subdomain] = entry
+    save_manual_dns(data)
+    logger.info("Manual DNS: put '%s.%s' -> %s", subdomain, zone, ip_address)
+    return entry
+
+
+def delete_manual_record(subdomain: str) -> bool:
+    data = load_manual_dns()
+    if subdomain not in data["records"]:
+        return False
+    del data["records"][subdomain]
+    save_manual_dns(data)
+    logger.info("Manual DNS: deleted '%s'", subdomain)
+    return True
+
+
+def list_manual_records() -> list[dict[str, Any]]:
+    data = load_manual_dns()
+    return list(data["records"].values())
+
+
+# ---------------------------------------------------------------------------
 # Request / Response models
 # ---------------------------------------------------------------------------
 
@@ -229,6 +300,23 @@ class ServiceListItem(BaseModel):
     frontend_port: int
     backend_port: int
     ip_address: str
+    ttl: int
+
+
+class ManualDNSRequest(BaseModel):
+    """Body for ``POST /api/dns/manual``."""
+    subdomain: str
+    zone_name: str = "reflex-ddns.com"
+    ip_address: str
+    record_type: str = "A"
+    ttl: int = 300
+
+
+class ManualDNSItem(BaseModel):
+    subdomain: str
+    zone: str
+    ip_address: str
+    record_type: str
     ttl: int
 
 
@@ -366,6 +454,49 @@ async def unregister_service_endpoint(subdomain: str):
 async def list_services_endpoint():
     """List all registered services (from registry)."""
     return list_services()
+
+
+# ---------------------------------------------------------------------------
+# Manual DNS record endpoints
+# ---------------------------------------------------------------------------
+
+@router.post("/dns/manual")
+async def add_manual_dns(req: ManualDNSRequest):
+    """Add a manual DNS record (subdomain → arbitrary IP, no nginx)."""
+    fqdn = f"{req.subdomain}.{req.zone_name}"
+    logger.info("dns/manual: add %s -> %s", fqdn, req.ip_address)
+
+    # 1) Write to manual_dns.json
+    put_manual_record(
+        subdomain=req.subdomain,
+        zone=req.zone_name,
+        ip_address=req.ip_address,
+        record_type=req.record_type,
+        ttl=req.ttl,
+    )
+
+    # 2) Update BIND9
+    dns_ok, dns_msg = dns_manager.do_dns_update(
+        req.subdomain, req.zone_name, req.ip_address, req.ttl,
+        record_type=req.record_type,
+    )
+    if not dns_ok:
+        logger.warning("Manual DNS failed for %s: %s", fqdn, dns_msg)
+
+    return {"success": dns_ok, "message": dns_msg, "fqdn": fqdn, "ip": req.ip_address}
+
+
+@router.delete("/dns/manual/{subdomain}")
+async def remove_manual_dns(subdomain: str):
+    """Remove a manual DNS record (DNS TTL will expire)."""
+    existed = delete_manual_record(subdomain)
+    return {"success": existed, "subdomain": subdomain}
+
+
+@router.get("/dns/manual/list", response_model=list[ManualDNSItem])
+async def list_manual_dns_endpoint():
+    """List all manual DNS records."""
+    return list_manual_records()
 
 
 # ---------------------------------------------------------------------------

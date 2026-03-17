@@ -32,6 +32,7 @@ def sidebar() -> rx.Component:
             ),
             rx.el.nav(
                 nav_item("Dashboard", "layout-dashboard"),
+                nav_item("DNS Records", "database"),
                 nav_item("Configuration", "settings"),
                 nav_item("Activity Log", "list-tree"),
                 nav_item("CA Setup", "shield-check"),

@@ -10,6 +10,9 @@ class UIState(rx.State):
     @rx.event
     def set_page(self, page_name: str):
         self.current_page = page_name
+        if page_name == "DNS Records":
+            from re_ddns.states.dns_records_state import DNSRecordsState
+            yield DNSRecordsState.load_records
 
     @rx.event
     def toggle_sidebar(self):

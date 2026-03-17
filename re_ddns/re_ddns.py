@@ -2,8 +2,10 @@ import reflex as rx
 from re_ddns.components.sidebar import sidebar
 from re_ddns.components.config_form import config_panel, config_summary_card
 from re_ddns.components.ca_guide import ca_guide_view
+from re_ddns.components.dns_records import dns_records_view
 from re_ddns.states.ui import UIState
 from re_ddns.states.config import ConfigState
+from re_ddns.states.dns_records_state import DNSRecordsState
 from re_ddns.states.ip_state import IPState
 from re_ddns.states.dns_update_state import DNSUpdateState
 from re_ddns.states.activity_log_state import ActivityLogState, LogEntry
@@ -352,6 +354,7 @@ def index() -> rx.Component:
                     rx.match(
                         UIState.current_page,
                         ("Dashboard", dashboard_view()),
+                        ("DNS Records", dns_records_view()),
                         (
                             "Configuration",
                             rx.cond(
