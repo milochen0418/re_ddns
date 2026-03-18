@@ -74,7 +74,7 @@ def register_service() -> bool:
         "frontend_port": FRONTEND_PORT,
         "backend_port": BACKEND_PORT,
         "ip_address": IP,
-        "ttl": 60,
+        "ttl": 1,
     }
     endpoint = f"{API_URL}/api/service/register"
     print(f"[register] POST {endpoint}")

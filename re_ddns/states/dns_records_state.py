@@ -39,7 +39,7 @@ class DNSRecordsState(rx.State):
     # Form fields for adding manual record
     manual_subdomain: str = ""
     manual_ip: str = ""
-    manual_ttl: str = "300"
+    manual_ttl: str = "1"
 
     is_loading: bool = False
     feedback_message: str = ""
@@ -94,7 +94,7 @@ class DNSRecordsState(rx.State):
                     self.feedback_ok = True
                     self.manual_subdomain = ""
                     self.manual_ip = ""
-                    self.manual_ttl = "300"
+                    self.manual_ttl = "1"
                 else:
                     self.feedback_message = f"Failed: {data.get('message', 'unknown')}"
                     self.feedback_ok = False

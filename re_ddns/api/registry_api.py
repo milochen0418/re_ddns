@@ -29,7 +29,7 @@ File layout (default ``/app/data/registry.json``)::
           "frontend_port": 3000,
           "backend_port": 8000,
           "ip_address": "127.0.0.1",
-          "ttl": 60,
+          "ttl": 1,
           "registered_at": "2026-03-05T12:00:00"
         }
       }
@@ -140,7 +140,7 @@ def put_service(
     frontend_port: int = 3000,
     backend_port: int = 8000,
     ip_address: str = "127.0.0.1",
-    ttl: int = 60,
+    ttl: int = 1,
 ) -> dict[str, Any]:
     """Insert or update a service.  Returns the entry written."""
     entry = {
@@ -216,7 +216,7 @@ def put_manual_record(
     zone: str,
     ip_address: str,
     record_type: str = "A",
-    ttl: int = 300,
+    ttl: int = 1,
 ) -> dict[str, Any]:
     entry = {
         "subdomain": subdomain,
@@ -258,7 +258,7 @@ class DNSUpdateRequest(BaseModel):
     zone_name: str = "reflex-ddns.com"
     record_name: str
     record_type: str = "A"
-    ttl: int = 60
+    ttl: int = 1
     ip_address: str
     key_name: Optional[str] = None
     key_secret: Optional[str] = None
@@ -282,7 +282,7 @@ class ServiceRegisterRequest(BaseModel):
     frontend_port: int = 3000
     backend_port: int = 8000
     ip_address: str = "127.0.0.1"
-    ttl: int = 60
+    ttl: int = 1
 
 
 class ServiceRegisterResponse(BaseModel):
@@ -309,7 +309,7 @@ class ManualDNSRequest(BaseModel):
     zone_name: str = "reflex-ddns.com"
     ip_address: str
     record_type: str = "A"
-    ttl: int = 300
+    ttl: int = 1
 
 
 class ManualDNSItem(BaseModel):

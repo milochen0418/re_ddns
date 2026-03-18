@@ -344,7 +344,7 @@ def advanced_dns_view() -> rx.Component:
                         ),
                         class_name="w-full",
                     ),
-                    _field("TTL", "ttl", "300"),
+                    _field("TTL", "ttl", "1"),
                     class_name="grid grid-cols-1 md:grid-cols-3 gap-6",
                 ),
 

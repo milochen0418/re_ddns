@@ -95,7 +95,7 @@ def config_panel() -> rx.Component:
                             ),
                             class_name="w-full",
                         ),
-                        form_field("TTL (Seconds)", "ttl", "300"),
+                        form_field("TTL (Seconds)", "ttl", "1"),
                         class_name="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6",
                     ),
                     rx.el.div(

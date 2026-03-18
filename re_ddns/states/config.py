@@ -38,7 +38,7 @@ class ConfigState(rx.State):
     zone_name: str = ""
     record_name: str = "home"
     record_type: str = "A"
-    ttl: str = "300"
+    ttl: str = "1"
     key_name: str = _tsig_defaults.get("TSIG_KEY_NAME", "")
     key_secret: str = _tsig_defaults.get("TSIG_SECRET", "")
     is_saved: bool = False
@@ -78,8 +78,8 @@ class ConfigState(rx.State):
             self.errors["record_name"] = "Record name required"
         try:
             ttl_int = int(ttl_val)
-            if ttl_int < 60 or ttl_int > 86400:
-                self.errors["ttl"] = "TTL must be between 60 and 86400"
+            if ttl_int < 1 or ttl_int > 86400:
+                self.errors["ttl"] = "TTL must be between 1 and 86400"
         except ValueError:
             self.errors["ttl"] = "TTL must be a number"
         if not k_name:

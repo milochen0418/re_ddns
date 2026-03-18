@@ -51,7 +51,7 @@ class AdvancedDNSState(rx.State):
     # Record fields
     record_name: str = ""
     record_type: str = "A"
-    ttl: str = "300"
+    ttl: str = "1"
 
     # Type-specific fields
     # A / AAAA

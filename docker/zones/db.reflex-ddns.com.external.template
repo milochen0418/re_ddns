@@ -5,13 +5,13 @@
 ; __EXTERNAL_IP__ (typically 127.0.0.1) so that Docker-published
 ; ports on localhost are reachable.
 
-$TTL    300
+$TTL    1
 @       IN      SOA     ns1.reflex-ddns.com. admin.reflex-ddns.com. (
                         2025010101  ; Serial (YYYYMMDDNN)
                         3600        ; Refresh
                         900         ; Retry
                         604800      ; Expire
-                        300 )       ; Negative Cache TTL
+                        1 )         ; Negative Cache TTL
 
 ; ── Name servers ──
 @       IN      NS      ns1.reflex-ddns.com.
