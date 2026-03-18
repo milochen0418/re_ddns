@@ -121,19 +121,44 @@ def _add_manual_form() -> rx.Component:
             class_name="text-lg font-bold text-gray-900 mb-4",
         ),
         rx.el.p(
-            "Point a subdomain to any IP address (e.g. external server, NAS).",
-            class_name="text-sm text-gray-500 mb-2",
+            "Point a subdomain to any IP address, hostname, or other DNS target.",
+            class_name="text-sm text-gray-500 mb-4",
         ),
-        rx.el.div(
-            rx.icon("info", class_name="h-4 w-4 text-amber-500 mt-0.5 shrink-0"),
-            rx.el.p(
-                "CNAME records only work from outside Docker (e.g. Mac browser with DNS set to 127.0.0.1). "
-                "Apps inside Docker should access external sites by their real domain directly.",
-                class_name="text-xs text-amber-700",
+        # CNAME warning — only shown when CNAME is selected
+        rx.cond(
+            DNSRecordsState.manual_record_type == "CNAME",
+            rx.el.div(
+                rx.icon("info", class_name="h-4 w-4 text-amber-500 mt-0.5 shrink-0"),
+                rx.el.p(
+                    "CNAME records only work from outside Docker (e.g. Mac browser with DNS set to 127.0.0.1). "
+                    "Apps inside Docker should access external sites by their real domain directly.",
+                    class_name="text-xs text-amber-700",
+                ),
+                class_name="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4",
             ),
-            class_name="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4",
         ),
         rx.el.div(
+            # Record Type selector
+            rx.el.div(
+                rx.el.label(
+                    "Type",
+                    class_name="block text-sm font-semibold text-gray-700 mb-1.5",
+                ),
+                rx.el.select(
+                    rx.el.option("A", value="A"),
+                    rx.el.option("AAAA", value="AAAA"),
+                    rx.el.option("CNAME", value="CNAME"),
+                    rx.el.option("MX", value="MX"),
+                    rx.el.option("TXT", value="TXT"),
+                    rx.el.option("NS", value="NS"),
+                    rx.el.option("PTR", value="PTR"),
+                    value=DNSRecordsState.manual_record_type,
+                    on_change=DNSRecordsState.set_manual_record_type,
+                    class_name="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all cursor-pointer",
+                ),
+                class_name="w-32",
+            ),
+            # Subdomain
             rx.el.div(
                 rx.el.label(
                     "Subdomain",
@@ -154,19 +179,69 @@ def _add_manual_form() -> rx.Component:
                 ),
                 class_name="flex-1",
             ),
+            # Value — label and placeholder change based on record type
             rx.el.div(
                 rx.el.label(
-                    "IP Address",
+                    rx.cond(
+                        DNSRecordsState.manual_record_type == "CNAME",
+                        "Target Hostname",
+                        rx.cond(
+                            DNSRecordsState.manual_record_type == "AAAA",
+                            "IPv6 Address",
+                            rx.cond(
+                                DNSRecordsState.manual_record_type == "MX",
+                                "Mail Server (priority host)",
+                                rx.cond(
+                                    DNSRecordsState.manual_record_type == "TXT",
+                                    "Text Value",
+                                    rx.cond(
+                                        DNSRecordsState.manual_record_type == "NS",
+                                        "Nameserver",
+                                        rx.cond(
+                                            DNSRecordsState.manual_record_type == "PTR",
+                                            "Pointer Hostname",
+                                            "IPv4 Address",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
                     class_name="block text-sm font-semibold text-gray-700 mb-1.5",
                 ),
                 rx.el.input(
-                    placeholder="203.0.113.5",
+                    placeholder=rx.cond(
+                        DNSRecordsState.manual_record_type == "CNAME",
+                        "www.example.com",
+                        rx.cond(
+                            DNSRecordsState.manual_record_type == "AAAA",
+                            "2001:db8::1",
+                            rx.cond(
+                                DNSRecordsState.manual_record_type == "MX",
+                                "10 mail.example.com",
+                                rx.cond(
+                                    DNSRecordsState.manual_record_type == "TXT",
+                                    "v=spf1 +a ~all",
+                                    rx.cond(
+                                        DNSRecordsState.manual_record_type == "NS",
+                                        "ns1.example.com",
+                                        rx.cond(
+                                            DNSRecordsState.manual_record_type == "PTR",
+                                            "host.example.com",
+                                            "203.0.113.5",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
                     value=DNSRecordsState.manual_ip,
                     on_change=DNSRecordsState.set_manual_ip,
                     class_name="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all hover:border-gray-300",
                 ),
                 class_name="flex-1",
             ),
+            # TTL
             rx.el.div(
                 rx.el.label(
                     "TTL (s)",
@@ -180,6 +255,7 @@ def _add_manual_form() -> rx.Component:
                 ),
                 class_name="w-28",
             ),
+            # Add button
             rx.el.div(
                 rx.el.label(
                     "\u00a0",  # non-breaking space for alignment

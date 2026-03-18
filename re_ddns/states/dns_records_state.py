@@ -40,6 +40,7 @@ class DNSRecordsState(rx.State):
     manual_subdomain: str = ""
     manual_ip: str = ""
     manual_ttl: str = "1"
+    manual_record_type: str = "A"
 
     is_loading: bool = False
     feedback_message: str = ""
@@ -82,10 +83,18 @@ class DNSRecordsState(rx.State):
         self.is_loading = True
         yield
         try:
+            # For CNAME/NS/PTR, ensure trailing dot for FQDN
+            value = ip
+            if self.manual_record_type in ("CNAME", "NS", "PTR"):
+                value = value.rstrip("/")
+                if not value.endswith("."):
+                    value += "."
+
             async with httpx.AsyncClient(base_url="http://127.0.0.1:8000") as c:
                 resp = await c.post("/api/dns/manual", json={
                     "subdomain": sub,
-                    "ip_address": ip,
+                    "ip_address": value,
+                    "record_type": self.manual_record_type,
                     "ttl": ttl_val,
                 }, timeout=10)
                 data = resp.json()
@@ -95,6 +104,7 @@ class DNSRecordsState(rx.State):
                     self.manual_subdomain = ""
                     self.manual_ip = ""
                     self.manual_ttl = "1"
+                    self.manual_record_type = "A"
                 else:
                     self.feedback_message = f"Failed: {data.get('message', 'unknown')}"
                     self.feedback_ok = False
