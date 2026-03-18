@@ -46,6 +46,14 @@ class DNSRecordsState(rx.State):
     feedback_message: str = ""
     feedback_ok: bool = True
 
+    # Row detail expansion (debug info)
+    expanded_subdomain: str = ""
+    detail_registry_json: str = ""
+    detail_manual_json: str = ""
+    detail_nginx_conf: str = ""
+    detail_bind9_dig: str = ""
+    detail_loading: bool = False
+
     @rx.event
     async def load_records(self):
         """Fetch both service list and manual DNS from the API."""
@@ -62,6 +70,35 @@ class DNSRecordsState(rx.State):
             self.services = []
             self.manual_records = []
         self.is_loading = False
+
+    @rx.event
+    async def toggle_row_detail(self, subdomain: str):
+        """Toggle the expanded debug detail for a row."""
+        if self.expanded_subdomain == subdomain:
+            self.expanded_subdomain = ""
+            return
+
+        self.expanded_subdomain = subdomain
+        self.detail_loading = True
+        self.detail_registry_json = ""
+        self.detail_manual_json = ""
+        self.detail_nginx_conf = ""
+        self.detail_bind9_dig = ""
+        yield
+        try:
+            async with httpx.AsyncClient(base_url="http://127.0.0.1:8000") as c:
+                resp = await c.get(f"/api/debug/record/{subdomain}", timeout=10)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    self.detail_registry_json = data.get("registry_json", "")
+                    self.detail_manual_json = data.get("manual_json", "")
+                    self.detail_nginx_conf = data.get("nginx_conf", "")
+                    self.detail_bind9_dig = data.get("bind9_dig", "")
+                else:
+                    self.detail_registry_json = f"(API error: {resp.status_code})"
+        except Exception as exc:
+            self.detail_registry_json = f"(Error: {exc})"
+        self.detail_loading = False
 
     @rx.event
     async def add_manual_record(self):

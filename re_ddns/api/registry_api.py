@@ -504,6 +504,53 @@ async def list_manual_dns_endpoint():
 
 
 # ---------------------------------------------------------------------------
+# Debug / inspect endpoint — returns nginx, JSON, and BIND9 info for a record
+# ---------------------------------------------------------------------------
+
+@router.get("/debug/record/{subdomain}")
+async def debug_record(subdomain: str):
+    """Return debug info for a subdomain: nginx config, JSON data, BIND9 dig."""
+    import subprocess as _sp
+
+    zone = "reflex-ddns.com"
+    fqdn = f"{subdomain}.{zone}"
+    result: dict[str, Any] = {"subdomain": subdomain, "fqdn": fqdn}
+
+    # 1) JSON data — check both registry and manual_dns
+    registry = load()
+    svc = registry.get("services", {}).get(subdomain)
+    result["registry_json"] = json.dumps(svc, indent=2) if svc else "(not in registry.json)"
+
+    manual = load_manual_dns()
+    mrec = manual.get("records", {}).get(subdomain)
+    result["manual_json"] = json.dumps(mrec, indent=2) if mrec else "(not in manual_dns.json)"
+
+    # 2) nginx config
+    nginx_conf_path = Path("/etc/nginx/conf.d") / f"{subdomain}.conf"
+    if nginx_conf_path.exists():
+        result["nginx_conf"] = nginx_conf_path.read_text()
+    else:
+        result["nginx_conf"] = f"(no nginx config file: {nginx_conf_path})"
+
+    # 3) BIND9 dig — query all common types
+    dig_lines: list[str] = []
+    for rtype in ("A", "AAAA", "CNAME", "MX", "TXT", "NS", "PTR"):
+        try:
+            out = _sp.run(
+                ["dig", f"{fqdn}", rtype, "@127.0.0.1", "+short"],
+                capture_output=True, text=True, timeout=3,
+            )
+            answer = out.stdout.strip()
+            if answer:
+                dig_lines.append(f"{rtype}: {answer}")
+        except Exception:
+            pass
+    result["bind9_dig"] = "\n".join(dig_lines) if dig_lines else "(no records found in BIND9)"
+
+    return result
+
+
+# ---------------------------------------------------------------------------
 # CA certificate — verify, download & install helpers
 # ---------------------------------------------------------------------------
 

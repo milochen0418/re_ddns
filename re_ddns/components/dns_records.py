@@ -8,93 +8,158 @@ from re_ddns.states.dns_records_state import (
 )
 
 
+def _debug_code_block(label: str, content: rx.Var[str]) -> rx.Component:
+    """A labelled code block for the debug detail panel."""
+    return rx.el.div(
+        rx.el.p(label, class_name="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1"),
+        rx.el.pre(
+            content,
+            class_name="text-xs font-mono text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto",
+        ),
+    )
+
+
+def _detail_panel(subdomain: rx.Var[str], col_span: int) -> rx.Component:
+    """Expandable detail row showing nginx, JSON, and BIND9 info."""
+    return rx.cond(
+        DNSRecordsState.expanded_subdomain == subdomain,
+        rx.el.tr(
+            rx.el.td(
+                rx.cond(
+                    DNSRecordsState.detail_loading,
+                    rx.el.div(
+                        rx.icon("loader-circle", class_name="h-5 w-5 animate-spin text-gray-400"),
+                        rx.el.span("Loading debug info…", class_name="text-sm text-gray-400"),
+                        class_name="flex items-center gap-2 py-4",
+                    ),
+                    rx.el.div(
+                        _debug_code_block("BIND9 DNS Records (dig @127.0.0.1)", DNSRecordsState.detail_bind9_dig),
+                        _debug_code_block("registry.json", DNSRecordsState.detail_registry_json),
+                        _debug_code_block("manual_dns.json", DNSRecordsState.detail_manual_json),
+                        _debug_code_block("nginx config", DNSRecordsState.detail_nginx_conf),
+                        class_name="grid grid-cols-1 md:grid-cols-2 gap-3 p-4",
+                    ),
+                ),
+                col_span=col_span,
+                class_name="bg-slate-50 border-b border-gray-200",
+            ),
+        ),
+    )
+
+
 def _service_row(svc: ServiceEntry) -> rx.Component:
-    """One row in the auto-registered services table."""
-    return rx.el.tr(
-        rx.el.td(
-            rx.el.span(
-                svc["subdomain"],
-                class_name="font-semibold text-gray-900",
+    """One row in the auto-registered services table + expandable detail."""
+    return rx.fragment(
+        rx.el.tr(
+            rx.el.td(
+                rx.el.span(
+                    svc["subdomain"],
+                    class_name="font-semibold text-gray-900",
+                ),
+                rx.el.span(
+                    f".{svc['zone']}",
+                    class_name="text-gray-400",
+                ),
+                class_name="px-4 py-3",
             ),
-            rx.el.span(
-                f".{svc['zone']}",
-                class_name="text-gray-400",
+            rx.el.td(
+                svc["upstream_host"],
+                class_name="px-4 py-3 text-gray-600 font-mono text-sm",
             ),
-            class_name="px-4 py-3",
-        ),
-        rx.el.td(
-            svc["upstream_host"],
-            class_name="px-4 py-3 text-gray-600 font-mono text-sm",
-        ),
-        rx.el.td(
-            f"{svc['frontend_port']}/{svc['backend_port']}",
-            class_name="px-4 py-3 text-gray-600 text-sm",
-        ),
-        rx.el.td(
-            svc["ip_address"],
-            class_name="px-4 py-3 text-gray-600 font-mono text-sm",
-        ),
-        rx.el.td(
-            rx.el.span(
-                "Auto",
-                class_name="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full",
+            rx.el.td(
+                f"{svc['frontend_port']}/{svc['backend_port']}",
+                class_name="px-4 py-3 text-gray-600 text-sm",
             ),
-            class_name="px-4 py-3",
-        ),
-        rx.el.td(
-            rx.el.button(
-                rx.icon("trash-2", class_name="h-4 w-4"),
-                on_click=DNSRecordsState.delete_service(svc["subdomain"]),
-                class_name="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors",
+            rx.el.td(
+                svc["ip_address"],
+                class_name="px-4 py-3 text-gray-600 font-mono text-sm",
             ),
-            class_name="px-4 py-3",
+            rx.el.td(
+                rx.el.span(
+                    "Auto",
+                    class_name="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded-full",
+                ),
+                class_name="px-4 py-3",
+            ),
+            rx.el.td(
+                rx.el.div(
+                    rx.el.button(
+                        rx.icon("search", class_name="h-4 w-4"),
+                        on_click=DNSRecordsState.toggle_row_detail(svc["subdomain"]),
+                        title="Inspect",
+                        class_name="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors",
+                    ),
+                    rx.el.button(
+                        rx.icon("trash-2", class_name="h-4 w-4"),
+                        on_click=DNSRecordsState.delete_service(svc["subdomain"]),
+                        class_name="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors",
+                    ),
+                    class_name="flex gap-1",
+                ),
+                class_name="px-4 py-3",
+            ),
+            class_name="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer",
+            on_click=DNSRecordsState.toggle_row_detail(svc["subdomain"]),
         ),
-        class_name="border-b border-gray-50 hover:bg-gray-50 transition-colors",
+        _detail_panel(svc["subdomain"], 6),
     )
 
 
 def _manual_row(rec: ManualDNSEntry) -> rx.Component:
-    """One row in the manual DNS records table."""
-    return rx.el.tr(
-        rx.el.td(
-            rx.el.span(
-                rec["subdomain"],
-                class_name="font-semibold text-gray-900",
+    """One row in the manual DNS records table + expandable detail."""
+    return rx.fragment(
+        rx.el.tr(
+            rx.el.td(
+                rx.el.span(
+                    rec["subdomain"],
+                    class_name="font-semibold text-gray-900",
+                ),
+                rx.el.span(
+                    f".{rec['zone']}",
+                    class_name="text-gray-400",
+                ),
+                class_name="px-4 py-3",
             ),
-            rx.el.span(
-                f".{rec['zone']}",
-                class_name="text-gray-400",
+            rx.el.td(
+                rec["ip_address"],
+                class_name="px-4 py-3 text-gray-600 font-mono text-sm",
             ),
-            class_name="px-4 py-3",
-        ),
-        rx.el.td(
-            rec["ip_address"],
-            class_name="px-4 py-3 text-gray-600 font-mono text-sm",
-        ),
-        rx.el.td(
-            rec["record_type"],
-            class_name="px-4 py-3 text-gray-600 text-sm",
-        ),
-        rx.el.td(
-            f"{rec['ttl']}s",
-            class_name="px-4 py-3 text-gray-600 text-sm",
-        ),
-        rx.el.td(
-            rx.el.span(
-                "Manual",
-                class_name="px-2 py-0.5 bg-orange-50 text-orange-600 text-xs font-semibold rounded-full",
+            rx.el.td(
+                rec["record_type"],
+                class_name="px-4 py-3 text-gray-600 text-sm",
             ),
-            class_name="px-4 py-3",
-        ),
-        rx.el.td(
-            rx.el.button(
-                rx.icon("trash-2", class_name="h-4 w-4"),
-                on_click=DNSRecordsState.delete_manual_record(rec["subdomain"]),
-                class_name="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors",
+            rx.el.td(
+                f"{rec['ttl']}s",
+                class_name="px-4 py-3 text-gray-600 text-sm",
             ),
-            class_name="px-4 py-3",
+            rx.el.td(
+                rx.el.span(
+                    "Manual",
+                    class_name="px-2 py-0.5 bg-orange-50 text-orange-600 text-xs font-semibold rounded-full",
+                ),
+                class_name="px-4 py-3",
+            ),
+            rx.el.td(
+                rx.el.div(
+                    rx.el.button(
+                        rx.icon("search", class_name="h-4 w-4"),
+                        on_click=DNSRecordsState.toggle_row_detail(rec["subdomain"]),
+                        title="Inspect",
+                        class_name="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors",
+                    ),
+                    rx.el.button(
+                        rx.icon("trash-2", class_name="h-4 w-4"),
+                        on_click=DNSRecordsState.delete_manual_record(rec["subdomain"]),
+                        class_name="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors",
+                    ),
+                    class_name="flex gap-1",
+                ),
+                class_name="px-4 py-3",
+            ),
+            class_name="border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer",
+            on_click=DNSRecordsState.toggle_row_detail(rec["subdomain"]),
         ),
-        class_name="border-b border-gray-50 hover:bg-gray-50 transition-colors",
+        _detail_panel(rec["subdomain"], 6),
     )
 
 
