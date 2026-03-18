@@ -333,6 +333,8 @@ async def dns_status():
 @router.post("/dns/update", response_model=DNSUpdateResponse)
 async def update_dns_record(req: DNSUpdateRequest):
     """Low-level: create / replace a DNS record (does NOT touch registry)."""
+    # Sanitise ip_address: strip trailing slashes (common copy-paste from URLs)
+    req.ip_address = req.ip_address.rstrip("/")
     fqdn = f"{req.record_name}.{req.zone_name}"
     logger.info("dns/update: %s %s -> %s", req.record_type, fqdn, req.ip_address)
 
@@ -463,6 +465,8 @@ async def list_services_endpoint():
 @router.post("/dns/manual")
 async def add_manual_dns(req: ManualDNSRequest):
     """Add a manual DNS record (subdomain → arbitrary IP, no nginx)."""
+    # Sanitise ip_address: strip trailing slashes (common copy-paste from URLs)
+    req.ip_address = req.ip_address.rstrip("/")
     fqdn = f"{req.subdomain}.{req.zone_name}"
     logger.info("dns/manual: add %s -> %s", fqdn, req.ip_address)
 

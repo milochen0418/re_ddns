@@ -187,6 +187,22 @@ for svc in registry_api.list_services():
     cert_manager.ensure_cert(fqdn)
 
 nginx_manager.sync()
+
+# Restore manual DNS records into BIND9
+from re_ddns.api import dns_manager
+for rec in registry_api.list_manual_records():
+    ok, msg = dns_manager.do_dns_update(
+        record_name=rec['subdomain'],
+        zone_name=rec['zone'],
+        rdata=rec['ip_address'],
+        ttl=rec.get('ttl', 1),
+        record_type=rec.get('record_type', 'A'),
+    )
+    fqdn = f\"{rec['subdomain']}.{rec['zone']}\"
+    if ok:
+        print(f'  Restored manual DNS: {fqdn} -> {rec[\"ip_address\"]}')
+    else:
+        print(f'  WARNING: failed to restore {fqdn}: {msg}')
 " || log "WARNING: registry / cert / nginx init had errors"
 
 log "Starting nginx …"
