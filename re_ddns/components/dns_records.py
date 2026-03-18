@@ -122,7 +122,16 @@ def _add_manual_form() -> rx.Component:
         ),
         rx.el.p(
             "Point a subdomain to any IP address (e.g. external server, NAS).",
-            class_name="text-sm text-gray-500 mb-4",
+            class_name="text-sm text-gray-500 mb-2",
+        ),
+        rx.el.div(
+            rx.icon("info", class_name="h-4 w-4 text-amber-500 mt-0.5 shrink-0"),
+            rx.el.p(
+                "CNAME records only work from outside Docker (e.g. Mac browser with DNS set to 127.0.0.1). "
+                "Apps inside Docker should access external sites by their real domain directly.",
+                class_name="text-xs text-amber-700",
+            ),
+            class_name="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4",
         ),
         rx.el.div(
             rx.el.div(

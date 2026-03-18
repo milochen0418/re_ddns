@@ -315,77 +315,6 @@ def _service_config(svc: dict) -> str:
     return "\n".join(lines)
 
 
-def _manual_cname_config(rec: dict) -> str:
-    """Generate nginx proxy config for a manual CNAME record.
-
-    Inside the Docker network all ``*.reflex-ddns.com`` queries resolve to
-    the re-ddns container.  Without an explicit nginx server block, CNAME
-    manual records would hit the default server and show the re-ddns UI
-    instead of the external target.  This function generates a pass-through
-    proxy so that requests are forwarded to the real CNAME target.
-    """
-    subdomain = rec["subdomain"]
-    zone = rec.get("zone", "reflex-ddns.com")
-    fqdn = f"{subdomain}.{zone}"
-    # Strip the trailing DNS dot from the CNAME target
-    target = rec["ip_address"].rstrip(".")
-
-    var = f"cname_{subdomain.replace('-', '_')}"
-
-    parts: list[str] = [
-        f"# Auto-generated CNAME proxy for {fqdn} -> {target}",
-        "",
-        "server {",
-        "    listen 80;",
-        f"    server_name {fqdn};",
-        "",
-        "    resolver 127.0.0.11 valid=30s;",
-        f"    set ${var} {target};",
-        "",
-        "    location / {",
-        f"        proxy_pass https://${var};",
-        "        proxy_http_version 1.1;",
-        "        proxy_set_header Host              $proxy_host;",
-        "        proxy_set_header X-Real-IP         $remote_addr;",
-        "        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;",
-        "        proxy_set_header X-Forwarded-Proto $scheme;",
-        "        proxy_ssl_server_name on;",
-        "    }",
-        "}",
-        "",
-        "server {",
-        "    listen 443 ssl http2;",
-        f"    server_name {fqdn};",
-        "",
-    ]
-
-    if cert_manager.has_cert(fqdn):
-        parts.append(_ssl_directives(fqdn))
-    else:
-        # Use the fallback / default cert so TLS still works
-        if cert_manager.has_cert("reflex-ddns.com"):
-            parts.append(_ssl_directives("reflex-ddns.com"))
-
-    parts += [
-        "",
-        "    resolver 127.0.0.11 valid=30s;",
-        f"    set ${var} {target};",
-        "",
-        "    location / {",
-        f"        proxy_pass https://${var};",
-        "        proxy_http_version 1.1;",
-        "        proxy_set_header Host              $proxy_host;",
-        "        proxy_set_header X-Real-IP         $remote_addr;",
-        "        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;",
-        "        proxy_set_header X-Forwarded-Proto $scheme;",
-        "        proxy_ssl_server_name on;",
-        "    }",
-        "}",
-        "",
-    ]
-    return "\n".join(parts)
-
-
 # =====================================================================
 # Public API
 # =====================================================================
@@ -421,17 +350,6 @@ def sync() -> bool:
         conf_path = NGINX_CONF_DIR / fname
         conf_path.write_text(_service_config(svc))
         logger.info("Wrote nginx config: %s", conf_path)
-
-    # Write proxy configs for CNAME manual records (so Docker-internal
-    # requests are forwarded to the real external target).
-    for rec in registry_api.list_manual_records():
-        if rec.get("record_type") != "CNAME":
-            continue
-        fname = f"manual-{rec['subdomain']}.conf"
-        wanted_files.add(fname)
-        conf_path = NGINX_CONF_DIR / fname
-        conf_path.write_text(_manual_cname_config(rec))
-        logger.info("Wrote CNAME proxy config: %s", conf_path)
 
     # Remove stale configs (skip _base.conf and system files)
     for existing in NGINX_CONF_DIR.glob("*.conf"):

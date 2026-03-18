@@ -487,12 +487,6 @@ async def add_manual_dns(req: ManualDNSRequest):
     if not dns_ok:
         logger.warning("Manual DNS failed for %s: %s", fqdn, dns_msg)
 
-    # 3) Sync nginx (CNAME records need a proxy pass-through)
-    try:
-        nginx_manager.sync()
-    except Exception:
-        logger.warning("nginx sync failed after manual DNS add for %s", fqdn)
-
     return {"success": dns_ok, "message": dns_msg, "fqdn": fqdn, "ip": req.ip_address}
 
 
@@ -500,11 +494,6 @@ async def add_manual_dns(req: ManualDNSRequest):
 async def remove_manual_dns(subdomain: str):
     """Remove a manual DNS record (DNS TTL will expire)."""
     existed = delete_manual_record(subdomain)
-    # Sync nginx to remove CNAME proxy config
-    try:
-        nginx_manager.sync()
-    except Exception:
-        logger.warning("nginx sync failed after manual DNS delete for %s", subdomain)
     return {"success": existed, "subdomain": subdomain}
 
 
