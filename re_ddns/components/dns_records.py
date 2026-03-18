@@ -124,18 +124,39 @@ def _add_manual_form() -> rx.Component:
             "Point a subdomain to any IP address, hostname, or other DNS target.",
             class_name="text-sm text-gray-500 mb-4",
         ),
-        # CNAME warning — only shown when CNAME is selected
-        rx.cond(
-            DNSRecordsState.manual_record_type == "CNAME",
-            rx.el.div(
-                rx.icon("info", class_name="h-4 w-4 text-amber-500 mt-0.5 shrink-0"),
-                rx.el.p(
-                    "CNAME records only work from outside Docker (e.g. Mac browser with DNS set to 127.0.0.1). "
-                    "Apps inside Docker should access external sites by their real domain directly.",
-                    class_name="text-xs text-amber-700",
+        # Record type hint banner — dynamically shown for each type
+        rx.el.div(
+            rx.icon("info", class_name="h-4 w-4 text-amber-500 mt-0.5 shrink-0"),
+            rx.el.p(
+                rx.cond(
+                    DNSRecordsState.manual_record_type == "A",
+                    "A — Maps domain to an IPv4 address. Works both inside Docker and externally.",
+                    rx.cond(
+                        DNSRecordsState.manual_record_type == "AAAA",
+                        "AAAA — Maps domain to an IPv6 address. Works both inside Docker and externally.",
+                        rx.cond(
+                            DNSRecordsState.manual_record_type == "CNAME",
+                            "CNAME — Alias to another domain. External only (e.g. Mac browser with DNS → 127.0.0.1). "
+                            "Apps inside Docker should access external sites by their real domain directly.",
+                            rx.cond(
+                                DNSRecordsState.manual_record_type == "MX",
+                                "MX — Specifies mail server for the domain. External only — no mail service runs inside Docker.",
+                                rx.cond(
+                                    DNSRecordsState.manual_record_type == "TXT",
+                                    "TXT — Stores arbitrary text (SPF, DKIM, domain verification). Works both inside Docker and externally.",
+                                    rx.cond(
+                                        DNSRecordsState.manual_record_type == "NS",
+                                        "NS — Delegates a subdomain to another nameserver. External only — Docker embedded DNS won't follow delegation.",
+                                        "PTR — Reverse DNS lookup (IP → domain). Requires a reverse zone (in-addr.arpa) which is not configured here.",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
                 ),
-                class_name="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4",
+                class_name="text-xs text-amber-700",
             ),
+            class_name="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl mb-4",
         ),
         rx.el.div(
             # Record Type selector
