@@ -89,9 +89,65 @@ done
 log "Starting testapp, testapp2, testapp3 ..."
 docker compose -f "$COMPOSE_FILE" up -d --build test-app test-app2 test-app3
 
+# ──────────────────────────────────────────────
+# 4. Wait for all apps to be healthy
+# ──────────────────────────────────────────────
+# Each app must respond HTTP 200 on its frontend (port 3000 inside the
+# container) AND be reachable through the nginx proxy (HTTPS from host).
+
+APP_TIMEOUT=300   # Reflex apps can take a while to compile
+
+check_app_ready() {
+    local container="$1"
+    local label="$2"
+    local url="$3"
+
+    log "Waiting for ${label} to be ready ..."
+    for i in $(seq 1 $APP_TIMEOUT); do
+        # 1) Check if container is still running
+        if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+            err "${label}: container '${container}' is not running!"
+            return 1
+        fi
+
+        # 2) Check internal port 3000
+        INTERNAL=$(docker exec "$container" curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null || echo "000")
+
+        # 3) Check external HTTPS through nginx
+        EXTERNAL=$(curl -sk -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+
+        if [[ "$INTERNAL" == "200" && "$EXTERNAL" == "200" ]]; then
+            ok "${label} is ready! (internal=200, HTTPS=200, ${i}s)"
+            return 0
+        fi
+
+        # Progress every 15 seconds
+        if (( i % 15 == 0 )); then
+            warn "${label}: still waiting ... (internal=${INTERNAL}, HTTPS=${EXTERNAL}, ${i}s/${APP_TIMEOUT}s)"
+        fi
+        sleep 1
+    done
+
+    err "${label} did not become ready after ${APP_TIMEOUT}s (internal=${INTERNAL}, HTTPS=${EXTERNAL})"
+    err "  Check logs: docker logs ${container}"
+    return 1
+}
+
+FAILED=0
+check_app_ready "test-app"  "testapp"  "https://testapp.reflex-ddns.com/"  || FAILED=$((FAILED+1))
+check_app_ready "test-app2" "testapp2" "https://testapp2.reflex-ddns.com/" || FAILED=$((FAILED+1))
+check_app_ready "test-app3" "testapp3" "https://testapp3.reflex-ddns.com/" || FAILED=$((FAILED+1))
+
 echo ""
+if [[ $FAILED -gt 0 ]]; then
+    err "=========================================="
+    err " ${FAILED} app(s) failed health check!"
+    err "=========================================="
+    exit 1
+fi
+
 ok "=========================================="
-ok " All services started!"
+ok " All services started and healthy!"
 ok ""
 ok "  re-ddns:   https://home.reflex-ddns.com"
 ok "  testapp:   https://testapp.reflex-ddns.com"
