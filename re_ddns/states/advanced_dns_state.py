@@ -192,15 +192,15 @@ class AdvancedDNSState(rx.State):
 
         try:
             async with httpx.AsyncClient(base_url="http://127.0.0.1:8000") as c:
-                resp = await c.post("/api/dns/update", json={
-                    "server_ip": self.server_ip.strip(),
+                # Use /api/dns/manual — it persists to manual_dns.json
+                # AND updates BIND9, so the record also appears in
+                # the DNS Records page.
+                resp = await c.post("/api/dns/manual", json={
+                    "subdomain": self.record_name.strip(),
                     "zone_name": self.zone_name.strip(),
-                    "record_name": self.record_name.strip(),
+                    "ip_address": rdata,
                     "record_type": self.record_type,
                     "ttl": int(self.ttl),
-                    "ip_address": rdata,
-                    "key_name": self.key_name.strip(),
-                    "key_secret": self.key_secret.strip(),
                 }, timeout=15)
                 data = resp.json()
                 if data.get("success"):
