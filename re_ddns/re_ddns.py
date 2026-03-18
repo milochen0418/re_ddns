@@ -1,10 +1,11 @@
 import reflex as rx
 from re_ddns.components.sidebar import sidebar
-from re_ddns.components.config_form import config_panel, config_summary_card
+from re_ddns.components.advanced_dns import advanced_dns_view
 from re_ddns.components.ca_guide import ca_guide_view
 from re_ddns.components.dns_records import dns_records_view
 from re_ddns.states.ui import UIState
 from re_ddns.states.config import ConfigState
+from re_ddns.states.advanced_dns_state import AdvancedDNSState
 from re_ddns.states.dns_records_state import DNSRecordsState
 from re_ddns.states.ip_state import IPState
 from re_ddns.states.dns_update_state import DNSUpdateState
@@ -355,14 +356,7 @@ def index() -> rx.Component:
                         UIState.current_page,
                         ("Dashboard", dashboard_view()),
                         ("DNS Records", dns_records_view()),
-                        (
-                            "Configuration",
-                            rx.cond(
-                                ConfigState.is_saved,
-                                config_summary_card(),
-                                config_panel(),
-                            ),
-                        ),
+                        ("Advanced DNS", advanced_dns_view()),
                         ("Activity Log", activity_view()),
                         ("CA Setup", ca_guide_view()),
                         dashboard_view(),

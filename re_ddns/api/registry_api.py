@@ -339,7 +339,7 @@ async def update_dns_record(req: DNSUpdateRequest):
     ok, msg = dns_manager.do_dns_update(
         record_name=req.record_name,
         zone_name=req.zone_name,
-        ip_address=req.ip_address,
+        rdata=req.ip_address,
         ttl=req.ttl,
         record_type=req.record_type,
         key_name=req.key_name or None,
