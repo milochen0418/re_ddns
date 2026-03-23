@@ -189,6 +189,73 @@ docker compose down
 
 ---
 
+## macOS Client Setup Tools
+
+Two scripts help configure macOS machines to use the Re-DDNS service:
+
+### `macos_set_dns.sh` — Local DNS Configuration
+
+Configures the **current Mac** to route `*.reflex-ddns.com` queries to the Docker BIND9 running locally.
+
+```bash
+# Show current DNS settings
+./macos_set_dns.sh --list
+
+# Join: prepend local BIND9 (127.0.0.1) to DNS, set /etc/resolver and /etc/hosts
+./macos_set_dns.sh --join
+
+# Leave: revert to DHCP-provided DNS, remove resolver and hosts entries
+./macos_set_dns.sh --leave
+
+# Use a custom DNS IP or network interface
+./macos_set_dns.sh --join --dns 192.168.1.10 --iface Ethernet
+```
+
+### `remote_install_ca.sh` — Remote Mac Setup (CA + DNS)
+
+Configures a **remote Mac** over SSH — installs the Re-DDNS Root CA certificate and sets up DNS in one step, so the remote Mac can browse `https://*.reflex-ddns.com` without certificate warnings.
+
+```
+┌──────────────────┐  SSH/SCP   ┌──────────────────┐
+│  This Mac        │ ─────────► │  Remote Mac      │
+│  (Docker BIND9)  │            │  (172.20.10.2)   │
+│                  │            │                  │
+│  • BIND9 :53     │◄─ DNS ────│  • CA installed  │
+│  • Reflex :3000  │            │  • DNS → This Mac│
+│  • nginx :443    │◄─ HTTPS ──│  • Browser ready │
+└──────────────────┘            └──────────────────┘
+```
+
+**Prerequisites — set up SSH key login first:**
+
+```bash
+# Generate an SSH key (if you don't have one)
+ssh-keygen -t ed25519
+
+# Copy your public key to the remote Mac (one-time)
+ssh-copy-id milochen@172.20.10.2
+```
+
+**Run:**
+
+```bash
+# Default target (milochen@172.20.10.2)
+./remote_install_ca.sh
+
+# Or specify a different remote Mac
+./remote_install_ca.sh john@192.168.1.50
+```
+
+The script will:
+1. Check SSH connectivity
+2. Download the CA certificate locally, copy it via `scp`, and install it as a trusted root in the remote Mac's System Keychain
+3. Copy `macos_set_dns.sh` to the remote Mac and run `--join --dns <this-Mac-IP>`, pointing DNS to this Mac's BIND9
+4. Verify DNS resolution with `nslookup`
+
+After completion, restart the browser on the remote Mac. Run `./remote_install_ca.sh --help` for full details.
+
+---
+
 ## Test Containers: testapp & testapp2
 
 The project includes two test containers for integration testing and development. They are orchestrated alongside the main re-ddns container via `docker-compose.test.yml`.
