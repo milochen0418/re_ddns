@@ -60,8 +60,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["dns", "service"])
 
 # IP address written into DNS A records.
-# For local Docker Desktop development this is 127.0.0.1 so macOS can
-# reach the services via Docker-published ports on localhost.
+# Prefer EXTERNAL_IP env var (auto-set by docker_restart.sh from the
+# host's LAN IP).  Fall back to 127.0.0.1 for purely local use.
 _DNS_RECORD_IP = os.environ.get("EXTERNAL_IP", "127.0.0.1")
 
 # ---------------------------------------------------------------------------

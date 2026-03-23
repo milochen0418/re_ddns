@@ -37,6 +37,15 @@ if [[ "${1:-}" == "--keep-volumes" ]]; then
 fi
 
 # ──────────────────────────────────────────────
+# Auto-detect Mac LAN IP for DNS A records
+# ──────────────────────────────────────────────
+if [[ -z "${EXTERNAL_IP:-}" ]]; then
+    EXTERNAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1")
+fi
+export EXTERNAL_IP
+log "DNS A records will point to: ${EXTERNAL_IP}"
+
+# ──────────────────────────────────────────────
 # 1. Stop everything
 # ──────────────────────────────────────────────
 log "Stopping all containers ..."

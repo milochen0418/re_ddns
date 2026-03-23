@@ -70,6 +70,7 @@ services:
 
     environment:
       - BIND9_HOST=127.0.0.1
+      - EXTERNAL_IP=${EXTERNAL_IP:-127.0.0.1}
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
       # Tell Reflex frontend to connect to backend via nginx (port 80)
