@@ -39,10 +39,7 @@ fi
 # ──────────────────────────────────────────────
 # Auto-detect Mac LAN IP for DNS A records
 # ──────────────────────────────────────────────
-if [[ -z "${EXTERNAL_IP:-}" ]]; then
-    EXTERNAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1")
-fi
-export EXTERNAL_IP
+source "${SCRIPT_DIR}/detect_external_ip.sh"
 log "DNS A records will point to: ${EXTERNAL_IP}"
 
 # ──────────────────────────────────────────────

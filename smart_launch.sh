@@ -34,11 +34,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Auto-detect Mac LAN IP for DNS A records (same logic as docker_restart.sh)
-if [[ -z "${EXTERNAL_IP:-}" ]]; then
-    EXTERNAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1")
-fi
-export EXTERNAL_IP
+# Auto-detect Mac LAN IP for DNS A records
+source "${SCRIPT_DIR}/detect_external_ip.sh"
 
 # ── Colors ──
 RED='\033[0;31m'
