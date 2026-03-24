@@ -226,19 +226,29 @@ case "$CMD" in
         echo "[$IFACE] $RESOLVER_DIR/$DOMAIN already exists."
     fi
 
-    # Add /etc/hosts entries so Mac resolves *.reflex-ddns.com to 127.0.0.1
-    # (BIND9 zone uses container IPs for inter-container routing, but Mac
-    # accesses Docker via published ports on localhost)
-    if ! grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
-        {
-            echo "$LOCAL_DNS home.$DOMAIN  $HOSTS_MARKER"
-            echo "$LOCAL_DNS testapp.$DOMAIN  $HOSTS_MARKER"
-            echo "$LOCAL_DNS testapp2.$DOMAIN  $HOSTS_MARKER"
-            echo "$LOCAL_DNS testapp3.$DOMAIN  $HOSTS_MARKER"
-        } | sudo tee -a "$HOSTS_FILE" > /dev/null
-        echo "[$IFACE] Added *.${DOMAIN} entries to /etc/hosts → $LOCAL_DNS"
+    # Add /etc/hosts entries ONLY when --dns is 127.0.0.1 (local Mac running
+    # Docker).  In that case BIND9 returns EXTERNAL_IP in DNS A records but
+    # the local Mac must reach services via Docker-published ports on localhost,
+    # so we override known subdomains to 127.0.0.1 in /etc/hosts.
+    #
+    # For REMOTE Macs (--dns <LAN_IP>), /etc/hosts entries are NOT needed
+    # because /etc/resolver already routes *.reflex-ddns.com queries to the
+    # BIND9 on the host Mac, and BIND9 now returns the correct EXTERNAL_IP
+    # that the remote Mac can reach directly.
+    if [[ "$LOCAL_DNS" == "127.0.0.1" ]]; then
+        if ! grep -q "$HOSTS_MARKER" "$HOSTS_FILE" 2>/dev/null; then
+            {
+                echo "$LOCAL_DNS home.$DOMAIN  $HOSTS_MARKER"
+                echo "$LOCAL_DNS testapp.$DOMAIN  $HOSTS_MARKER"
+                echo "$LOCAL_DNS testapp2.$DOMAIN  $HOSTS_MARKER"
+                echo "$LOCAL_DNS testapp3.$DOMAIN  $HOSTS_MARKER"
+            } | sudo tee -a "$HOSTS_FILE" > /dev/null
+            echo "[$IFACE] Added *.${DOMAIN} entries to /etc/hosts → $LOCAL_DNS"
+        else
+            echo "[$IFACE] /etc/hosts entries already present"
+        fi
     else
-        echo "[$IFACE] /etc/hosts entries already present"
+        echo "[$IFACE] Remote DNS ($LOCAL_DNS) — skipping /etc/hosts (resolver handles it)"
     fi
     # Flush macOS DNS cache
     sudo dscacheutil -flushcache
