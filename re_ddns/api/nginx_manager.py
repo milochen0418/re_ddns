@@ -132,7 +132,7 @@ def _server_blocks(
 
     sn = "_" if is_default else domain
     listen_80 = "    listen 80 default_server;" if is_default else "    listen 80;"
-    listen_443 = "    listen 443 ssl http2 default_server;" if is_default else "    listen 443 ssl http2;"
+    listen_443 = "    listen 443 ssl default_server;" if is_default else "    listen 443 ssl;"
 
     parts: list[str] = []
 
@@ -227,7 +227,7 @@ def _server_blocks_resolver(
     # ── HTTPS server block (only if cert exists) ──
     if has_ssl:
         parts.append("server {")
-        parts.append("    listen 443 ssl http2;")
+        parts.append("    listen 443 ssl;")
         parts.append(f"    server_name {domain};")
         parts.append("")
         parts.append(_ssl_directives(domain))
