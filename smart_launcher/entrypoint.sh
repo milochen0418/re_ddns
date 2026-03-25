@@ -15,6 +15,7 @@ set -euo pipefail
 #
 # Optional environment variables:
 #   GITHUB_BRANCH      – Branch/tag to checkout (default: main)
+#   GITHUB_COMMIT      – Specific commit SHA to checkout after cloning
 #   GITHUB_SUBDIR      – Subdirectory within repo containing the Reflex project
 #                        (default: "" = repo root)
 #   SERVICE_SUBDOMAIN  – Subdomain for DNS registration (default: APP_NAME)
@@ -45,6 +46,7 @@ if [[ -z "${APP_NAME:-}" ]]; then
 fi
 
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
+GITHUB_COMMIT="${GITHUB_COMMIT:-}"
 GITHUB_SUBDIR="${GITHUB_SUBDIR:-}"
 SERVICE_SUBDOMAIN="${SERVICE_SUBDOMAIN:-$APP_NAME}"
 SERVICE_ZONE="${SERVICE_ZONE:-reflex-ddns.com}"
@@ -56,6 +58,7 @@ SKIP_DNS_REGISTER="${SKIP_DNS_REGISTER:-0}"
 log "=== Smart Launcher Configuration ==="
 log "  GITHUB_REPO:       $GITHUB_REPO"
 log "  GITHUB_BRANCH:     $GITHUB_BRANCH"
+[[ -n "$GITHUB_COMMIT" ]] && log "  GITHUB_COMMIT:     $GITHUB_COMMIT"
 log "  GITHUB_SUBDIR:     ${GITHUB_SUBDIR:-(root)}"
 log "  APP_NAME:          $APP_NAME"
 log "  SERVICE_SUBDOMAIN: $SERVICE_SUBDOMAIN"
@@ -85,7 +88,16 @@ if [[ -d "$CLONE_DIR" ]]; then
 fi
 
 log "Cloning $GITHUB_REPO (branch: $GITHUB_BRANCH) ..."
-git clone --depth 1 --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+if [[ -n "$GITHUB_COMMIT" ]]; then
+    # Need full history to checkout a specific commit
+    git clone --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+    cd "$CLONE_DIR"
+    log "Checking out commit: $GITHUB_COMMIT ..."
+    git checkout "$GITHUB_COMMIT"
+    cd /app
+else
+    git clone --depth 1 --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+fi
 
 # Navigate to the project directory
 PROJECT_DIR="$CLONE_DIR"
