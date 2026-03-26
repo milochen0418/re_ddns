@@ -188,13 +188,25 @@ EXTERNAL_URL="https://${SERVICE_SUBDOMAIN}.${SERVICE_ZONE}"
 
 if [[ -f "rxconfig.py" ]]; then
     log "Found existing rxconfig.py — patching api_url ..."
-    # If api_url is already set, replace it; otherwise inject it after app_name
-    if grep -q 'api_url' rxconfig.py; then
-        sed -i "s|api_url=.*|api_url=\"${EXTERNAL_URL}\",|" rxconfig.py
-    else
-        # Insert api_url right after the app_name line
-        sed -i "/app_name=/a\\        api_url=\"${EXTERNAL_URL}\"," rxconfig.py
-    fi
+    # Use Python to inject/replace api_url — handles both single-line and
+    # multi-line rx.Config() formats correctly.
+    python3 - "$EXTERNAL_URL" <<'PATCH_SCRIPT'
+import re, sys
+
+url = sys.argv[1]
+text = open("rxconfig.py").read()
+
+if "api_url" in text:
+    text = re.sub(r"""api_url\s*=\s*["'][^"']*["']""", f'api_url="{url}"', text)
+else:
+    text = re.sub(
+        r"""(app_name\s*=\s*["'][^"']*["'],?)""",
+        rf"""\1\n    api_url="{url}",""",
+        text,
+    )
+
+open("rxconfig.py", "w").write(text)
+PATCH_SCRIPT
     cat rxconfig.py
 else
     log "No rxconfig.py found — creating one for app '$APP_NAME'"
