@@ -122,7 +122,7 @@ log "Working directory: $(pwd)"
 # the base Docker image.
 if [[ -f "apt-packages.txt" ]]; then
     # Strip comments (#…) and blank lines
-    _pkgs=$(grep -v '^\s*#' apt-packages.txt | grep -v '^\s*$' | tr '\n' ' ')
+    _pkgs=$(grep -v '^\s*#' apt-packages.txt | grep -v '^\s*$' | tr '\n' ' ' || true)
     if [[ -n "$_pkgs" ]]; then
         log "Installing project APT packages from apt-packages.txt: $_pkgs"
         apt-get update && apt-get install -y --no-install-recommends $_pkgs \
@@ -136,7 +136,7 @@ fi
 # Pass the package list to register_dns.py so it can be stored in
 # registry.json as a deployment record (purely informational).
 if [[ -f "apt-packages.txt" ]]; then
-    _apt_record=$(grep -v '^\s*#' apt-packages.txt | grep -v '^\s*$' | tr '\n' ',')
+    _apt_record=$(grep -v '^\s*#' apt-packages.txt | grep -v '^\s*$' | tr '\n' ',' || true)
     _apt_record="${_apt_record%,}"  # trim trailing comma
     if [[ -n "$_apt_record" ]]; then
         export EXTRA_APT_PACKAGES="$_apt_record"
@@ -152,7 +152,7 @@ fi
 # the frontend.  This lets each project declare its own backend routes
 # (e.g. /__embed, /yjs/) without hardcoding them in re_ddns.
 if [[ -f "backend-paths.txt" ]]; then
-    _paths=$(grep -v '^\s*#' backend-paths.txt | grep -v '^\s*$' | tr '\n' ',')
+    _paths=$(grep -v '^\s*#' backend-paths.txt | grep -v '^\s*$' | tr '\n' ',' || true)
     _paths="${_paths%,}"  # trim trailing comma
     if [[ -n "$_paths" ]]; then
         export EXTRA_BACKEND_PATHS="$_paths"

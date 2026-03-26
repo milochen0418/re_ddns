@@ -49,7 +49,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
@@ -329,6 +329,66 @@ class ManualDNSItem(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Docker container management (via Docker Engine API over Unix socket)
+# ---------------------------------------------------------------------------
+
+_DOCKER_SOCKET = "/var/run/docker.sock"
+
+
+async def _stop_container(container_name: str) -> bool:
+    """Stop and remove a Docker container via the Docker Engine API.
+
+    Uses ``curl --unix-socket`` against the Docker Engine REST API.
+    The socket must be bind-mounted into the re-ddns container.
+    Returns *True* if the container was stopped successfully.
+    """
+    import asyncio
+
+    if not os.path.exists(_DOCKER_SOCKET):
+        logger.warning("Docker socket not available — cannot stop %s", container_name)
+        return False
+
+    async def _docker_api(method: str, path: str, timeout: int = 30) -> int:
+        """Call Docker Engine API. Returns HTTP status code."""
+        cmd = [
+            "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
+            "--unix-socket", _DOCKER_SOCKET,
+            "-X", method,
+            f"http://localhost{path}",
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        return int(stdout.decode().strip() or "0")
+
+    try:
+        # Stop the container (10s grace period)
+        code = await _docker_api("POST", f"/containers/{container_name}/stop?t=10", timeout=30)
+        if code in (204, 304):
+            logger.info("Stopped container %s", container_name)
+        elif code == 404:
+            logger.info("Container %s not found (already removed)", container_name)
+            return False
+        else:
+            logger.warning("Stop %s returned HTTP %d", container_name, code)
+
+        # Remove the container
+        code = await _docker_api("DELETE", f"/containers/{container_name}?force=true", timeout=15)
+        if code in (204, 404):
+            logger.info("Removed container %s", container_name)
+        else:
+            logger.warning("Remove %s returned HTTP %d", container_name, code)
+
+        return True
+    except Exception as exc:
+        logger.exception("Failed to stop container %s: %s", container_name, exc)
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -450,13 +510,17 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
 
 
 @router.delete("/service/{subdomain}")
-async def unregister_service_endpoint(subdomain: str):
-    """Remove a service from registry + DNS + nginx."""
+async def unregister_service_endpoint(subdomain: str, bg: BackgroundTasks):
+    """Remove a service: stop container + registry + DNS + nginx."""
     svc = get_service(subdomain)
     existed = delete_service(subdomain)
     dns_ok = True
     nginx_ok = True
+    container_name = None
     if existed and svc:
+        # Schedule container stop in background (avoids Gunicorn worker timeout)
+        container_name = svc.get("upstream_host", f"smart-app-{subdomain}")
+        bg.add_task(_stop_container, container_name)
         # Delete DNS A record
         zone = svc.get("zone", "reflex-ddns.com")
         dns_ok, _ = dns_manager.do_dns_delete(subdomain, zone)
@@ -469,6 +533,7 @@ async def unregister_service_endpoint(subdomain: str):
         "success": existed,
         "dns_ok": dns_ok,
         "nginx_ok": nginx_ok,
+        "container_stopping": container_name is not None,
         "subdomain": subdomain,
     }
 
