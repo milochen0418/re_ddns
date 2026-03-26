@@ -65,6 +65,7 @@ def _proxy_location(upstream: str, path: str = "/") -> str:
         "        proxy_set_header Upgrade    $http_upgrade;\n"
         "        proxy_set_header Connection $connection_upgrade;\n"
         "        proxy_read_timeout 86400s;\n"
+        "        client_max_body_size 0;\n"
         "    }\n"
     )
 
@@ -87,6 +88,7 @@ def _proxy_location_var(var_name: str, path: str = "/") -> str:
         "        proxy_set_header Upgrade    $http_upgrade;\n"
         "        proxy_set_header Connection $connection_upgrade;\n"
         "        proxy_read_timeout 86400s;\n"
+        "        client_max_body_size 0;\n"
         "    }\n"
     )
 
