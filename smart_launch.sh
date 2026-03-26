@@ -236,6 +236,8 @@ Examples:
   $0 https://github.com/milochen0418/codoc_in_md.git codoc_in_md md
   $0 -v /Users/Shared/DICOM:/Users/Shared/DICOM https://github.com/milochen0418/dicom_data_explorer.git dicom_data_explorer dicom-data-explorer
   $0 -v /Users/Shared/DICOM:/Users/Shared/DICOM https://github.com/milochen0418/dicom_viewer.git dicom_viewer dicom-viewer
+  $0 https://github.com/milochen0418/video_segment_splitter.git video_segment_splitter video-segment-splitter
+  $0 https://github.com/milochen0418/video_duration_adjuster.git video_duration_adjuster video-duration-adjuster
 
   # List all launched services:
   $0 --list
