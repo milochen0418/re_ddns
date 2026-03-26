@@ -13,6 +13,8 @@ set -euo pipefail
 #   --commit=<hash>   Git commit SHA to checkout (clones full history)
 #   --subdir=<path>   Subdirectory within repo containing the Reflex project
 #   --env=<file>      Path to .env file to inject into the app
+#   --list            List all services launched via smart_launch
+#   --remove=<sub>    Remove a launched service (container + DNS + nginx)
 #   --help            Show this help and exit
 #
 # Examples:
@@ -74,6 +76,116 @@ ok()   { echo -e "${GREEN}[smart-launch]${NC} $*"; }
 warn() { echo -e "${YELLOW}[smart-launch]${NC} $*"; }
 err()  { echo -e "${RED}[smart-launch]${NC} $*" >&2; }
 
+RE_DDNS_API="http://127.0.0.1:8000"
+RE_DDNS_CONTAINER="re-ddns"
+
+# Helper: call re-ddns API from inside the container
+api_call() {
+    # $1 = method (GET, POST, DELETE), $2 = path (e.g. /api/service/list)
+    local method="$1" path="$2"
+    docker exec "$RE_DDNS_CONTAINER" curl -sf -X "$method" "${RE_DDNS_API}${path}" 2>/dev/null
+}
+
+# ──────────────────────────────────────────────
+# Helper: --list
+# ──────────────────────────────────────────────
+do_list() {
+    if ! docker ps --format '{{.Names}}' | grep -q '^re-ddns$'; then
+        err "re-ddns is not running."
+        exit 1
+    fi
+    local response
+    response=$(api_call GET /api/service/list) || {
+        err "Failed to reach re-ddns API"
+        exit 1
+    }
+
+    local count
+    count=$(echo "$response" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+
+    if [[ "$count" == "0" ]]; then
+        log "No services currently registered."
+        exit 0
+    fi
+
+    echo ""
+    log "Registered services ($count):"
+    echo ""
+    printf "  ${CYAN}%-14s %-30s %-22s %s${NC}\n" "SUBDOMAIN" "URL" "UPSTREAM" "CONTAINER"
+    printf "  %-14s %-30s %-22s %s\n" "─────────" "───" "────────" "─────────"
+
+    echo "$response" | python3 -c "
+import sys, json
+svcs = json.load(sys.stdin)
+for s in svcs:
+    sub = s['subdomain']
+    zone = s['zone']
+    host = s['upstream_host']
+    fe = s['frontend_port']
+    url = f'https://{sub}.{zone}'
+    upstream = f'{host}:{fe}'
+    container = f'smart-app-{sub}'
+    print(f'  {sub:<14} {url:<30} {upstream:<22} {container}')
+"
+    echo ""
+    exit 0
+}
+
+# ──────────────────────────────────────────────
+# Helper: --remove=<subdomain>
+# ──────────────────────────────────────────────
+do_remove() {
+    local subdomain="$1"
+    local container_name="smart-app-${subdomain}"
+    local compose_file="$SCRIPT_DIR/docker-compose.smart-app-${subdomain}.yml"
+
+    log "Removing service: ${subdomain}"
+    echo ""
+
+    # 1) Stop & remove Docker container
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        log "Stopping container ${container_name} ..."
+        docker stop "$container_name" 2>/dev/null || true
+        docker rm "$container_name" 2>/dev/null || true
+        ok "Container ${container_name} removed."
+    else
+        warn "Container ${container_name} not found (already removed?)."
+    fi
+
+    # 2) Call API to delete DNS + nginx + registry entry
+    if docker ps --format '{{.Names}}' | grep -q '^re-ddns$'; then
+        log "Deleting DNS & nginx records via API ..."
+        local response
+        response=$(api_call DELETE "/api/service/${subdomain}") || {
+            err "Failed to reach re-ddns API"
+        }
+        local success
+        success=$(echo "$response" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success', False))" 2>/dev/null || echo "False")
+        if [[ "$success" == "True" ]]; then
+            ok "DNS & nginx records removed."
+        else
+            warn "Service '${subdomain}' was not in registry (already removed?)."
+        fi
+    else
+        warn "re-ddns is not running — skipping DNS/nginx cleanup."
+    fi
+
+    # 3) Clean up generated files
+    if [[ -f "$compose_file" ]]; then
+        rm -f "$compose_file"
+        ok "Removed $compose_file"
+    fi
+    local env_mount="$SCRIPT_DIR/smart_launcher/.env.mount.${subdomain}"
+    if [[ -f "$env_mount" ]]; then
+        rm -f "$env_mount"
+        ok "Removed $env_mount"
+    fi
+
+    echo ""
+    ok "Service '${subdomain}' fully removed."
+    exit 0
+}
+
 # ──────────────────────────────────────────────
 # 0. Parse arguments
 # ──────────────────────────────────────────────
@@ -92,6 +204,8 @@ Options:
   --commit=<hash>   Git commit SHA to checkout after cloning
   --subdir=<path>   Subdirectory within repo for the Reflex project
   --env=<file>      Path to .env file (alternative to positional ENV_FILE)
+  --list            List all services launched via smart_launch
+  --remove=<sub>    Remove a launched service (stop container, delete DNS + nginx)
   --help            Show this help and exit
 
 Examples:
@@ -104,6 +218,12 @@ Examples:
   $0 https://github.com/milochen0418/relack.git relack relack ./relack.env
   $0 --commit=b7d5e26c https://github.com/milochen0418/codoc_in_md.git codoc_in_md md
   $0 https://github.com/milochen0418/codoc_in_md.git codoc_in_md md
+
+  # List all launched services:
+  $0 --list
+
+  # Remove a service:
+  $0 --remove=md
 
 EOF
     exit 1
@@ -155,6 +275,16 @@ while [[ $# -gt 0 ]]; do
             ENV_FILE="${2:-}"
             [[ -z "$ENV_FILE" ]] && { err "--env requires a value"; exit 1; }
             shift 2
+            ;;
+        --list)
+            do_list
+            ;;
+        --remove=*)
+            do_remove "${1#*=}"
+            ;;
+        --remove)
+            [[ -z "${2:-}" ]] && { err "--remove requires a subdomain value"; exit 1; }
+            do_remove "$2"
             ;;
         --help|-h)
             usage

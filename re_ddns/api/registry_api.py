@@ -451,15 +451,26 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
 
 @router.delete("/service/{subdomain}")
 async def unregister_service_endpoint(subdomain: str):
-    """Remove a service from registry + nginx (DNS TTL will expire)."""
+    """Remove a service from registry + DNS + nginx."""
+    svc = get_service(subdomain)
     existed = delete_service(subdomain)
+    dns_ok = True
     nginx_ok = True
-    if existed:
+    if existed and svc:
+        # Delete DNS A record
+        zone = svc.get("zone", "reflex-ddns.com")
+        dns_ok, _ = dns_manager.do_dns_delete(subdomain, zone)
+        # Regenerate nginx configs (removes the .conf file)
         try:
             nginx_ok = nginx_manager.sync()
         except Exception:
             nginx_ok = False
-    return {"success": existed, "nginx_synced": nginx_ok, "subdomain": subdomain}
+    return {
+        "success": existed,
+        "dns_ok": dns_ok,
+        "nginx_ok": nginx_ok,
+        "subdomain": subdomain,
+    }
 
 
 @router.get("/service/list", response_model=list[ServiceListItem])

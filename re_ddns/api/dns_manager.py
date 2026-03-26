@@ -113,3 +113,34 @@ def do_dns_update(
         return True, "ok"
     except Exception as exc:
         return False, str(exc)
+
+
+def do_dns_delete(
+    record_name: str,
+    zone_name: str,
+    *,
+    record_type: str = "A",
+    key_name: Optional[str] = None,
+    key_secret: Optional[str] = None,
+    server_ip: str = "127.0.0.1",
+) -> tuple[bool, str]:
+    """Delete a DNS record via RFC 2136.
+
+    Returns ``(success: bool, message: str)``.
+    """
+    key_name = key_name or _tsig.get("TSIG_KEY_NAME", "")
+    key_secret = key_secret or _tsig.get("TSIG_SECRET", "")
+    if not key_name or not key_secret:
+        return False, "No server-side TSIG credentials available."
+
+    try:
+        keyring = dns.tsigkeyring.from_text({key_name: key_secret})
+        update = dns.update.Update(zone_name, keyring=keyring)
+        update.delete(record_name, record_type)
+        response = dns.query.tcp(update, server_ip, timeout=10.0)
+        rcode_val = response.rcode()
+        if rcode_val != dns.rcode.NOERROR:
+            return False, f"DNS RCODE: {dns.rcode.to_text(rcode_val)}"
+        return True, "ok"
+    except Exception as exc:
+        return False, str(exc)
