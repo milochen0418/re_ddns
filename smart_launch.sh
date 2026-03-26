@@ -13,6 +13,8 @@ set -euo pipefail
 #   --commit=<hash>   Git commit SHA to checkout (clones full history)
 #   --subdir=<path>   Subdirectory within repo containing the Reflex project
 #   --env=<file>      Path to .env file to inject into the app
+#   -v <本機路徑>:<容器內路徑>  將本機資料夾掛載進容器 (可重複使用)
+#   --volume=<本機路徑>:<容器內路徑>  同 -v
 #   --list            List all services launched via smart_launch
 #   --remove=<sub>    Remove a launched service (container + DNS + nginx)
 #   --help            Show this help and exit
@@ -33,6 +35,17 @@ set -euo pipefail
 #   # With .env (flag or positional):
 #   ./smart_launch.sh --env=./my.env https://github.com/user/app.git my_app myapp
 #   ./smart_launch.sh https://github.com/user/app.git my_app myapp ./my.env
+#
+#   # With volume mount (-v 本機路徑:容器內路徑):
+#   # 下面的例子把 Mac 上的 /Users/Shared/DICOM 掛載到容器內的 /Users/Shared/DICOM，
+#   # 容器裡下載的 DICOM 檔案會直接寫入你 Mac 本機的該資料夾。
+#   ./smart_launch.sh -v /Users/Shared/DICOM:/Users/Shared/DICOM \
+#       https://github.com/milochen0418/dicom_data_explorer.git dicom_data_explorer dicom-data-explorer
+#
+#   # Multiple volumes (可掛載多個資料夾):
+#   # -v Mac本機路徑:容器內路徑
+#   ./smart_launch.sh -v /data/input:/input -v /data/output:/output \
+#       https://github.com/user/app.git my_app myapp
 #
 #   # Combine options:
 #   ./smart_launch.sh --branch=v2.0 --subdir=frontend --env=./prod.env \
@@ -204,6 +217,9 @@ Options:
   --commit=<hash>   Git commit SHA to checkout after cloning
   --subdir=<path>   Subdirectory within repo for the Reflex project
   --env=<file>      Path to .env file (alternative to positional ENV_FILE)
+  -v <本機>:<容器>  Mount host dir into container (repeatable)
+                    Format: -v /Mac本機路徑:/容器內路徑
+  --volume=<本>:<容> Same as -v
   --list            List all services launched via smart_launch
   --remove=<sub>    Remove a launched service (stop container, delete DNS + nginx)
   --help            Show this help and exit
@@ -218,6 +234,8 @@ Examples:
   $0 https://github.com/milochen0418/relack.git relack relack ./relack.env
   $0 --commit=b7d5e26c https://github.com/milochen0418/codoc_in_md.git codoc_in_md md
   $0 https://github.com/milochen0418/codoc_in_md.git codoc_in_md md
+  $0 -v /Users/Shared/DICOM:/Users/Shared/DICOM https://github.com/milochen0418/dicom_data_explorer.git dicom_data_explorer dicom-data-explorer
+  $0 -v /Users/Shared/DICOM:/Users/Shared/DICOM https://github.com/milochen0418/dicom_viewer.git dicom_viewer dicom-viewer
 
   # List all launched services:
   $0 --list
@@ -234,6 +252,7 @@ GITHUB_BRANCH="main"
 GITHUB_COMMIT=""
 GITHUB_SUBDIR=""
 ENV_FILE=""
+VOLUMES=()
 
 # Collect positional arguments separately
 POSITIONAL_ARGS=()
@@ -274,6 +293,20 @@ while [[ $# -gt 0 ]]; do
         --env)
             ENV_FILE="${2:-}"
             [[ -z "$ENV_FILE" ]] && { err "--env requires a value"; exit 1; }
+            shift 2
+            ;;
+        --volume=*)
+            VOLUMES+=("${1#*=}")
+            shift
+            ;;
+        --volume)
+            [[ -z "${2:-}" ]] && { err "--volume requires a value (host:container)"; exit 1; }
+            VOLUMES+=("$2")
+            shift 2
+            ;;
+        -v)
+            [[ -z "${2:-}" ]] && { err "-v requires a value (host:container)"; exit 1; }
+            VOLUMES+=("$2")
             shift 2
             ;;
         --list)
@@ -338,6 +371,9 @@ log "  BRANCH:      $GITHUB_BRANCH"
 [[ -n "$GITHUB_COMMIT" ]] && log "  COMMIT:      $GITHUB_COMMIT"
 [[ -n "$GITHUB_SUBDIR" ]] && log "  SUBDIR:      $GITHUB_SUBDIR"
 log "  ENV_FILE:    ${ENV_FILE:-(none)}"
+if [[ ${#VOLUMES[@]} -gt 0 ]]; then
+    log "  VOLUMES:     ${VOLUMES[*]}"
+fi
 log "  URL:         https://${SUBDOMAIN}.reflex-ddns.com"
 echo ""
 
@@ -361,10 +397,21 @@ fi
 # ──────────────────────────────────────────────
 # Build the volumes section conditionally
 VOLUMES_SECTION=""
-if [[ -n "$MOUNTED_ENV" ]]; then
+_need_volumes=false
+if [[ -n "$MOUNTED_ENV" ]] || [[ ${#VOLUMES[@]} -gt 0 ]]; then
+    _need_volumes=true
+fi
+if $_need_volumes; then
     VOLUMES_SECTION="
-    volumes:
+    volumes:"
+    if [[ -n "$MOUNTED_ENV" ]]; then
+        VOLUMES_SECTION+="
       - ./smart_launcher/.env.mount.${SUBDOMAIN}:/app/injected.env:ro"
+    fi
+    for _vol in "${VOLUMES[@]+${VOLUMES[@]}}"; do
+        [[ -n "$_vol" ]] && VOLUMES_SECTION+="
+      - ${_vol}"
+    done
 fi
 
 cat > "$COMPOSE_OVERRIDE" <<YAML
