@@ -114,6 +114,53 @@ cd "$PROJECT_DIR"
 log "Working directory: $(pwd)"
 
 # ──────────────────────────────────────────────
+# 2.1 Install project-specific APT packages
+# ──────────────────────────────────────────────
+# If the cloned project ships an apt-packages.txt (one package name per line),
+# install those system libraries now.  This lets each project declare its own
+# native dependencies (e.g. WeasyPrint needs Pango/Cairo) without bloating
+# the base Docker image.
+if [[ -f "apt-packages.txt" ]]; then
+    # Strip comments (#…) and blank lines
+    _pkgs=$(grep -v '^\s*#' apt-packages.txt | grep -v '^\s*$' | tr '\n' ' ')
+    if [[ -n "$_pkgs" ]]; then
+        log "Installing project APT packages from apt-packages.txt: $_pkgs"
+        apt-get update && apt-get install -y --no-install-recommends $_pkgs \
+            && apt-get clean && rm -rf /var/lib/apt/lists/*
+    fi
+fi
+
+# ──────────────────────────────────────────────
+# 2.1.1 Record installed APT packages for registry
+# ──────────────────────────────────────────────
+# Pass the package list to register_dns.py so it can be stored in
+# registry.json as a deployment record (purely informational).
+if [[ -f "apt-packages.txt" ]]; then
+    _apt_record=$(grep -v '^\s*#' apt-packages.txt | grep -v '^\s*$' | tr '\n' ',')
+    _apt_record="${_apt_record%,}"  # trim trailing comma
+    if [[ -n "$_apt_record" ]]; then
+        export EXTRA_APT_PACKAGES="$_apt_record"
+        log "APT packages for registry record: $EXTRA_APT_PACKAGES"
+    fi
+fi
+
+# ──────────────────────────────────────────────
+# 2.2 Read project-specific backend paths
+# ──────────────────────────────────────────────
+# If the project ships a backend-paths.txt (one URL path per line),
+# these paths will be proxied to the backend port by nginx instead of
+# the frontend.  This lets each project declare its own backend routes
+# (e.g. /__embed, /yjs/) without hardcoding them in re_ddns.
+if [[ -f "backend-paths.txt" ]]; then
+    _paths=$(grep -v '^\s*#' backend-paths.txt | grep -v '^\s*$' | tr '\n' ',')
+    _paths="${_paths%,}"  # trim trailing comma
+    if [[ -n "$_paths" ]]; then
+        export EXTRA_BACKEND_PATHS="$_paths"
+        log "Extra backend paths from backend-paths.txt: $EXTRA_BACKEND_PATHS"
+    fi
+fi
+
+# ──────────────────────────────────────────────
 # 2.5 Inject .env file
 # ──────────────────────────────────────────────
 # Priority:
@@ -321,8 +368,14 @@ fi
 mkdir -p uploaded_files
 
 # ──────────────────────────────────────────────
-# 9. Start Reflex dev server
+# 9. Export app-specific env vars & start Reflex
 # ──────────────────────────────────────────────
+# Tell apps (e.g. codoc_in_md) to use the external URL for backend
+# requests generated in server-rendered HTML / JS, so remote browsers
+# reach the backend through nginx instead of unreachable localhost:8000.
+export CODOC_BACKEND_BASE_URL="${EXTERNAL_URL}"
+log "CODOC_BACKEND_BASE_URL=${CODOC_BACKEND_BASE_URL}"
+
 log "Starting Reflex dev server on ports $FRONTEND_PORT/$BACKEND_PORT ..."
 exec poetry run reflex run \
     --env dev \

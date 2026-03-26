@@ -33,6 +33,16 @@ UPSTREAM_HOST = os.environ.get("SERVICE_UPSTREAM_HOST", socket.gethostname())
 FRONTEND_PORT = int(os.environ.get("FRONTEND_PORT", "3000"))
 BACKEND_PORT = int(os.environ.get("BACKEND_PORT", "8000"))
 
+# Extra backend paths declared by the project (comma-separated).
+# These paths will be proxied to the backend port instead of frontend.
+_raw_paths = os.environ.get("EXTRA_BACKEND_PATHS", "")
+BACKEND_PATHS: list[str] = [p.strip() for p in _raw_paths.split(",") if p.strip()]
+
+# Extra APT packages installed by the project (comma-separated).
+# Stored in registry.json as a deployment record (informational only).
+_raw_apt = os.environ.get("EXTRA_APT_PACKAGES", "")
+APT_PACKAGES: list[str] = [p.strip() for p in _raw_apt.split(",") if p.strip()]
+
 
 def _detect_container_ip() -> str:
     """Auto-detect the container's network IP for DNS registration."""
@@ -76,6 +86,10 @@ def register_service() -> bool:
         "ip_address": IP,
         "ttl": 1,
     }
+    if BACKEND_PATHS:
+        payload["backend_paths"] = BACKEND_PATHS
+    if APT_PACKAGES:
+        payload["apt_packages"] = APT_PACKAGES
     endpoint = f"{API_URL}/api/service/register"
     print(f"[register] POST {endpoint}")
     print(f"[register]   {SUBDOMAIN}.{ZONE} -> upstream={UPSTREAM_HOST}, dns={IP}")

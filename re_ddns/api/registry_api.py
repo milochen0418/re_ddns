@@ -141,6 +141,8 @@ def put_service(
     backend_port: int = 8000,
     ip_address: str = "127.0.0.1",
     ttl: int = 1,
+    backend_paths: list[str] | None = None,
+    apt_packages: list[str] | None = None,
 ) -> dict[str, Any]:
     """Insert or update a service.  Returns the entry written."""
     entry = {
@@ -153,6 +155,10 @@ def put_service(
         "ttl": ttl,
         "registered_at": datetime.now(timezone.utc).isoformat(),
     }
+    if backend_paths:
+        entry["backend_paths"] = backend_paths
+    if apt_packages:
+        entry["apt_packages"] = apt_packages
     data = load()
     data["services"][subdomain] = entry
     save(data)
@@ -283,6 +289,8 @@ class ServiceRegisterRequest(BaseModel):
     backend_port: int = 8000
     ip_address: str = "127.0.0.1"
     ttl: int = 1
+    backend_paths: list[str] = []
+    apt_packages: list[str] = []
 
 
 class ServiceRegisterResponse(BaseModel):
@@ -386,6 +394,8 @@ async def register_service_endpoint(req: ServiceRegisterRequest):
         backend_port=req.backend_port,
         ip_address=proxy_ip,
         ttl=req.ttl,
+        backend_paths=req.backend_paths or None,
+        apt_packages=req.apt_packages or None,
     )
 
     # 2) DNS A record — point to re-ddns (nginx proxy)
