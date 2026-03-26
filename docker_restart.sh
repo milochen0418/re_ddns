@@ -32,9 +32,49 @@ err()  { echo -e "${RED}[restart]${NC} $*" >&2; }
 COMPOSE_FILE="docker-compose.test.yml"
 KEEP_VOLUMES=false
 
-if [[ "${1:-}" == "--keep-volumes" ]]; then
-    KEEP_VOLUMES=true
-fi
+# ── Help ──
+show_help() {
+    cat <<'EOF'
+Usage: ./docker_restart.sh [OPTIONS]
+
+Clean restart of the entire re-ddns Docker stack.
+
+Steps performed:
+  1. Stop all containers and remove volumes (cleans stale registry/nginx configs)
+  2. Stop any smart-app services and remove leftover containers
+  3. Start re-ddns and wait until its API is ready (up to 180 s)
+  4. Start testapp, testapp2, testapp3 and wait until all are healthy (up to 300 s)
+
+Options:
+  --keep-volumes   Restart containers without clearing Docker volumes.
+                   By default volumes are removed for a fully clean restart.
+  --help, -h       Show this help message and exit.
+
+Environment:
+  EXTERNAL_IP      Detected automatically via detect_external_ip.sh.
+                   DNS A records will point to this address.
+
+Compose file:
+  docker-compose.test.yml
+
+Examples:
+  ./docker_restart.sh                 # full clean restart (volumes removed)
+  ./docker_restart.sh --keep-volumes  # restart but keep existing volumes
+
+After a successful restart the following services are available:
+  re-ddns    https://home.reflex-ddns.com
+  testapp    https://testapp.reflex-ddns.com
+  testapp2   https://testapp2.reflex-ddns.com
+  testapp3   https://testapp3.reflex-ddns.com
+  noVNC      http://localhost:6080/vnc.html
+EOF
+    exit 0
+}
+
+case "${1:-}" in
+    --help|-h) show_help ;;
+    --keep-volumes) KEEP_VOLUMES=true ;;
+esac
 
 # ──────────────────────────────────────────────
 # Auto-detect Mac LAN IP for DNS A records
