@@ -257,42 +257,6 @@ case "$CMD" in
     ;;
 
   leave)
-    servers=$(current_dns)
-    case " $servers " in
-        *" $LOCAL_DNS "*) : ;;  # found, continue
-        *)
-            echo "[$IFACE] $LOCAL_DNS not in DNS list. Nothing to do."
-            exit 0
-            ;;
-    esac
-    # Remove LOCAL_DNS from the list
-    new_list=$(echo "$servers" | tr ' ' '\n' | grep -v "^${LOCAL_DNS}$" | tr '\n' ' ' | sed 's/ $//' || true)
-    echo "[$IFACE] Removing $LOCAL_DNS from DNS list …"
-
-    # Decide whether to revert to DHCP or keep the remaining servers.
-    # If the remaining servers are exactly the DHCP-provided ones,
-    # revert to DHCP mode so the system is back to its original state.
-    should_revert_dhcp=false
-    if [[ -z "$new_list" ]]; then
-        should_revert_dhcp=true
-    else
-        dhcp_servers=$(dhcp_dns)
-        # Sort and compare: if remaining == DHCP DNS, revert to DHCP
-        remaining_sorted=$(echo "$new_list" | tr ' ' '\n' | sort)
-        dhcp_sorted=$(echo "$dhcp_servers" | tr ' ' '\n' | sort)
-        if [[ "$remaining_sorted" == "$dhcp_sorted" ]]; then
-            should_revert_dhcp=true
-        fi
-    fi
-
-    if $should_revert_dhcp; then
-        sudo networksetup -setdnsservers "$IFACE" "Empty"
-        echo "[$IFACE] Reverted to DHCP-provided DNS."
-    else
-        sudo networksetup -setdnsservers "$IFACE" $new_list
-        echo "[$IFACE] New DNS list:"
-        networksetup -getdnsservers "$IFACE"
-    fi
     # Remove /etc/resolver entry
     if [[ -f "$RESOLVER_DIR/$DOMAIN" ]]; then
         sudo rm -f "$RESOLVER_DIR/$DOMAIN"
@@ -307,6 +271,9 @@ case "$CMD" in
     sudo dscacheutil -flushcache
     sudo killall -HUP mDNSResponder 2>/dev/null || true
     echo "DNS cache flushed."
+    # Revert DNS to DHCP-provided
+    networksetup -setdnsservers "$IFACE" empty
+    echo "[$IFACE] Reverted to DHCP-provided DNS."
     ;;
 
 esac
