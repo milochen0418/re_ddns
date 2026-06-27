@@ -342,6 +342,16 @@ fi
 log "Running reflex init ..."
 poetry run reflex init || true
 
+# ──────────────────────────────────────────────
+# 5.1 Run database migrations
+# ──────────────────────────────────────────────
+# Apply any pending alembic migrations so models with `table=True`
+# have their tables created before the app starts.
+if [[ -f "alembic.ini" ]]; then
+    log "Running database migrations (reflex db migrate) ..."
+    poetry run reflex db migrate 2>&1 || log "WARNING: reflex db migrate failed — continuing anyway"
+fi
+
 # Patch Reflex Vite config template to allow any hostname
 sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: true,/' \
     .venv/lib/python3.11/site-packages/reflex/compiler/templates.py 2>/dev/null || true
