@@ -1,4 +1,4 @@
-"""Re-DDNS App Store.
+"""Agentic App Store.
 
 A Reflex app served at ``https://aapps.reflex-ddns.com`` that lists every
 app declared in the catalog (``data/appstore_catalog.json`` — the
@@ -442,7 +442,7 @@ def index() -> rx.Component:
                     rx.el.div(
                         rx.icon("layout-grid", class_name="h-8 w-8 text-blue-600"),
                         rx.el.h1(
-                            "Re-DDNS App Store",
+                            "Agentic App Store",
                             class_name="text-3xl font-black text-gray-900",
                         ),
                         class_name="flex items-center gap-3",
