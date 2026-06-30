@@ -26,6 +26,10 @@ docker/zones/db.reflex-ddns.com
 # Ignore macOS system files
 .DS_Store
 
+# Runtime-generated service registry / manual DNS records
+data/registry.json
+data/manual_dns.json
+
 # Playwright / Test Artifacts
 testcases/**/output/
 .playwright-mcp/

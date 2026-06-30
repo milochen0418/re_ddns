@@ -68,7 +68,8 @@ _DNS_RECORD_IP = os.environ.get("EXTERNAL_IP", "127.0.0.1")
 # Registry data layer
 # ---------------------------------------------------------------------------
 
-_DEFAULT_PATH = Path("/app/data/registry.json")
+_DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent.parent / "data"))
+_DEFAULT_PATH = _DATA_DIR / "registry.json"
 _lock = Lock()
 
 # Module-level path — can be overridden via ``init()``.
@@ -187,7 +188,7 @@ def list_services() -> list[dict[str, Any]]:
 # Manual DNS records – subdomain → arbitrary IP (no nginx proxy)
 # ---------------------------------------------------------------------------
 
-_MANUAL_DNS_PATH = Path("/app/data/manual_dns.json")
+_MANUAL_DNS_PATH = _DATA_DIR / "manual_dns.json"
 _manual_lock = Lock()
 
 
