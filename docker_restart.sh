@@ -131,6 +131,20 @@ for i in $(seq 1 $MAX_WAIT); do
 done
 
 # ──────────────────────────────────────────────
+# 2.5 Pre-build the generic smart-launcher image
+# ──────────────────────────────────────────────
+# Every App Store install runs this single shared image with different env
+# vars. Building it once here means the first in-UI install is fast and does
+# not have to build the image on demand.
+log "Building generic smart-launcher image (re-ddns/smart-launcher:latest) ..."
+if docker build -t re-ddns/smart-launcher:latest ./smart_launcher >/tmp/smart-launcher-build.log 2>&1; then
+    ok "smart-launcher image ready"
+else
+    warn "smart-launcher image build failed (App Store will build it on demand)."
+    warn "  See /tmp/smart-launcher-build.log for details."
+fi
+
+# ──────────────────────────────────────────────
 # 3. Start testapp, testapp2, testapp3
 # ──────────────────────────────────────────────
 log "Starting testapp, testapp2, testapp3, app-store ..."

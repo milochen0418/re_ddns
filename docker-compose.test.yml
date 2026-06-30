@@ -68,6 +68,12 @@ services:
       - bind-log:/var/log/bind
       - registry-data:/app/data
       - reflex-db:/app
+      # Docker socket — lets re-ddns orchestrate App Store installs by
+      # creating/starting smart-app containers via the Docker Engine API.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Launcher build context — so re-ddns can (re)build the generic
+      # smart-launcher image on demand if it is missing.
+      - ./smart_launcher:/app/smart_launcher:ro
 
     environment:
       - BIND9_HOST=127.0.0.1

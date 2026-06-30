@@ -341,6 +341,8 @@ else
         [[ $JOIN_RC -eq 0 ]] && ok "DNS 設定完成" || warn "macos_set_dns.sh 回傳非 0，請看上方訊息。"
         log "驗證主機端解析："
         verify_host_dns || warn "仍有網域無法解析；可 ./macos_set_dns.sh --list 檢查，或確認 --iface 正確。"
+    elif $DNS_ALREADY; then
+        ok "保持現有 DNS 設定（已可解析 *.reflex-ddns.com）。"
     else
         warn "略過 DNS 設定——瀏覽器將無法用網域開啟（會顯示無法解析主機）。"
     fi
@@ -403,7 +405,11 @@ case "${DO_CA:-false}" in
         fi
         ;;
     *)
-        warn "略過 CA 安裝——瀏覽器會顯示『您的連線不是私人連線』。"
+        if $CA_TRUSTED; then
+            ok "保持現有 CA 設定（已受信任）。"
+        else
+            warn "略過 CA 安裝——瀏覽器會顯示『您的連線不是私人連線』。"
+        fi
         ;;
 esac
 

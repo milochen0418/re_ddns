@@ -17,14 +17,15 @@ For every app declared in the catalog you can:
 | **Open**     | Opens `https://<subdomain>.reflex-ddns.com` in a new tab.                 |
 | **Start**    | Starts the app's container (`smart-app-<subdomain>`).                     |
 | **Stop**     | Stops the app's container.                                                |
-| **Install**  | Shows the exact `smart_launch.sh` command to run on the host (Mac).      |
-| **Uninstall**| Shows the `./smart_launch.sh --remove=<subdomain>` command to run.        |
+| **Install**  | Installs the app **in-page** with a live progress bar — no host commands. |
+| **Uninstall**| Stops the container and removes its DNS + nginx records.                  |
 
-> **Why Install/Uninstall only show a command (v1):** building/removing an app
-> container requires a host-side `docker compose build` and writes
-> `docker-compose.smart-app-*.yml` files in the repo. That must run on the Mac,
-> not inside this container. Start/Stop/Status/Open are fully automated because
-> they only need the Docker Engine API.
+> **Real, in-page install (no host shell needed):** every smart app is just the
+> generic `re-ddns/smart-launcher` image started with different environment
+> variables. The App Store asks **re-ddns** (which owns the Docker socket and an
+> install/progress manager) to create + start the app's container, then polls
+> for progress and renders a live bar: clone → install deps → reflex init →
+> register DNS/nginx → app running.
 
 ## How it works
 
@@ -35,6 +36,13 @@ For every app declared in the catalog you can:
   Unix socket `/var/run/docker.sock`:
   - `GET /containers/smart-app-<sub>/json` → running / stopped / 404 (not installed)
   - `POST /containers/smart-app-<sub>/start|stop`
+- **Install** — `POST {RE_DDNS_API_URL}/api/appstore/install` with the catalog
+  entry. re-ddns creates + starts `smart-app-<sub>` from the generic
+  `re-ddns/smart-launcher` image via the Docker Engine API. The App Store then
+  polls `GET /api/appstore/status/<sub>`; each poll advances re-ddns's scan of
+  the container logs and returns `{percent, phase, message, log}`.
+- **Uninstall** — `DELETE {RE_DDNS_API_URL}/api/service/<sub>` stops the
+  container and removes the registry + DNS + nginx records.
 - **Routing** — registers `aapps` with `re-ddns` on startup (`register_dns.py`);
   nginx terminates TLS and proxies `aapps.reflex-ddns.com` → `app-store:3000`.
 

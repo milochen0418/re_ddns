@@ -7,16 +7,21 @@ app declared in the catalog (``data/appstore_catalog.json`` — the
   • see each app's status (running / stopped / not installed)
   • Open a running app in a new tab
   • Start / Stop an installed app's container (via the Docker socket)
-  • Install / Uninstall — v1 shows the exact ``smart_launch.sh`` command
-    to run on the host (Mac), since building a new container requires a
-    host-side ``docker compose`` build.
+  • Install — done **in-page** with a live progress bar. The App Store
+    asks re-ddns (which owns the Docker socket and the install/progress
+    manager) to create + start the app's container and then polls
+    ``/api/appstore/status/<sub>`` to render progress.
+  • Uninstall — calls re-ddns ``DELETE /api/service/<sub>`` which stops the
+    container and removes the DNS + nginx records.
 
 Status & control are done through the Docker Engine API over the Unix
-socket bind-mounted at ``/var/run/docker.sock``.
+socket bind-mounted at ``/var/run/docker.sock``; installs are orchestrated
+by re-ddns over its own copy of that socket.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -27,6 +32,8 @@ import reflex as rx
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
 SERVICE_ZONE = os.environ.get("SERVICE_ZONE", "reflex-ddns.com")
 DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
+# re-ddns hosts the install orchestrator + progress manager.
+RE_DDNS_API_URL = os.environ.get("RE_DDNS_API_URL", "http://re-ddns:8000")
 
 
 # ---------------------------------------------------------------------------
@@ -118,11 +125,24 @@ class AppStoreState(rx.State):
     message: str = ""
     message_kind: str = "info"  # info | success | error
 
-    # Command panel (Install / Uninstall instructions)
-    show_command: bool = False
-    command_title: str = ""
-    command_text: str = ""
-    command_hint: str = ""
+    # Live install progress (driven by re-ddns /api/appstore/status).
+    show_progress: bool = False
+    active_sub: str = ""
+    active_name: str = ""
+    install_status: str = ""    # installing | installed | error
+    install_phase: str = ""
+    install_percent: int = 0
+    install_message: str = ""
+    install_log: list[str] = []
+
+    @rx.var
+    def progress_width(self) -> str:
+        pct = max(0, min(100, self.install_percent))
+        return f"{pct}%"
+
+    @rx.var
+    def install_busy(self) -> bool:
+        return self.install_status == "installing"
 
     def _lookup(self, subdomain: str) -> dict | None:
         for app in _load_catalog():
@@ -196,33 +216,113 @@ class AppStoreState(rx.State):
         yield AppStoreState.refresh
 
     @rx.event
-    def show_install(self, subdomain: str):
+    def install_app(self, subdomain: str):
+        """Ask re-ddns to install the app, then poll progress in-page."""
         app = self._lookup(subdomain)
         if not app:
             return
-        self.command_title = f"Install {app.get('name', subdomain)}"
-        self.command_text = _build_install_cmd(app)
-        self.command_hint = (
-            "在主機 (Mac) 的 re_ddns 專案根目錄執行此指令來安裝並啟動這個 app。"
-        )
-        self.show_command = True
+        display = app.get("name", subdomain)
+        # Reset progress UI.
+        self.show_progress = True
+        self.active_sub = subdomain
+        self.active_name = display
+        self.install_status = "installing"
+        self.install_phase = "queued"
+        self.install_percent = 2
+        self.install_message = "正在送出安裝請求…"
+        self.install_log = []
+        self.message = ""
 
-    @rx.event
-    def show_uninstall(self, subdomain: str):
-        app = self._lookup(subdomain)
-        if not app:
+        spec = {
+            "subdomain": subdomain,
+            "github_repo": app["github_repo"],
+            "app_name": app["app_name"],
+            "name": display,
+            "branch": app.get("branch") or "main",
+            "commit": app.get("commit") or "",
+            "subdir": app.get("subdir") or "",
+            "zone": SERVICE_ZONE,
+            "volumes": app.get("volumes") or [],
+            "env_file": app.get("env_file") or "",
+        }
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                r = client.post(f"{RE_DDNS_API_URL}/api/appstore/install", json=spec)
+            if r.status_code != 200:
+                self.install_status = "error"
+                self.install_message = f"無法開始安裝 (HTTP {r.status_code})：{r.text[:200]}"
+                return
+        except Exception as exc:  # noqa: BLE001
+            self.install_status = "error"
+            self.install_message = f"無法連線 re-ddns：{exc}"
             return
-        self.command_title = f"Uninstall {app.get('name', subdomain)}"
-        self.command_text = f"./smart_launch.sh --remove={subdomain}"
-        self.command_hint = (
-            "在主機 (Mac) 的 re_ddns 專案根目錄執行此指令來停止並移除這個 app"
-            "（容器 + DNS + nginx 記錄）。"
-        )
-        self.show_command = True
+        # Kick off background polling.
+        return AppStoreState.poll_progress
+
+    @rx.event(background=True)
+    async def poll_progress(self):
+        """Poll re-ddns for install progress until it finishes or fails."""
+        async with self:
+            sub = self.active_sub
+        if not sub:
+            return
+        while True:
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    r = await client.get(
+                        f"{RE_DDNS_API_URL}/api/appstore/status/{sub}"
+                    )
+                data = r.json() if r.status_code == 200 else {}
+            except Exception:  # noqa: BLE001
+                data = {}
+
+            async with self:
+                if self.active_sub != sub or not self.show_progress:
+                    return  # user moved on / closed
+                if data:
+                    self.install_status = data.get("status", self.install_status)
+                    self.install_phase = data.get("phase", self.install_phase)
+                    self.install_percent = int(data.get("percent", self.install_percent))
+                    self.install_message = data.get("message", self.install_message)
+                    log = data.get("log", [])
+                    if isinstance(log, list):
+                        self.install_log = [str(x) for x in log[-14:]]
+                status = self.install_status
+
+            if status in ("installed", "error"):
+                if status == "installed":
+                    async with self:
+                        self.message = f"{self.active_name} 安裝完成！"
+                        self.message_kind = "success"
+                # Refresh the catalog status grid.
+                yield AppStoreState.refresh
+                return
+
+            await asyncio.sleep(1.5)
 
     @rx.event
-    def close_command(self):
-        self.show_command = False
+    def uninstall_app(self, subdomain: str):
+        """Stop the container and remove DNS + nginx records via re-ddns."""
+        app = self._lookup(subdomain)
+        name = app.get("name", subdomain) if app else subdomain
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                r = client.delete(f"{RE_DDNS_API_URL}/api/service/{subdomain}")
+            if r.status_code == 200 and r.json().get("success"):
+                self.message = f"{name} 已移除（容器 + DNS + nginx）。"
+                self.message_kind = "success"
+            else:
+                self.message = f"{name} 移除完成（部分項目可能原本就不存在）。"
+                self.message_kind = "info"
+        except Exception as exc:  # noqa: BLE001
+            self.message = f"移除失敗：{exc}"
+            self.message_kind = "error"
+        yield AppStoreState.refresh
+
+    @rx.event
+    def close_progress(self):
+        self.show_progress = False
+        self.active_sub = ""
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +397,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                 _btn(
                     "Uninstall",
                     "trash-2",
-                    lambda: AppStoreState.show_uninstall(app["subdomain"]),
+                    lambda: AppStoreState.uninstall_app(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
                 ),
                 class_name="flex flex-wrap items-center gap-2",
@@ -315,7 +415,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                 _btn(
                     "Uninstall",
                     "trash-2",
-                    lambda: AppStoreState.show_uninstall(app["subdomain"]),
+                    lambda: AppStoreState.uninstall_app(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
                 ),
                 class_name="flex flex-wrap items-center gap-2",
@@ -326,7 +426,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
             _btn(
                 "Install",
                 "download",
-                lambda: AppStoreState.show_install(app["subdomain"]),
+                lambda: AppStoreState.install_app(app["subdomain"]),
                 "bg-gray-900 text-white hover:bg-black",
             ),
             class_name="flex flex-wrap items-center gap-2",
@@ -367,35 +467,87 @@ def app_card(app: rx.Var[dict]) -> rx.Component:
     )
 
 
-def command_panel() -> rx.Component:
+def progress_panel() -> rx.Component:
     return rx.cond(
-        AppStoreState.show_command,
+        AppStoreState.show_progress,
         rx.el.div(
             rx.el.div(
+                # Header
                 rx.el.div(
-                    rx.el.h3(
-                        AppStoreState.command_title,
-                        class_name="text-lg font-bold text-gray-900",
+                    rx.el.div(
+                        rx.cond(
+                            AppStoreState.install_status == "error",
+                            rx.icon("circle-alert", class_name="h-6 w-6 text-red-600"),
+                            rx.cond(
+                                AppStoreState.install_status == "installed",
+                                rx.icon("circle-check-big", class_name="h-6 w-6 text-green-600"),
+                                rx.icon("loader-circle", class_name="h-6 w-6 text-blue-600 animate-spin"),
+                            ),
+                        ),
+                        rx.el.h3(
+                            "安裝 " + AppStoreState.active_name,
+                            class_name="text-lg font-bold text-gray-900",
+                        ),
+                        class_name="flex items-center gap-3",
                     ),
                     rx.el.button(
                         rx.icon("x", class_name="h-5 w-5"),
-                        on_click=AppStoreState.close_command,
+                        on_click=AppStoreState.close_progress,
                         class_name="p-1 text-gray-400 hover:text-gray-700 rounded-lg",
                     ),
-                    class_name="flex items-center justify-between mb-3",
+                    class_name="flex items-center justify-between mb-4",
                 ),
-                rx.el.p(
-                    AppStoreState.command_hint,
-                    class_name="text-sm text-gray-500 mb-3",
+                # Progress bar
+                rx.el.div(
+                    rx.el.div(
+                        class_name=rx.cond(
+                            AppStoreState.install_status == "error",
+                            "h-full bg-red-500 transition-all duration-500",
+                            "h-full bg-blue-600 transition-all duration-500",
+                        ),
+                        style={"width": AppStoreState.progress_width},
+                    ),
+                    class_name="w-full h-3 bg-gray-100 rounded-full overflow-hidden",
                 ),
-                rx.el.code(
-                    AppStoreState.command_text,
-                    class_name="block w-full p-4 bg-gray-950 text-green-300 rounded-xl text-sm font-mono overflow-x-auto",
+                rx.el.div(
+                    rx.el.span(
+                        AppStoreState.install_message,
+                        class_name="text-sm font-medium text-gray-700",
+                    ),
+                    rx.el.span(
+                        AppStoreState.install_percent.to_string() + "%",
+                        class_name="text-sm font-bold text-gray-900",
+                    ),
+                    class_name="flex items-center justify-between mt-2 mb-4",
+                ),
+                # Log tail
+                rx.el.div(
+                    rx.foreach(
+                        AppStoreState.install_log,
+                        lambda line: rx.el.div(line, class_name="whitespace-pre-wrap"),
+                    ),
+                    class_name="w-full h-48 p-3 bg-gray-950 text-green-300 rounded-xl text-xs font-mono overflow-y-auto",
+                ),
+                # Footer button
+                rx.el.div(
+                    rx.cond(
+                        AppStoreState.install_busy,
+                        rx.el.button(
+                            "安裝進行中…（可關閉視窗，安裝會在背景繼續）",
+                            on_click=AppStoreState.close_progress,
+                            class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
+                        ),
+                        rx.el.button(
+                            "完成",
+                            on_click=AppStoreState.close_progress,
+                            class_name="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700",
+                        ),
+                    ),
+                    class_name="flex justify-end mt-4",
                 ),
                 class_name="w-full max-w-2xl bg-white rounded-3xl border border-gray-100 shadow-2xl p-6",
             ),
             class_name="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6",
-            on_click=AppStoreState.close_command,
         ),
         None,
     )
@@ -434,7 +586,7 @@ def message_banner() -> rx.Component:
 
 def index() -> rx.Component:
     return rx.el.main(
-        command_panel(),
+        progress_panel(),
         rx.el.div(
             # Header
             rx.el.div(
