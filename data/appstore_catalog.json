@@ -1,0 +1,102 @@
+{
+  "apps": [
+    {
+      "id": "md",
+      "name": "Codoc in Markdown",
+      "description": "Collaborative document editing rendered as Markdown.",
+      "icon": "file-text",
+      "subdomain": "md",
+      "github_repo": "https://github.com/milochen0418/codoc_in_md.git",
+      "app_name": "codoc_in_md",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "plantuml",
+      "name": "Codoc in PlantUML",
+      "description": "Collaborative diagrams authored with PlantUML.",
+      "icon": "share-2",
+      "subdomain": "plantuml",
+      "github_repo": "https://github.com/milochen0418/codoc_in_plantuml.git",
+      "app_name": "codoc_in_plantuml",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "vecdraw",
+      "name": "Codoc in VecDraw",
+      "description": "Collaborative vector drawing canvas.",
+      "icon": "pen-tool",
+      "subdomain": "vecdraw",
+      "github_repo": "https://github.com/milochen0418/codoc_in_vecdraw.git",
+      "app_name": "codoc_in_vecdraw",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "dicom-data-explorer",
+      "name": "DICOM Data Explorer",
+      "description": "Browse and inspect DICOM datasets.",
+      "icon": "folder-search",
+      "subdomain": "dicom-data-explorer",
+      "github_repo": "https://github.com/milochen0418/dicom_data_explorer.git",
+      "app_name": "dicom_data_explorer",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"]
+    },
+    {
+      "id": "dicom-viewer",
+      "name": "DICOM Viewer",
+      "description": "Render and view DICOM medical images.",
+      "icon": "scan-eye",
+      "subdomain": "dicom-viewer",
+      "github_repo": "https://github.com/milochen0418/dicom_viewer.git",
+      "app_name": "dicom_viewer",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"]
+    },
+    {
+      "id": "video-segment-splitter",
+      "name": "Video Segment Splitter",
+      "description": "Split a video into segments.",
+      "icon": "scissors",
+      "subdomain": "video-segment-splitter",
+      "github_repo": "https://github.com/milochen0418/video_segment_splitter.git",
+      "app_name": "video_segment_splitter",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "video-duration-adjuster",
+      "name": "Video Duration Adjuster",
+      "description": "Adjust the playback duration of a video.",
+      "icon": "timer",
+      "subdomain": "video-duration-adjuster",
+      "github_repo": "https://github.com/milochen0418/video_duration_adjuster.git",
+      "app_name": "video_duration_adjuster",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    }
+  ]
+}

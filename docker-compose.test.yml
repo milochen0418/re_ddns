@@ -25,6 +25,7 @@
 #   http://testapp.reflex-ddns.com    → test-app Hello World
 #   http://testapp2.reflex-ddns.com   → test-app2 (with in-container browser)
 #   http://testapp3.reflex-ddns.com   → test-app3 (frontend↔backend integration)
+#   http://aapps.reflex-ddns.com      → app-store (browse/install/manage apps)
 #   http://localhost:6080/vnc.html    → noVNC (testapp2 container desktop)
 
 networks:
@@ -193,6 +194,44 @@ services:
       # Reflex listen addresses
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
+
+    restart: unless-stopped
+
+  # ── App Store (aapps.reflex-ddns.com) ──────────────────────────────
+  # Browse / install / start / stop the smart_launch apps declared in
+  # data/appstore_catalog.json. Reads container status and controls
+  # start/stop through the Docker Engine API (docker.sock bind-mount).
+  app-store:
+    build:
+      context: ./appstore
+      dockerfile: Dockerfile
+    container_name: app-store
+    hostname: app-store
+
+    networks:
+      ddns-net:
+        ipv4_address: 172.28.0.50
+
+    depends_on:
+      - re-ddns
+
+    # No ports published — nginx inside re-ddns routes by Host header.
+
+    environment:
+      - RE_DDNS_API_URL=http://re-ddns:8000
+      - SERVICE_SUBDOMAIN=aapps
+      - SERVICE_ZONE=reflex-ddns.com
+      - REFLEX_FRONTEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      # App Store catalog (the smart_launch.sh parameter table)
+      - CATALOG_PATH=/app/data/appstore_catalog.json
+      - DOCKER_SOCK=/var/run/docker.sock
+
+    volumes:
+      # Catalog (the source of truth for which apps exist)
+      - ./data/appstore_catalog.json:/app/data/appstore_catalog.json:ro
+      # Docker socket — needed to read status and start/stop containers
+      - /var/run/docker.sock:/var/run/docker.sock
 
     restart: unless-stopped
 

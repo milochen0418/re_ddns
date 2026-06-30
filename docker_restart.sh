@@ -66,6 +66,7 @@ After a successful restart the following services are available:
   testapp    https://testapp.reflex-ddns.com
   testapp2   https://testapp2.reflex-ddns.com
   testapp3   https://testapp3.reflex-ddns.com
+  appstore   https://aapps.reflex-ddns.com
   noVNC      http://localhost:6080/vnc.html
 EOF
     exit 0
@@ -132,8 +133,8 @@ done
 # ──────────────────────────────────────────────
 # 3. Start testapp, testapp2, testapp3
 # ──────────────────────────────────────────────
-log "Starting testapp, testapp2, testapp3 ..."
-docker compose -f "$COMPOSE_FILE" up -d --build test-app test-app2 test-app3
+log "Starting testapp, testapp2, testapp3, app-store ..."
+docker compose -f "$COMPOSE_FILE" up -d --build test-app test-app2 test-app3 app-store
 
 # ──────────────────────────────────────────────
 # 4. Wait for all apps to be healthy
@@ -183,6 +184,7 @@ FAILED=0
 check_app_ready "test-app"  "testapp"  "https://testapp.reflex-ddns.com/"  || FAILED=$((FAILED+1))
 check_app_ready "test-app2" "testapp2" "https://testapp2.reflex-ddns.com/" || FAILED=$((FAILED+1))
 check_app_ready "test-app3" "testapp3" "https://testapp3.reflex-ddns.com/" || FAILED=$((FAILED+1))
+check_app_ready "app-store" "aapps"    "https://aapps.reflex-ddns.com/"    || FAILED=$((FAILED+1))
 
 echo ""
 if [[ $FAILED -gt 0 ]]; then
@@ -199,6 +201,7 @@ ok "  re-ddns:   https://home.reflex-ddns.com"
 ok "  testapp:   https://testapp.reflex-ddns.com"
 ok "  testapp2:  https://testapp2.reflex-ddns.com"
 ok "  testapp3:  https://testapp3.reflex-ddns.com"
+ok "  appstore:  https://aapps.reflex-ddns.com"
 ok "  noVNC:     http://localhost:6080/vnc.html"
 ok ""
 ok " To launch smart apps:"

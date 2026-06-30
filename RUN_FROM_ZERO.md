@@ -7,6 +7,7 @@
 > - `https://testapp.reflex-ddns.com` — testapp
 > - `https://testapp2.reflex-ddns.com` — testapp2（含容器內瀏覽器，另有 `http://localhost:6080/vnc.html`）
 > - `https://testapp3.reflex-ddns.com` — testapp3（前後端整合測試）
+> - `https://aapps.reflex-ddns.com` — App Store（瀏覽 / 安裝 / 啟停管理各 app）
 
 ---
 
@@ -193,6 +194,7 @@ curl -s -o /dev/null -w "https verify -> %{http_code}\n" https://home.reflex-ddn
 | `https://testapp.reflex-ddns.com` | testapp Hello World |
 | `https://testapp2.reflex-ddns.com` | testapp2（含容器內瀏覽器） |
 | `https://testapp3.reflex-ddns.com` | testapp3（前後端整合測試） |
+| `https://aapps.reflex-ddns.com` | App Store（瀏覽 / 安裝 / 啟停管理各 app） |
 | `http://localhost:6080/vnc.html` | noVNC（看 testapp2 容器桌面） |
 
 ---
