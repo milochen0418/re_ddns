@@ -206,6 +206,25 @@
         {"key": "LIVEKIT_API_SECRET", "label": "LiveKit API Secret", "placeholder": "", "secret": true, "required": true},
         {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (unlocks /settings)", "placeholder": "choose a secret", "secret": true, "required": true}
       ]
+    },
+    {
+      "id": "instagram-story-downloader",
+      "name": "Instagram Story Downloader",
+      "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
+      "icon": "instagram",
+      "subdomain": "instagram-story-downloader",
+      "github_repo": "https://github.com/milochen0418/instagram_story_downloader.git",
+      "app_name": "instagram_story_downloader",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "env_schema": [
+        {"key": "IG_SESSIONID", "label": "Instagram sessionid cookie", "placeholder": "paste your sessionid cookie value", "secret": true, "required": true},
+        {"key": "IG_DS_USER_ID", "label": "Instagram ds_user_id cookie (optional)", "placeholder": "", "secret": false, "required": false},
+        {"key": "IG_CSRFTOKEN", "label": "Instagram csrftoken cookie (optional)", "placeholder": "", "secret": false, "required": false}
+      ]
     }
   ]
 }
