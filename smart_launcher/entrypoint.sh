@@ -342,6 +342,26 @@ fi
 poetry run python -c "import httpx" 2>/dev/null || poetry run pip install httpx
 
 # ──────────────────────────────────────────────
+# 4.4 Install Playwright browsers (if the app uses Playwright)
+# ──────────────────────────────────────────────
+# Apps like the Instagram Story Downloader drive a headless Chromium via
+# Playwright. Poetry installs the `playwright` Python package, but the browser
+# binaries must be downloaded separately (`playwright install`), otherwise the
+# app fails at runtime with "Executable doesn't exist … headless_shell".
+# We only do this when Playwright is actually a dependency, to avoid the
+# ~150 MB download for apps that don't need it.
+if poetry run python -c "import playwright" 2>/dev/null; then
+    log "Playwright detected — downloading Chromium browser ..."
+    # Download the browser binary (no root needed).
+    poetry run playwright install chromium \
+        || log "WARNING: 'playwright install chromium' failed"
+    # Install the OS libraries Chromium needs to launch (best effort; needs apt).
+    poetry run playwright install-deps chromium 2>/dev/null \
+        || log "WARNING: 'playwright install-deps' failed — Chromium may still work"
+    log "Playwright Chromium ready"
+fi
+
+# ──────────────────────────────────────────────
 # 4.5 Generate .env from .env.template if needed
 # ──────────────────────────────────────────────
 # Many Reflex apps use python-dotenv and expect a .env file.
