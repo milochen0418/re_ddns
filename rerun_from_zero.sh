@@ -274,6 +274,19 @@ else
     log "將執行：./docker_restart.sh --keep-volumes（保留 volume）"
 fi
 
+# 測試用 app（testapp / testapp2 / testapp3）建置較久且非必要，讓使用者選擇。
+echo
+hint "testapp / testapp2 / testapp3 是測試用 app，建置較久；App Store（aapps）與 re-ddns 一定會啟動。"
+WITH_TESTAPPS=true
+if confirm "要一併啟動 3 個測試用 app（testapp/2/3）嗎？（N＝略過、較快）" N; then
+    log "將一併啟動 testapp / testapp2 / testapp3。"
+else
+    WITH_TESTAPPS=false
+    RESTART_FLAG="${RESTART_FLAG} --no-testapps"
+    DOMAINS=(home aapps)
+    log "略過測試用 app；只啟動 re-ddns 控制台與 App Store。"
+fi
+
 log "啟動中…（第一次會編譯 Reflex，較慢屬正常）"
 echo -e "${DIM}────────────────────────────────────────────────────────────${NC}"
 # docker_restart.sh 結尾的 health-check 在主機 DNS 尚未設定時會「誤報」，
@@ -439,14 +452,20 @@ if [[ "$OS" == "Darwin" ]]; then
     fi
 fi
 
+if ${WITH_TESTAPPS:-true}; then
+    TESTAPP_LINES="  https://testapp.reflex-ddns.com    testapp
+  https://testapp2.reflex-ddns.com   testapp2（另有 http://localhost:6080/vnc.html）
+  https://testapp3.reflex-ddns.com   testapp3"
+else
+    TESTAPP_LINES="$(echo -e "${DIM}  （本次略過 testapp / testapp2 / testapp3）${NC}")"
+fi
+
 cat <<EOF
 
 $(echo -e "${BOLD}${GREEN}完成！可在瀏覽器開啟（綠色鎖頭、無警告）：${NC}")
 
   https://home.reflex-ddns.com       Re-DDNS 控制台
-  https://testapp.reflex-ddns.com    testapp
-  https://testapp2.reflex-ddns.com   testapp2（另有 http://localhost:6080/vnc.html）
-  https://testapp3.reflex-ddns.com   testapp3
+${TESTAPP_LINES}
   https://aapps.reflex-ddns.com      App Store（瀏覽 / 安裝 / 啟停管理各 app）
 
 $(echo -e "${DIM}日常：")

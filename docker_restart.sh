@@ -31,6 +31,7 @@ err()  { echo -e "${RED}[restart]${NC} $*" >&2; }
 
 COMPOSE_FILE="docker-compose.test.yml"
 KEEP_VOLUMES=false
+WITH_TESTAPPS=true
 
 # ── Help ──
 show_help() {
@@ -48,6 +49,8 @@ Steps performed:
 Options:
   --keep-volumes   Restart containers without clearing Docker volumes.
                    By default volumes are removed for a fully clean restart.
+  --no-testapps    Skip building/starting the test apps (testapp/2/3).
+                   Only re-ddns and the App Store (aapps) are started.
   --help, -h       Show this help message and exit.
 
 Environment:
@@ -72,10 +75,15 @@ EOF
     exit 0
 }
 
-case "${1:-}" in
-    --help|-h) show_help ;;
-    --keep-volumes) KEEP_VOLUMES=true ;;
-esac
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h) show_help ;;
+        --keep-volumes) KEEP_VOLUMES=true ;;
+        --no-testapps|--skip-testapps) WITH_TESTAPPS=false ;;
+        *) err "Unknown option: $1"; exit 1 ;;
+    esac
+    shift
+done
 
 # ──────────────────────────────────────────────
 # Auto-detect Mac LAN IP for DNS A records
@@ -147,8 +155,13 @@ fi
 # ──────────────────────────────────────────────
 # 3. Start testapp, testapp2, testapp3
 # ──────────────────────────────────────────────
-log "Starting testapp, testapp2, testapp3, app-store ..."
-docker compose -f "$COMPOSE_FILE" up -d --build test-app test-app2 test-app3 app-store
+if $WITH_TESTAPPS; then
+    log "Starting testapp, testapp2, testapp3, app-store ..."
+    docker compose -f "$COMPOSE_FILE" up -d --build test-app test-app2 test-app3 app-store
+else
+    log "Skipping test apps (--no-testapps); starting app-store only ..."
+    docker compose -f "$COMPOSE_FILE" up -d --build app-store
+fi
 
 # ──────────────────────────────────────────────
 # 4. Wait for all apps to be healthy
@@ -195,9 +208,11 @@ check_app_ready() {
 }
 
 FAILED=0
-check_app_ready "test-app"  "testapp"  "https://testapp.reflex-ddns.com/"  || FAILED=$((FAILED+1))
-check_app_ready "test-app2" "testapp2" "https://testapp2.reflex-ddns.com/" || FAILED=$((FAILED+1))
-check_app_ready "test-app3" "testapp3" "https://testapp3.reflex-ddns.com/" || FAILED=$((FAILED+1))
+if $WITH_TESTAPPS; then
+    check_app_ready "test-app"  "testapp"  "https://testapp.reflex-ddns.com/"  || FAILED=$((FAILED+1))
+    check_app_ready "test-app2" "testapp2" "https://testapp2.reflex-ddns.com/" || FAILED=$((FAILED+1))
+    check_app_ready "test-app3" "testapp3" "https://testapp3.reflex-ddns.com/" || FAILED=$((FAILED+1))
+fi
 check_app_ready "app-store" "aapps"    "https://aapps.reflex-ddns.com/"    || FAILED=$((FAILED+1))
 
 echo ""
@@ -212,11 +227,13 @@ ok "=========================================="
 ok " All services started and healthy!"
 ok ""
 ok "  re-ddns:   https://home.reflex-ddns.com"
-ok "  testapp:   https://testapp.reflex-ddns.com"
-ok "  testapp2:  https://testapp2.reflex-ddns.com"
-ok "  testapp3:  https://testapp3.reflex-ddns.com"
+if $WITH_TESTAPPS; then
+    ok "  testapp:   https://testapp.reflex-ddns.com"
+    ok "  testapp2:  https://testapp2.reflex-ddns.com"
+    ok "  testapp3:  https://testapp3.reflex-ddns.com"
+    ok "  noVNC:     http://localhost:6080/vnc.html"
+fi
 ok "  appstore:  https://aapps.reflex-ddns.com"
-ok "  noVNC:     http://localhost:6080/vnc.html"
 ok ""
 ok " To launch smart apps:"
 ok "  ./smart_launch.sh <REPO> <APP_NAME> <SUBDOMAIN>"
