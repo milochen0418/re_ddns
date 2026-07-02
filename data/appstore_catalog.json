@@ -221,9 +221,9 @@
       "env_file": "",
       "volumes": [],
       "env_schema": [
-        {"key": "IG_SESSIONID", "label": "Instagram sessionid cookie", "placeholder": "paste your sessionid cookie value", "secret": true, "required": true},
-        {"key": "IG_DS_USER_ID", "label": "Instagram ds_user_id cookie (optional)", "placeholder": "", "secret": false, "required": false},
-        {"key": "IG_CSRFTOKEN", "label": "Instagram csrftoken cookie (optional)", "placeholder": "", "secret": false, "required": false}
+        {"key": "IG_SESSIONID", "label": "Instagram sessionid cookie", "placeholder": "貼上 sessionid 的值", "secret": true, "required": true, "help": "這是你已登入 Instagram 帳號的 cookie（不是密碼）。取得方式：\n1. 電腦版 Chrome 登入 instagram.com\n2. 按 F12（或 ⌥⌘I）打開開發者工具 → Application 分頁\n3. 左側 Storage → Cookies → https://www.instagram.com\n4. 找到 sessionid，複製它的 Value 貼在這裡\n注意：登出 Instagram 會讓它失效，屆時需重新安裝並填新值。"},
+        {"key": "IG_DS_USER_ID", "label": "Instagram ds_user_id cookie（選填）", "placeholder": "可留空", "secret": false, "required": false, "help": "同一個 Cookies 清單裡的 ds_user_id 值；不填也可以。"},
+        {"key": "IG_CSRFTOKEN", "label": "Instagram csrftoken cookie（選填）", "placeholder": "可留空", "secret": false, "required": false, "help": "同一個 Cookies 清單裡的 csrftoken 值；不填也可以。"}
       ]
     }
   ]

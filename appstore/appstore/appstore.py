@@ -242,6 +242,7 @@ class AppStoreState(rx.State):
                     "key": str(item.get("key", "")),
                     "label": str(item.get("label", item.get("key", ""))),
                     "placeholder": str(item.get("placeholder", "")),
+                    "help": str(item.get("help", "")),
                     "secret": "1" if item.get("secret") else "",
                     "required": "1" if item.get("required", True) else "",
                 }
@@ -551,6 +552,14 @@ def env_field(item: rx.Var[dict]) -> rx.Component:
             type=rx.cond(item["secret"] == "1", "password", "text"),
             auto_complete="off",
             class_name="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+        ),
+        rx.cond(
+            item["help"] != "",
+            rx.el.p(
+                item["help"],
+                class_name="text-xs text-gray-500 mt-1 whitespace-pre-line leading-relaxed",
+            ),
+            rx.fragment(),
         ),
         rx.el.p(item["key"], class_name="text-xs text-gray-400 font-mono mt-1"),
         class_name="flex flex-col",
