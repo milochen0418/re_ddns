@@ -135,6 +135,13 @@ class AppStoreState(rx.State):
     install_message: str = ""
     install_log: list[str] = []
 
+    # Dynamic env-var config form (for apps that declare "env_schema").
+    show_env_form: bool = False
+    env_form_sub: str = ""
+    env_form_name: str = ""
+    env_form_error: str = ""
+    env_form_schema: list[dict[str, str]] = []
+
     @rx.var
     def progress_width(self) -> str:
         pct = max(0, min(100, self.install_percent))
@@ -216,7 +223,66 @@ class AppStoreState(rx.State):
         yield AppStoreState.refresh
 
     @rx.event
-    def install_app(self, subdomain: str):
+    def begin_install(self, subdomain: str):
+        """Entry point for the Install button.
+
+        If the app declares an ``env_schema`` in the catalog, open a settings
+        form to collect those values first; otherwise install right away.
+        """
+        app = self._lookup(subdomain)
+        if not app:
+            return
+        schema = app.get("env_schema") or []
+        if schema:
+            self.env_form_sub = subdomain
+            self.env_form_name = str(app.get("name", subdomain))
+            self.env_form_error = ""
+            self.env_form_schema = [
+                {
+                    "key": str(item.get("key", "")),
+                    "label": str(item.get("label", item.get("key", ""))),
+                    "placeholder": str(item.get("placeholder", "")),
+                    "secret": "1" if item.get("secret") else "",
+                    "required": "1" if item.get("required", True) else "",
+                }
+                for item in schema
+                if item.get("key")
+            ]
+            self.show_env_form = True
+            return
+        return AppStoreState.install_app(subdomain, {})
+
+    @rx.event
+    def cancel_env_form(self):
+        self.show_env_form = False
+        self.env_form_sub = ""
+        self.env_form_schema = []
+        self.env_form_error = ""
+
+    @rx.event
+    def submit_env_form(self, form_data: dict):
+        """Validate the required settings, then kick off the install."""
+        sub = self.env_form_sub
+        missing = [
+            item["label"] or item["key"]
+            for item in self.env_form_schema
+            if item.get("required") == "1"
+            and not str(form_data.get(item["key"], "")).strip()
+        ]
+        if missing:
+            self.env_form_error = "請填寫必填欄位：" + "、".join(missing)
+            return
+        env = {
+            k: str(v)
+            for k, v in form_data.items()
+            if str(v).strip() != ""
+        }
+        self.show_env_form = False
+        self.env_form_error = ""
+        return AppStoreState.install_app(sub, env)
+
+    @rx.event
+    def install_app(self, subdomain: str, env: dict[str, str] | None = None):
         """Ask re-ddns to install the app, then poll progress in-page."""
         app = self._lookup(subdomain)
         if not app:
@@ -244,6 +310,7 @@ class AppStoreState(rx.State):
             "zone": SERVICE_ZONE,
             "volumes": app.get("volumes") or [],
             "env_file": app.get("env_file") or "",
+            "env": env or {},
         }
         try:
             with httpx.Client(timeout=30.0) as client:
@@ -426,7 +493,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
             _btn(
                 "Install",
                 "download",
-                lambda: AppStoreState.install_app(app["subdomain"]),
+                lambda: AppStoreState.begin_install(app["subdomain"]),
                 "bg-gray-900 text-white hover:bg-black",
             ),
             class_name="flex flex-wrap items-center gap-2",
@@ -467,10 +534,97 @@ def app_card(app: rx.Var[dict]) -> rx.Component:
     )
 
 
+def env_field(item: rx.Var[dict]) -> rx.Component:
+    return rx.el.div(
+        rx.el.label(
+            item["label"],
+            rx.cond(
+                item["required"] == "1",
+                rx.el.span(" *", class_name="text-red-500"),
+                rx.fragment(),
+            ),
+            class_name="text-sm font-semibold text-gray-700",
+        ),
+        rx.el.input(
+            name=item["key"],
+            placeholder=item["placeholder"],
+            type=rx.cond(item["secret"] == "1", "password", "text"),
+            auto_complete="off",
+            class_name="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
+        ),
+        rx.el.p(item["key"], class_name="text-xs text-gray-400 font-mono mt-1"),
+        class_name="flex flex-col",
+    )
+
+
+def env_form_panel() -> rx.Component:
+    return rx.cond(
+        AppStoreState.show_env_form,
+        rx.el.div(
+            rx.el.div(
+                # Header
+                rx.el.div(
+                    rx.el.div(
+                        rx.icon("settings", class_name="h-6 w-6 text-blue-600"),
+                        rx.el.h3(
+                            "設定 " + AppStoreState.env_form_name,
+                            class_name="text-lg font-bold text-gray-900",
+                        ),
+                        class_name="flex items-center gap-3",
+                    ),
+                    rx.el.button(
+                        rx.icon("x", class_name="h-5 w-5"),
+                        on_click=AppStoreState.cancel_env_form,
+                        class_name="p-1 text-gray-400 hover:text-gray-700 rounded-lg",
+                    ),
+                    class_name="flex items-center justify-between mb-2",
+                ),
+                rx.el.p(
+                    "這個應用程式需要一些設定才能運作。這些值會在安裝時注入容器環境變數並寫入 .env。",
+                    class_name="text-sm text-gray-500 mb-4",
+                ),
+                rx.cond(
+                    AppStoreState.env_form_error != "",
+                    rx.el.div(
+                        AppStoreState.env_form_error,
+                        class_name="p-3 mb-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100",
+                    ),
+                    rx.fragment(),
+                ),
+                rx.form(
+                    rx.el.div(
+                        rx.foreach(AppStoreState.env_form_schema, env_field),
+                        class_name="flex flex-col gap-4",
+                    ),
+                    rx.el.div(
+                        rx.el.button(
+                            "取消",
+                            type="button",
+                            on_click=AppStoreState.cancel_env_form,
+                            class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
+                        ),
+                        rx.el.button(
+                            rx.icon("download", class_name="h-4 w-4"),
+                            rx.el.span("安裝"),
+                            type="submit",
+                            class_name="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white font-semibold rounded-xl hover:bg-black",
+                        ),
+                        class_name="flex justify-end gap-2 mt-6",
+                    ),
+                    on_submit=AppStoreState.submit_env_form,
+                    reset_on_submit=False,
+                ),
+                class_name="w-full max-w-lg bg-white rounded-3xl border border-gray-100 shadow-2xl p-6",
+            ),
+            class_name="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6",
+        ),
+        None,
+    )
+
+
 def progress_panel() -> rx.Component:
     return rx.cond(
-        AppStoreState.show_progress,
-        rx.el.div(
+        AppStoreState.show_progress,        rx.el.div(
             rx.el.div(
                 # Header
                 rx.el.div(
@@ -587,6 +741,7 @@ def message_banner() -> rx.Component:
 def index() -> rx.Component:
     return rx.el.main(
         progress_panel(),
+        env_form_panel(),
         rx.el.div(
             # Header
             rx.el.div(

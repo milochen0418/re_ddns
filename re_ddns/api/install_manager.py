@@ -336,6 +336,7 @@ class InstallRequest(BaseModel):
     zone: str = "reflex-ddns.com"
     volumes: list[str] = []     # ["/host:/container", ...]
     env_file: str = ""          # host path mounted to /app/injected.env
+    env: dict[str, str] = {}    # user-supplied app settings (e.g. API keys)
 
 
 def _container_name(subdomain: str) -> str:
@@ -343,7 +344,7 @@ def _container_name(subdomain: str) -> str:
 
 
 def _build_env(req: InstallRequest) -> list[str]:
-    return [
+    env = [
         f"GITHUB_REPO={req.github_repo}",
         f"APP_NAME={req.app_name}",
         f"GITHUB_BRANCH={req.branch or 'main'}",
@@ -355,6 +356,19 @@ def _build_env(req: InstallRequest) -> list[str]:
         "REFLEX_FRONTEND_HOST=0.0.0.0",
         "REFLEX_BACKEND_HOST=0.0.0.0",
     ]
+    # User-supplied app settings (e.g. LiveKit / Google OAuth credentials).
+    # These are injected as real container env vars AND their names are passed
+    # via ENV_FILE_VARS so the launcher also persists them into the app's .env.
+    user_keys: list[str] = []
+    for key, value in (req.env or {}).items():
+        key = str(key).strip()
+        if not key or "=" in key:
+            continue  # skip malformed keys (env var names can't contain '=')
+        env.append(f"{key}={value}")
+        user_keys.append(key)
+    if user_keys:
+        env.append("ENV_FILE_VARS=" + " ".join(user_keys))
+    return env
 
 
 # ---------------------------------------------------------------------------

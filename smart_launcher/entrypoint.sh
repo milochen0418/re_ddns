@@ -179,6 +179,27 @@ elif [[ ! -f ".env" ]]; then
 fi
 
 # ──────────────────────────────────────────────
+# 2.6 Persist dynamic env vars (ENV_FILE_VARS)
+# ──────────────────────────────────────────────
+# The App Store lets users provide app-specific settings (e.g. LiveKit API
+# keys, Google OAuth credentials). Those values are passed to this container
+# as real environment variables AND their names are listed in ENV_FILE_VARS.
+# They are already visible via os.environ, but we also persist each one into
+# .env so apps that read the .env file directly (not just os.environ) pick
+# them up too. Values are NOT logged (they may be secrets).
+if [[ -n "${ENV_FILE_VARS:-}" ]]; then
+    log "Persisting ${ENV_FILE_VARS// /, } into .env"
+    touch .env
+    for _var in $ENV_FILE_VARS; do
+        _val="${!_var:-}"
+        # Drop any pre-existing line for this key, then append the new value.
+        grep -v "^${_var}=" .env > .env.tmp 2>/dev/null || true
+        mv -f .env.tmp .env 2>/dev/null || true
+        printf '%s=%s\n' "$_var" "$_val" >> .env
+    done
+fi
+
+# ──────────────────────────────────────────────
 # 3. Generate / patch rxconfig.py
 # ──────────────────────────────────────────────
 # The key fix: inject api_url so Reflex generates the correct WebSocket URL in

@@ -97,6 +97,115 @@
       "subdir": "",
       "env_file": "",
       "volumes": []
+    },
+    {
+      "id": "youtube-downloader",
+      "name": "YouTube Downloader",
+      "description": "Fetch and download YouTube videos, playlists, and subtitles with yt-dlp.",
+      "icon": "download",
+      "subdomain": "youtube-downloader",
+      "github_repo": "https://github.com/milochen0418/youtube_downloader_gui.git",
+      "app_name": "youtube_downloader_gui",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "youtube-to-mp3",
+      "name": "YouTube to MP3",
+      "description": "Convert YouTube videos into MP3 audio files.",
+      "icon": "file-audio",
+      "subdomain": "youtube-to-mp3",
+      "github_repo": "https://github.com/milochen0418/youtube_to_mp3_tool.git",
+      "app_name": "youtube_to_mp3_tool",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "video-to-mp4",
+      "name": "Video to MP4",
+      "description": "Convert various video formats to MP4.",
+      "icon": "film",
+      "subdomain": "video-to-mp4",
+      "github_repo": "https://github.com/milochen0418/video_to_mp4.git",
+      "app_name": "video_to_mp4",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "video-audio-mixer",
+      "name": "Video Audio Mixer",
+      "description": "Layer and mix multiple audio tracks onto a video, then export.",
+      "icon": "music",
+      "subdomain": "video-audio-mixer",
+      "github_repo": "https://github.com/milochen0418/video_audio_mixer.git",
+      "app_name": "video_audio_mixer",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "pdf-signature",
+      "name": "PDF Signature",
+      "description": "Upload a PDF, draw a signature on the page, and export the signed document.",
+      "icon": "signature",
+      "subdomain": "pdf-signature",
+      "github_repo": "https://github.com/milochen0418/pdf_signature.git",
+      "app_name": "pdf_signature",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
+    },
+    {
+      "id": "relack",
+      "name": "Relack",
+      "description": "Self-hosted, privacy-focused team chat (a Slack alternative). Requires Google OAuth env.",
+      "icon": "messages-square",
+      "subdomain": "relack",
+      "github_repo": "https://github.com/milochen0418/relack.git",
+      "app_name": "relack",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "env_schema": [
+        {"key": "GOOGLE_CLIENT_ID", "label": "Google OAuth Client ID", "placeholder": "xxxx.apps.googleusercontent.com", "secret": false, "required": true},
+        {"key": "GOOGLE_CLIENT_SECRET", "label": "Google OAuth Client Secret", "placeholder": "", "secret": true, "required": true},
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (unlocks admin dashboard)", "placeholder": "choose a secret", "secret": true, "required": true}
+      ]
+    },
+    {
+      "id": "livekit-audio-chat",
+      "name": "LiveKit Audio Chat",
+      "description": "Real-time audio conferencing rooms powered by LiveKit. Requires LiveKit env.",
+      "icon": "mic",
+      "subdomain": "audio-chat",
+      "github_repo": "https://github.com/milochen0418/reflex_livekit_audio_chat.git",
+      "app_name": "reflex_livekit_audio_chat",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "env_schema": [
+        {"key": "LIVEKIT_URL", "label": "LiveKit WebSocket URL", "placeholder": "wss://your-project.livekit.cloud", "secret": false, "required": true},
+        {"key": "LIVEKIT_API_KEY", "label": "LiveKit API Key", "placeholder": "APIxxxxxxxx", "secret": false, "required": true},
+        {"key": "LIVEKIT_API_SECRET", "label": "LiveKit API Secret", "placeholder": "", "secret": true, "required": true},
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (unlocks /settings)", "placeholder": "choose a secret", "secret": true, "required": true}
+      ]
     }
   ]
 }
