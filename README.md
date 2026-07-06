@@ -9,13 +9,8 @@
 ## 1-Minute Demo
 
 <p align="center">
-  <a href="docs/videos/AgenticAppStore-1min-demo.mp4">
-    <img src="docs/images/AppStore-page1.png" width="720" alt="▶ Watch the 1-minute demo (click to open video)">
-  </a>
-  <br><em>▶ Click to open the 1-minute demo video</em>
+  <img src="docs/videos/AgenticAppStore-1min-demo.gif" width="720" alt="Agentic App Store 1-minute demo">
 </p>
-
-*(Local file: [docs/videos/AgenticAppStore-1min-demo.mp4](docs/videos/AgenticAppStore-1min-demo.mp4))*
 
 ---
 
