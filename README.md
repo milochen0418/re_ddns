@@ -1,3 +1,8 @@
+
+# PyCon TW 2026 Sprint Guide for the project
+
+[Dev Databricks x Reflex app for agentic app store of re_ddns](https://hackmd.io/@milochen0418/PyCon-TW-2026-Sprint-Guide)
+
 # Re-DDNS — Private HTTPS Infrastructure + Agentic App Store
 
 > **TL;DR** — Run one script. Get a local HTTPS network where every Reflex app gets its own `https://<name>.reflex-ddns.com` with a green padlock. Then open the **Agentic App Store** and install apps from GitHub in one click — no shell commands needed.
