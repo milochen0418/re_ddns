@@ -312,6 +312,7 @@ class AppStoreState(rx.State):
             "volumes": app.get("volumes") or [],
             "env_file": app.get("env_file") or "",
             "env": env or {},
+            "extra_repos": app.get("extra_repos") or [],
         }
         try:
             with httpx.Client(timeout=30.0) as client:

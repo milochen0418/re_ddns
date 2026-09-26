@@ -157,6 +157,7 @@ _MARKERS: list[tuple[str, str, int]] = [
     ("Cloning", "cloning", 32),
     ("Checking out commit", "cloning", 36),
     ("Installing project APT packages", "apt_packages", 40),
+    ("Cloning dependency repo", "cloning_deps", 43),
     ("Installing dependencies with Poetry", "installing_deps", 45),
     ("Running poetry lock", "installing_deps", 50),
     ("Running poetry install", "installing_deps", 58),
@@ -178,6 +179,7 @@ _PHASE_LABEL = {
     "starting_container": "啟動容器",
     "apt_packages": "安裝系統套件",
     "cloning": "下載程式碼",
+    "cloning_deps": "下載相依套件庫",
     "installing_deps": "安裝相依套件",
     "initializing": "初始化 Reflex",
     "registering": "註冊 DNS / nginx",
@@ -337,6 +339,7 @@ class InstallRequest(BaseModel):
     volumes: list[str] = []     # ["/host:/container", ...]
     env_file: str = ""          # host path mounted to /app/injected.env
     env: dict[str, str] = {}    # user-supplied app settings (e.g. API keys)
+    extra_repos: list[str] = [] # ["repo_url:relative_path", ...] for path deps
 
 
 def _container_name(subdomain: str) -> str:
@@ -368,6 +371,8 @@ def _build_env(req: InstallRequest) -> list[str]:
         user_keys.append(key)
     if user_keys:
         env.append("ENV_FILE_VARS=" + " ".join(user_keys))
+    if req.extra_repos:
+        env.append("EXTRA_GIT_REPOS=" + " ".join(req.extra_repos))
     return env
 
 
