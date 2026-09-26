@@ -348,17 +348,40 @@ poetry run python -c "import httpx" 2>/dev/null || poetry run pip install httpx
 # Playwright. Poetry installs the `playwright` Python package, but the browser
 # binaries must be downloaded separately (`playwright install`), otherwise the
 # app fails at runtime with "Executable doesn't exist … headless_shell".
-# We only do this when Playwright is actually a dependency, to avoid the
-# ~150 MB download for apps that don't need it.
-if poetry run python -c "import playwright" 2>/dev/null; then
-    log "Playwright detected — downloading Chromium browser ..."
-    # Download the browser binary (no root needed).
+# Only install Chromium when playwright is a PRODUCTION dependency
+# ([tool.poetry.dependencies]), not a dev-only one
+# ([tool.poetry.group.dev.dependencies]).
+_need_playwright=false
+if [[ -f "pyproject.toml" ]]; then
+    _need_playwright=$(python3 -c "
+import re, sys
+
+text = open('pyproject.toml').read()
+
+# Check [tool.poetry.dependencies] for playwright
+prod = re.search(r'\[tool\.poetry\.dependencies\](.*?)(\n\[|\Z)', text, re.DOTALL)
+if prod and re.search(r'(?m)^\s*playwright\s*[=\[]', prod.group(1)):
+    print('true')
+    sys.exit(0)
+
+# Check [project].dependencies list for playwright
+proj = re.search(r'\[project\].*?dependencies\s*=\s*\[(.*?)\]', text, re.DOTALL)
+if proj and re.search(r'(?i)playwright', proj.group(1)):
+    print('true')
+    sys.exit(0)
+
+print('false')
+" 2>/dev/null || echo "false")
+fi
+if [[ "$_need_playwright" == "true" ]] && poetry run python -c "import playwright" 2>/dev/null; then
+    log "Playwright is a production dependency — downloading Chromium browser ..."
     poetry run playwright install chromium \
         || log "WARNING: 'playwright install chromium' failed"
-    # Install the OS libraries Chromium needs to launch (best effort; needs apt).
     poetry run playwright install-deps chromium 2>/dev/null \
         || log "WARNING: 'playwright install-deps' failed — Chromium may still work"
     log "Playwright Chromium ready"
+elif [[ "$_need_playwright" == "false" ]] && poetry run python -c "import playwright" 2>/dev/null; then
+    log "Playwright is dev-only — skipping Chromium download"
 fi
 
 # ──────────────────────────────────────────────
