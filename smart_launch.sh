@@ -13,6 +13,9 @@ set -euo pipefail
 #   --commit=<hash>   Git commit SHA to checkout (clones full history)
 #   --subdir=<path>   Subdirectory within repo containing the Reflex project
 #   --env=<file>      Path to .env file to inject into the app
+#   --extra-repos=<spec>  Clone sibling repos for path dependencies (repeatable)
+#                    Format: "repo_url:relative_path"
+#                    e.g. --extra-repos=https://github.com/user/lib.git:../lib
 #   -v <本機路徑>:<容器內路徑>  將本機資料夾掛載進容器 (可重複使用)
 #   --volume=<本機路徑>:<容器內路徑>  同 -v
 #   --list            List all services launched via smart_launch
@@ -217,6 +220,8 @@ Options:
   --commit=<hash>   Git commit SHA to checkout after cloning
   --subdir=<path>   Subdirectory within repo for the Reflex project
   --env=<file>      Path to .env file (alternative to positional ENV_FILE)
+  --extra-repos=<spec>  Clone sibling repos for path deps (repeatable)
+                    e.g. --extra-repos=https://github.com/user/lib.git:../lib
   -v <本機>:<容器>  Mount host dir into container (repeatable)
                     Format: -v /Mac本機路徑:/容器內路徑
   --volume=<本>:<容> Same as -v
@@ -255,6 +260,7 @@ GITHUB_COMMIT=""
 GITHUB_SUBDIR=""
 ENV_FILE=""
 VOLUMES=()
+EXTRA_REPOS=()
 
 # Collect positional arguments separately
 POSITIONAL_ARGS=()
@@ -295,6 +301,15 @@ while [[ $# -gt 0 ]]; do
         --env)
             ENV_FILE="${2:-}"
             [[ -z "$ENV_FILE" ]] && { err "--env requires a value"; exit 1; }
+            shift 2
+            ;;
+        --extra-repos=*)
+            EXTRA_REPOS+=("${1#*=}")
+            shift
+            ;;
+        --extra-repos)
+            [[ -z "${2:-}" ]] && { err "--extra-repos requires a value (repo_url:relative_path)"; exit 1; }
+            EXTRA_REPOS+=("$2")
             shift 2
             ;;
         --volume=*)
@@ -376,6 +391,9 @@ log "  ENV_FILE:    ${ENV_FILE:-(none)}"
 if [[ ${#VOLUMES[@]} -gt 0 ]]; then
     log "  VOLUMES:     ${VOLUMES[*]}"
 fi
+if [[ ${#EXTRA_REPOS[@]} -gt 0 ]]; then
+    log "  EXTRA_REPOS: ${EXTRA_REPOS[*]}"
+fi
 log "  URL:         https://${SUBDOMAIN}.reflex-ddns.com"
 echo ""
 
@@ -397,6 +415,14 @@ fi
 # ──────────────────────────────────────────────
 # 2. Generate docker-compose.smart-app-${SUBDOMAIN}.yml
 # ──────────────────────────────────────────────
+# Build EXTRA_GIT_REPOS env var from --extra-repos flags
+EXTRA_REPOS_ENV=""
+if [[ ${#EXTRA_REPOS[@]} -gt 0 ]]; then
+    _repos_val="${EXTRA_REPOS[*]}"
+    EXTRA_REPOS_ENV="
+      - EXTRA_GIT_REPOS=${_repos_val}"
+fi
+
 # Build the volumes section conditionally
 VOLUMES_SECTION=""
 _need_volumes=false
@@ -444,7 +470,7 @@ services:
       - SERVICE_ZONE=reflex-ddns.com
       - RE_DDNS_API_URL=http://re-ddns:8000
       - REFLEX_FRONTEND_HOST=0.0.0.0
-      - REFLEX_BACKEND_HOST=0.0.0.0
+      - REFLEX_BACKEND_HOST=0.0.0.0${EXTRA_REPOS_ENV}
 ${VOLUMES_SECTION}
     restart: unless-stopped
 YAML

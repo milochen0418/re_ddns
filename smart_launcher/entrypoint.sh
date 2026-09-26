@@ -27,6 +27,10 @@ set -euo pipefail
 #   SKIP_DNS_REGISTER  – Set to "1" to skip DNS registration
 #   EXTRA_PIP_PACKAGES – Space-separated extra pip packages to install
 #   EXTRA_APT_PACKAGES – Space-separated extra apt packages to install
+#   EXTRA_GIT_REPOS    – Space-separated "repo_url:relative_path" pairs.
+#                        Clones sibling repos so path deps in pyproject.toml
+#                        resolve in Docker.
+#                        e.g. "https://github.com/user/lib.git:../lib"
 #   ENV_FILE_VARS      – Space-separated list of env var names to write
 #                        into .env (fallback when no .env.template exists)
 #                        e.g. "GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET"
@@ -241,6 +245,33 @@ config = rx.Config(
     cors_allowed_origins=["*"],
 )
 PYEOF
+fi
+
+# ──────────────────────────────────────────────
+# 3.5 Clone extra dependency repos (path deps)
+# ──────────────────────────────────────────────
+# Some projects reference sibling repos via path dependencies in
+# pyproject.toml (e.g. reflex-ddns-auth = {path = "../reflex_ddns_auth"}).
+# These paths exist on dev machines but not in Docker.
+#
+# EXTRA_GIT_REPOS is a space-separated list of "repo_url:relative_path"
+# pairs. Each repo is cloned to the given path relative to PROJECT_DIR
+# so that Poetry path dependencies resolve correctly.
+#
+# Example:
+#   EXTRA_GIT_REPOS="https://github.com/user/lib.git:../lib"
+if [[ -n "${EXTRA_GIT_REPOS:-}" ]]; then
+    for _entry in $EXTRA_GIT_REPOS; do
+        _repo="${_entry%%:*}"
+        _relpath="${_entry#*:}"
+        _target="$(cd "$PROJECT_DIR" && realpath -m "$_relpath")"
+        if [[ -d "$_target" ]]; then
+            log "Dependency repo already exists: $_target — skipping"
+            continue
+        fi
+        log "Cloning dependency repo: $_repo → $_target"
+        git clone --depth 1 "$_repo" "$_target"
+    done
 fi
 
 # ──────────────────────────────────────────────
