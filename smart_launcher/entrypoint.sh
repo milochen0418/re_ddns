@@ -262,8 +262,8 @@ fi
 #   EXTRA_GIT_REPOS="https://github.com/user/lib.git:../lib"
 if [[ -n "${EXTRA_GIT_REPOS:-}" ]]; then
     for _entry in $EXTRA_GIT_REPOS; do
-        _repo="${_entry%%:*}"
-        _relpath="${_entry#*:}"
+        _repo="${_entry%:*}"
+        _relpath="${_entry##*:}"
         _target="$(cd "$PROJECT_DIR" && realpath -m "$_relpath")"
         if [[ -d "$_target" ]]; then
             log "Dependency repo already exists: $_target — skipping"
