@@ -14,6 +14,11 @@ set -euo pipefail
 #                        e.g. my_app
 #
 # Optional environment variables:
+#   DEV_MODE           – Set to "1" to skip git clone and use the source code
+#                        already bind-mounted at /app/source/<subdir>.
+#                        The container still installs apt packages, runs
+#                        poetry install, reflex init, and registers DNS —
+#                        only the clone step is skipped.
 #   GITHUB_BRANCH      – Branch/tag to checkout (default: main)
 #   GITHUB_COMMIT      – Specific commit SHA to checkout after cloning
 #   GITHUB_SUBDIR      – Subdirectory within repo containing the Reflex project
@@ -40,7 +45,9 @@ log() { echo "[smart-launcher] $(date '+%H:%M:%S') $*"; }
 # ──────────────────────────────────────────────
 # 0. Validate required environment variables
 # ──────────────────────────────────────────────
-if [[ -z "${GITHUB_REPO:-}" ]]; then
+DEV_MODE="${DEV_MODE:-0}"
+
+if [[ "$DEV_MODE" != "1" && -z "${GITHUB_REPO:-}" ]]; then
     log "ERROR: GITHUB_REPO is required (e.g. https://github.com/user/my-app.git)"
     exit 1
 fi
@@ -49,6 +56,7 @@ if [[ -z "${APP_NAME:-}" ]]; then
     exit 1
 fi
 
+GITHUB_REPO="${GITHUB_REPO:-}"
 GITHUB_BRANCH="${GITHUB_BRANCH:-main}"
 GITHUB_COMMIT="${GITHUB_COMMIT:-}"
 GITHUB_SUBDIR="${GITHUB_SUBDIR:-}"
@@ -60,7 +68,8 @@ BACKEND_PORT="${BACKEND_PORT:-8000}"
 SKIP_DNS_REGISTER="${SKIP_DNS_REGISTER:-0}"
 
 log "=== Smart Launcher Configuration ==="
-log "  GITHUB_REPO:       $GITHUB_REPO"
+[[ "$DEV_MODE" == "1" ]] && log "  *** DEV MODE — skipping git clone ***"
+[[ -n "$GITHUB_REPO" ]] && log "  GITHUB_REPO:       $GITHUB_REPO"
 log "  GITHUB_BRANCH:     $GITHUB_BRANCH"
 [[ -n "$GITHUB_COMMIT" ]] && log "  GITHUB_COMMIT:     $GITHUB_COMMIT"
 log "  GITHUB_SUBDIR:     ${GITHUB_SUBDIR:-(root)}"
@@ -81,36 +90,51 @@ if [[ -n "${EXTRA_APT_PACKAGES:-}" ]]; then
 fi
 
 # ──────────────────────────────────────────────
-# 2. Clone the GitHub repository
+# 2. Clone the GitHub repository (or use mounted source in DEV_MODE)
 # ──────────────────────────────────────────────
 CLONE_DIR="/app/source"
 
-# Clean previous clone (handles container restarts)
-if [[ -d "$CLONE_DIR" ]]; then
-    log "Removing previous clone ..."
-    rm -rf "$CLONE_DIR"
-fi
-
-log "Cloning $GITHUB_REPO (branch: $GITHUB_BRANCH) ..."
-if [[ -n "$GITHUB_COMMIT" ]]; then
-    # Need full history to checkout a specific commit
-    git clone --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
-    cd "$CLONE_DIR"
-    log "Checking out commit: $GITHUB_COMMIT ..."
-    git checkout "$GITHUB_COMMIT"
-    cd /app
-else
-    git clone --depth 1 --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
-fi
-
-# Navigate to the project directory
-PROJECT_DIR="$CLONE_DIR"
-if [[ -n "$GITHUB_SUBDIR" ]]; then
-    PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
+if [[ "$DEV_MODE" == "1" ]]; then
+    # In dev mode the host source directory is bind-mounted into the
+    # container.  Skip cloning entirely — just verify it exists.
+    PROJECT_DIR="$CLONE_DIR"
+    if [[ -n "$GITHUB_SUBDIR" ]]; then
+        PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
+    fi
     if [[ ! -d "$PROJECT_DIR" ]]; then
-        log "ERROR: Subdirectory '$GITHUB_SUBDIR' not found in cloned repo"
-        ls -la "$CLONE_DIR"
+        log "ERROR: DEV_MODE is on but mounted source not found at $PROJECT_DIR"
+        ls -la /app/ 2>/dev/null || true
         exit 1
+    fi
+    log "DEV_MODE: using mounted source at $PROJECT_DIR (git clone skipped)"
+else
+    # Clean previous clone (handles container restarts)
+    if [[ -d "$CLONE_DIR" ]]; then
+        log "Removing previous clone ..."
+        rm -rf "$CLONE_DIR"
+    fi
+
+    log "Cloning $GITHUB_REPO (branch: $GITHUB_BRANCH) ..."
+    if [[ -n "$GITHUB_COMMIT" ]]; then
+        # Need full history to checkout a specific commit
+        git clone --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+        cd "$CLONE_DIR"
+        log "Checking out commit: $GITHUB_COMMIT ..."
+        git checkout "$GITHUB_COMMIT"
+        cd /app
+    else
+        git clone --depth 1 --branch "$GITHUB_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+    fi
+
+    # Navigate to the project directory
+    PROJECT_DIR="$CLONE_DIR"
+    if [[ -n "$GITHUB_SUBDIR" ]]; then
+        PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
+        if [[ ! -d "$PROJECT_DIR" ]]; then
+            log "ERROR: Subdirectory '$GITHUB_SUBDIR' not found in cloned repo"
+            ls -la "$CLONE_DIR"
+            exit 1
+        fi
     fi
 fi
 

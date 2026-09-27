@@ -142,6 +142,12 @@ class AppStoreState(rx.State):
     env_form_error: str = ""
     env_form_schema: list[dict[str, str]] = []
 
+    # Dev mode form (local source path).
+    show_dev_form: bool = False
+    dev_form_sub: str = ""
+    dev_form_name: str = ""
+    dev_form_error: str = ""
+
     @rx.var
     def progress_width(self) -> str:
         pct = max(0, min(100, self.install_percent))
@@ -393,6 +399,78 @@ class AppStoreState(rx.State):
         self.show_progress = False
         self.active_sub = ""
 
+    # ── Dev mode ──
+
+    @rx.event
+    def begin_dev_install(self, subdomain: str):
+        """Open the dev-mode form to collect the local source path."""
+        app = self._lookup(subdomain)
+        if not app:
+            return
+        self.dev_form_sub = subdomain
+        self.dev_form_name = str(app.get("name", subdomain))
+        self.dev_form_error = ""
+        self.show_dev_form = True
+
+    @rx.event
+    def cancel_dev_form(self):
+        self.show_dev_form = False
+        self.dev_form_sub = ""
+        self.dev_form_error = ""
+
+    @rx.event
+    def submit_dev_form(self, form_data: dict):
+        """Validate local_path then kick off the dev install."""
+        local_path = str(form_data.get("local_path", "")).strip()
+        if not local_path:
+            self.dev_form_error = "請輸入本機專案路徑"
+            return
+        self.show_dev_form = False
+        self.dev_form_error = ""
+        return AppStoreState.dev_install_app(self.dev_form_sub, local_path)
+
+    @rx.event
+    def dev_install_app(self, subdomain: str, local_path: str):
+        """Ask re-ddns to do a dev-mode install (bind-mount, no clone)."""
+        app = self._lookup(subdomain)
+        if not app:
+            return
+        display = app.get("name", subdomain)
+        self.show_progress = True
+        self.active_sub = subdomain
+        self.active_name = display
+        self.install_status = "installing"
+        self.install_phase = "queued"
+        self.install_percent = 2
+        self.install_message = "正在送出開發模式安裝請求…"
+        self.install_log = []
+        self.message = ""
+
+        spec = {
+            "subdomain": subdomain,
+            "app_name": app["app_name"],
+            "local_path": local_path,
+            "name": display,
+            "subdir": app.get("subdir") or "",
+            "zone": SERVICE_ZONE,
+            "volumes": app.get("volumes") or [],
+            "env_file": app.get("env_file") or "",
+            "env": {},
+            "extra_repos": app.get("extra_repos") or [],
+        }
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                r = client.post(f"{RE_DDNS_API_URL}/api/appstore/dev-install", json=spec)
+            if r.status_code != 200:
+                self.install_status = "error"
+                self.install_message = f"無法開始開發模式安裝 (HTTP {r.status_code})：{r.text[:200]}"
+                return
+        except Exception as exc:  # noqa: BLE001
+            self.install_status = "error"
+            self.install_message = f"無法連線 re-ddns：{exc}"
+            return
+        return AppStoreState.poll_progress
+
 
 # ---------------------------------------------------------------------------
 # UI
@@ -450,6 +528,15 @@ def open_button(app: rx.Var[dict]) -> rx.Component:
     )
 
 
+def _dev_btn(app: rx.Var[dict]) -> rx.Component:
+    return _btn(
+        "Dev",
+        "code",
+        lambda: AppStoreState.begin_dev_install(app["subdomain"]),
+        "bg-purple-50 text-purple-700 hover:bg-purple-100",
+    )
+
+
 def action_buttons(app: rx.Var[dict]) -> rx.Component:
     return rx.match(
         app["status"],
@@ -469,6 +556,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                     lambda: AppStoreState.uninstall_app(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
                 ),
+                _dev_btn(app),
                 class_name="flex flex-wrap items-center gap-2",
             ),
         ),
@@ -487,6 +575,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                     lambda: AppStoreState.uninstall_app(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
                 ),
+                _dev_btn(app),
                 class_name="flex flex-wrap items-center gap-2",
             ),
         ),
@@ -498,6 +587,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                 lambda: AppStoreState.begin_install(app["subdomain"]),
                 "bg-gray-900 text-white hover:bg-black",
             ),
+            _dev_btn(app),
             class_name="flex flex-wrap items-center gap-2",
         ),
     )
@@ -632,6 +722,86 @@ def env_form_panel() -> rx.Component:
     )
 
 
+def dev_form_panel() -> rx.Component:
+    """Modal form to collect the local source path for dev-mode install."""
+    return rx.cond(
+        AppStoreState.show_dev_form,
+        rx.el.div(
+            rx.el.div(
+                rx.el.div(
+                    rx.el.div(
+                        rx.icon("code", class_name="h-6 w-6 text-purple-600"),
+                        rx.el.h3(
+                            "Dev 模式 — " + AppStoreState.dev_form_name,
+                            class_name="text-lg font-bold text-gray-900",
+                        ),
+                        class_name="flex items-center gap-3",
+                    ),
+                    rx.el.button(
+                        rx.icon("x", class_name="h-5 w-5"),
+                        on_click=AppStoreState.cancel_dev_form,
+                        class_name="p-1 text-gray-400 hover:text-gray-700 rounded-lg",
+                    ),
+                    class_name="flex items-center justify-between mb-2",
+                ),
+                rx.el.p(
+                    "輸入本機專案的絕對路徑。容器會 bind mount 這個目錄，跳過 git clone，直接在正確的 Linux 環境中執行你的 app。改 code 後 Reflex 會自動 hot reload。",
+                    class_name="text-sm text-gray-500 mb-4",
+                ),
+                rx.cond(
+                    AppStoreState.dev_form_error != "",
+                    rx.el.div(
+                        AppStoreState.dev_form_error,
+                        class_name="p-3 mb-4 bg-red-50 text-red-700 rounded-xl text-sm border border-red-100",
+                    ),
+                    rx.fragment(),
+                ),
+                rx.form(
+                    rx.el.div(
+                        rx.el.label(
+                            "本機專案路徑",
+                            rx.el.span(" *", class_name="text-red-500"),
+                            class_name="text-sm font-semibold text-gray-700",
+                        ),
+                        rx.el.input(
+                            name="local_path",
+                            placeholder="/home/user/gits/my_app",
+                            type="text",
+                            auto_complete="off",
+                            class_name="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500",
+                        ),
+                        rx.el.p(
+                            "請輸入 Docker host 上的絕對路徑（包含 pyproject.toml 的目錄）",
+                            class_name="text-xs text-gray-400 mt-1",
+                        ),
+                        class_name="flex flex-col",
+                    ),
+                    rx.el.div(
+                        rx.el.button(
+                            "取消",
+                            type="button",
+                            on_click=AppStoreState.cancel_dev_form,
+                            class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
+                        ),
+                        rx.el.button(
+                            rx.icon("code", class_name="h-4 w-4"),
+                            rx.el.span("Dev Install"),
+                            type="submit",
+                            class_name="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700",
+                        ),
+                        class_name="flex justify-end gap-2 mt-6",
+                    ),
+                    on_submit=AppStoreState.submit_dev_form,
+                    reset_on_submit=False,
+                ),
+                class_name="w-full max-w-lg bg-white rounded-3xl border border-gray-100 shadow-2xl p-6",
+            ),
+            class_name="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6",
+        ),
+        None,
+    )
+
+
 def progress_panel() -> rx.Component:
     return rx.cond(
         AppStoreState.show_progress,        rx.el.div(
@@ -752,6 +922,7 @@ def index() -> rx.Component:
     return rx.el.main(
         progress_panel(),
         env_form_panel(),
+        dev_form_panel(),
         rx.el.div(
             # Header
             rx.el.div(

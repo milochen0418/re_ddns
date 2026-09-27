@@ -153,6 +153,7 @@ def get_all_jobs() -> list[dict[str, Any]]:
 # for setting the phase; percent only ever increases.
 _MARKERS: list[tuple[str, str, int]] = [
     ("Smart Launcher Configuration", "starting_container", 25),
+    ("DEV_MODE: using mounted source", "dev_mount", 32),
     ("Installing extra APT packages", "apt_packages", 28),
     ("Cloning", "cloning", 32),
     ("Checking out commit", "cloning", 36),
@@ -177,6 +178,7 @@ _PHASE_LABEL = {
     "building_image": "建置啟動器映像檔",
     "creating": "建立容器",
     "starting_container": "啟動容器",
+    "dev_mount": "使用本機掛載的原始碼",
     "apt_packages": "安裝系統套件",
     "cloning": "下載程式碼",
     "cloning_deps": "下載相依套件庫",
@@ -342,6 +344,20 @@ class InstallRequest(BaseModel):
     extra_repos: list[str] = [] # ["repo_url:relative_path", ...] for path deps
 
 
+class DevInstallRequest(BaseModel):
+    """Spec for a dev-mode install: bind-mount local source instead of cloning."""
+    subdomain: str
+    app_name: str
+    local_path: str             # absolute path on the Docker host
+    name: str = ""
+    subdir: str = ""
+    zone: str = "reflex-ddns.com"
+    volumes: list[str] = []
+    env_file: str = ""
+    env: dict[str, str] = {}
+    extra_repos: list[str] = []
+
+
 def _container_name(subdomain: str) -> str:
     return f"smart-app-{subdomain}"
 
@@ -374,6 +390,80 @@ def _build_env(req: InstallRequest) -> list[str]:
     if req.extra_repos:
         env.append("EXTRA_GIT_REPOS=" + " ".join(req.extra_repos))
     return env
+
+
+def _build_dev_env(req: DevInstallRequest) -> list[str]:
+    """Build container environment for a dev-mode install."""
+    env = [
+        "DEV_MODE=1",
+        f"APP_NAME={req.app_name}",
+        f"GITHUB_SUBDIR={req.subdir or ''}",
+        f"SERVICE_SUBDOMAIN={req.subdomain}",
+        f"SERVICE_ZONE={req.zone or 'reflex-ddns.com'}",
+        "RE_DDNS_API_URL=http://re-ddns:8000",
+        "REFLEX_FRONTEND_HOST=0.0.0.0",
+        "REFLEX_BACKEND_HOST=0.0.0.0",
+    ]
+    user_keys: list[str] = []
+    for key, value in (req.env or {}).items():
+        key = str(key).strip()
+        if not key or "=" in key:
+            continue
+        env.append(f"{key}={value}")
+        user_keys.append(key)
+    if user_keys:
+        env.append("ENV_FILE_VARS=" + " ".join(user_keys))
+    if req.extra_repos:
+        env.append("EXTRA_GIT_REPOS=" + " ".join(req.extra_repos))
+    return env
+
+
+async def _create_and_start_dev(req: DevInstallRequest) -> None:
+    """Create + start a dev-mode container with the host source bind-mounted."""
+    sub = req.subdomain
+    name = _container_name(sub)
+    display = req.name or sub
+
+    if not await _ensure_image(sub):
+        return
+
+    network = await _docker_network_name()
+    async with _client() as client:
+        _set_job(sub, phase="creating", percent=22, message=f"建立 {display} 開發容器…")
+        await _remove_existing_container(client, name)
+
+        binds: list[str] = list(req.volumes or [])
+        binds.append(f"{req.local_path}:/app/source:rw")
+        if req.env_file and os.path.exists(req.env_file):
+            binds.append(f"{req.env_file}:/app/injected.env:ro")
+
+        config: dict[str, Any] = {
+            "Image": LAUNCHER_IMAGE,
+            "Hostname": name,
+            "Tty": True,
+            "Env": _build_dev_env(req),
+            "HostConfig": {
+                "NetworkMode": network,
+                "RestartPolicy": {"Name": "unless-stopped"},
+                "Binds": binds,
+            },
+        }
+
+        create = await client.post(f"/containers/create?name={name}", json=config)
+        if create.status_code != 201:
+            _set_job(sub, status="error", phase="error",
+                     message=f"建立容器失敗 (HTTP {create.status_code})")
+            return
+        cid = create.json()["Id"]
+
+        start = await client.post(f"/containers/{cid}/start")
+        if start.status_code not in (204, 304):
+            _set_job(sub, status="error", phase="error",
+                     message=f"啟動容器失敗 (HTTP {start.status_code})")
+            return
+
+        _set_job(sub, status="installing", phase="starting_container", percent=25,
+                 message=f"{display} 開發模式安裝中…", container=name, cid=cid, seen=0)
 
 
 # ---------------------------------------------------------------------------
@@ -576,3 +666,38 @@ async def status_one(subdomain: str):
             logger.exception("advance failed for %s", subdomain)
         job = get_job(subdomain) or job
     return job
+
+
+@router.post("/dev-install", response_model=InstallStarted)
+async def dev_install_endpoint(req: DevInstallRequest):
+    """Dev mode: mount local source into a container instead of cloning."""
+    if not os.path.exists(DOCKER_SOCKET):
+        raise HTTPException(503, "Docker socket not available in re-ddns container.")
+    if not req.subdomain or not req.app_name or not req.local_path:
+        raise HTTPException(400, "subdomain, app_name and local_path are required.")
+
+    with _locked_store(exclusive=True) as (fh, data):
+        data[req.subdomain] = {
+            "subdomain": req.subdomain,
+            "name": req.name or req.subdomain,
+            "status": "installing",
+            "phase": "queued",
+            "percent": 2,
+            "_max_percent": 2,
+            "message": "排隊中（開發模式）…",
+            "log": [],
+            "container": _container_name(req.subdomain),
+            "seen": 0,
+            "dev_mode": True,
+        }
+        _write_store(fh, data)
+
+    try:
+        await _create_and_start_dev(req)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Dev install of %s failed to start", req.subdomain)
+        _set_job(req.subdomain, status="error", phase="error",
+                 message=f"開發模式安裝啟動失敗：{exc}")
+
+    logger.info("Dev install container started for %s (local_path=%s)", req.subdomain, req.local_path)
+    return InstallStarted(ok=True, subdomain=req.subdomain, message="開發模式安裝已開始。")
