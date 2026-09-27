@@ -95,18 +95,84 @@ fi
 CLONE_DIR="/app/source"
 
 if [[ "$DEV_MODE" == "1" ]]; then
-    # In dev mode the host source directory is bind-mounted into the
-    # container.  Skip cloning entirely — just verify it exists.
-    PROJECT_DIR="$CLONE_DIR"
-    if [[ -n "$GITHUB_SUBDIR" ]]; then
-        PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
-    fi
-    if [[ ! -d "$PROJECT_DIR" ]]; then
-        log "ERROR: DEV_MODE is on but mounted source not found at $PROJECT_DIR"
+    # In dev mode the host source directory is bind-mounted READ-WRITE
+    # at /app/dev_src.  We create a SHADOW working directory at
+    # /app/source where config files (pyproject.toml, rxconfig.py,
+    # poetry.lock) are COPIES that the entrypoint can safely modify,
+    # while app code directories are SYMLINKED back to the originals
+    # so Reflex hot-reload picks up live edits.  The developer's
+    # source tree is never touched.
+    DEV_SRC="/app/dev_src"
+    if [[ ! -d "$DEV_SRC" ]]; then
+        log "ERROR: DEV_MODE is on but /app/dev_src not found (bind-mount missing?)"
         ls -la /app/ 2>/dev/null || true
         exit 1
     fi
-    log "DEV_MODE: using mounted source at $PROJECT_DIR (git clone skipped)"
+    _DEV_PROJECT="$DEV_SRC"
+    [[ -n "$GITHUB_SUBDIR" ]] && _DEV_PROJECT="$DEV_SRC/$GITHUB_SUBDIR"
+    if [[ ! -d "$_DEV_PROJECT" ]]; then
+        log "ERROR: DEV_MODE source subdir not found: $_DEV_PROJECT"
+        exit 1
+    fi
+
+    log "DEV_MODE: creating shadow working directory ..."
+    rm -rf "$CLONE_DIR"
+    mkdir -p "$CLONE_DIR"
+
+    # Directories the container must create fresh — never symlink from
+    # the host.  A macOS .venv has Darwin binaries that crash on Linux;
+    # .web/.reflex hold platform-specific build artifacts; .git is
+    # large and unnecessary.
+    _DEV_SKIP_DIRS=".venv .web .reflex .git __pycache__ node_modules"
+
+    _should_skip_dir() {
+        local name="$1"
+        for _sd in $_DEV_SKIP_DIRS; do
+            [[ "$name" == "$_sd" ]] && return 0
+        done
+        return 1
+    }
+
+    # Symlink everything at repo root level (except skipped dirs).
+    for _item in "$DEV_SRC"/* "$DEV_SRC"/.*; do
+        _base=$(basename "$_item")
+        case "$_base" in .|..) continue ;; esac
+        if [[ -d "$_item" ]] && _should_skip_dir "$_base"; then
+            log "DEV_MODE:  skipped $_base/ (container creates its own)"
+            continue
+        fi
+        ln -sf "$_item" "$CLONE_DIR/$_base"
+    done
+
+    PROJECT_DIR="$CLONE_DIR"
+    if [[ -n "$GITHUB_SUBDIR" ]]; then
+        # Break the subdir symlink into a real directory with its own
+        # symlinks so we can copy config files inside it.
+        rm -f "$CLONE_DIR/$GITHUB_SUBDIR" 2>/dev/null || true
+        mkdir -p "$CLONE_DIR/$GITHUB_SUBDIR"
+        PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
+        for _item in "$_DEV_PROJECT"/* "$_DEV_PROJECT"/.*; do
+            _base=$(basename "$_item")
+            case "$_base" in .|..) continue ;; esac
+            if [[ -d "$_item" ]] && _should_skip_dir "$_base"; then
+                log "DEV_MODE:  skipped $_base/ (container creates its own)"
+                continue
+            fi
+            ln -sf "$_item" "$PROJECT_DIR/$_base"
+        done
+    fi
+
+    # Config files the entrypoint will modify: replace symlinks with
+    # copies so the developer's originals stay untouched.
+    for _cf in pyproject.toml rxconfig.py poetry.lock; do
+        if [[ -L "$PROJECT_DIR/$_cf" && -f "$_DEV_PROJECT/$_cf" ]]; then
+            rm -f "$PROJECT_DIR/$_cf"
+            cp "$_DEV_PROJECT/$_cf" "$PROJECT_DIR/$_cf"
+            log "DEV_MODE:  copied $_cf (safe to modify)"
+        fi
+    done
+
+    log "DEV_MODE: shadow directory ready — original source stays untouched"
 else
     # Clean previous clone (handles container restarts)
     if [[ -d "$CLONE_DIR" ]]; then

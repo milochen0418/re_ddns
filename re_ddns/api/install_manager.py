@@ -433,7 +433,7 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
         await _remove_existing_container(client, name)
 
         binds: list[str] = list(req.volumes or [])
-        binds.append(f"{req.local_path}:/app/source:rw")
+        binds.append(f"{req.local_path}:/app/dev_src:rw")
         if req.env_file and os.path.exists(req.env_file):
             binds.append(f"{req.env_file}:/app/injected.env:ro")
 
