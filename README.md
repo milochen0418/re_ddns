@@ -11,6 +11,22 @@
 
 ---
 
+## Vision
+
+I hope the Agentic App Store can grow from an open-source community into a **decentralized global network of developers and builders**.
+
+We can start with **healthcare**, creating useful applications that solve real problems while also giving developers the opportunity to build meaningful sources of passive income.
+
+In the long run, I hope people in this community will be able to move around the world, pay attention to overlooked corners of society, and stay true to themselves while sharing what they see. Each person could become, in their own way, a small independent journalist, an active member of online communities, an entrepreneur, and also a philanthropist — distributed across different parts of the world, yet connected by shared values.
+
+If you believe the culture of open-source software can extend beyond code and help make the world a better place, I hope this community can help more people discover places where support is genuinely needed, uncover reliable information, and help resources reach the right people.
+
+If this is the kind of future you can imagine, you are welcome to start following the `re_ddns` project and the development of the Agentic App Store early.
+
+**Find valuable applications before others do, identify meaningful problems, and start building early.**
+
+---
+
 ## 1-Minute Demo
 
 <p align="center">
