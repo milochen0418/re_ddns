@@ -362,6 +362,18 @@ def _container_name(subdomain: str) -> str:
     return f"smart-app-{subdomain}"
 
 
+# Shared SSO secret: relack signs the ddns_auth JWT with it, other apps verify.
+_SHARED_ENV_KEYS = ("DDNS_AUTH_SECRET",)
+
+
+def _shared_env(user_env: dict[str, str] | None) -> list[str]:
+    return [
+        f"{k}={os.environ[k]}"
+        for k in _SHARED_ENV_KEYS
+        if os.environ.get(k) and k not in (user_env or {})
+    ]
+
+
 def _build_env(req: InstallRequest) -> list[str]:
     env = [
         f"GITHUB_REPO={req.github_repo}",
@@ -374,6 +386,7 @@ def _build_env(req: InstallRequest) -> list[str]:
         "RE_DDNS_API_URL=http://re-ddns:8000",
         "REFLEX_FRONTEND_HOST=0.0.0.0",
         "REFLEX_BACKEND_HOST=0.0.0.0",
+        *_shared_env(req.env),
     ]
     # User-supplied app settings (e.g. LiveKit / Google OAuth credentials).
     # These are injected as real container env vars AND their names are passed
@@ -403,6 +416,7 @@ def _build_dev_env(req: DevInstallRequest) -> list[str]:
         "RE_DDNS_API_URL=http://re-ddns:8000",
         "REFLEX_FRONTEND_HOST=0.0.0.0",
         "REFLEX_BACKEND_HOST=0.0.0.0",
+        *_shared_env(req.env),
     ]
     user_keys: list[str] = []
     for key, value in (req.env or {}).items():
