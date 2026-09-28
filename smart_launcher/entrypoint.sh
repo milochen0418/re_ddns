@@ -133,15 +133,42 @@ if [[ "$DEV_MODE" == "1" ]]; then
         return 1
     }
 
+    # SQLite databases must NOT be shared with the host: file locking does
+    # not work across the Docker Desktop VM boundary and concurrent writers
+    # corrupt the file.  The container keeps its own copies in
+    # /app/dev_state (a per-app named volume, so they survive restarts),
+    # seeded once from the host copy.
+    DEV_STATE="/app/dev_state"
+    mkdir -p "$DEV_STATE"
+
+    # Link one host entry into a shadow dir (skipping build dirs and giving
+    # databases a container-private copy).
+    _shadow_link() {
+        local item="$1" dest="$2" base
+        base=$(basename "$item")
+        case "$base" in .|..) return ;; esac
+        if [[ -d "$item" ]] && _should_skip_dir "$base"; then
+            log "DEV_MODE:  skipped $base/ (container creates its own)"
+            return
+        fi
+        case "$base" in
+            *.db-journal|*.db-wal|*.db-shm|*.sqlite-journal|*.sqlite-wal|*.sqlite-shm)
+                return ;;
+            *.db|*.sqlite|*.sqlite3)
+                if [[ ! -e "$DEV_STATE/$base" ]]; then
+                    cp "$item" "$DEV_STATE/$base"
+                    log "DEV_MODE:  seeded container DB $base from host copy"
+                fi
+                ln -sf "$DEV_STATE/$base" "$dest/$base"
+                log "DEV_MODE:  $base → container-private copy (not shared with host)"
+                return ;;
+        esac
+        ln -sf "$item" "$dest/$base"
+    }
+
     # Symlink everything at repo root level (except skipped dirs).
     for _item in "$DEV_SRC"/* "$DEV_SRC"/.*; do
-        _base=$(basename "$_item")
-        case "$_base" in .|..) continue ;; esac
-        if [[ -d "$_item" ]] && _should_skip_dir "$_base"; then
-            log "DEV_MODE:  skipped $_base/ (container creates its own)"
-            continue
-        fi
-        ln -sf "$_item" "$CLONE_DIR/$_base"
+        _shadow_link "$_item" "$CLONE_DIR"
     done
 
     PROJECT_DIR="$CLONE_DIR"
@@ -152,14 +179,14 @@ if [[ "$DEV_MODE" == "1" ]]; then
         mkdir -p "$CLONE_DIR/$GITHUB_SUBDIR"
         PROJECT_DIR="$CLONE_DIR/$GITHUB_SUBDIR"
         for _item in "$_DEV_PROJECT"/* "$_DEV_PROJECT"/.*; do
-            _base=$(basename "$_item")
-            case "$_base" in .|..) continue ;; esac
-            if [[ -d "$_item" ]] && _should_skip_dir "$_base"; then
-                log "DEV_MODE:  skipped $_base/ (container creates its own)"
-                continue
-            fi
-            ln -sf "$_item" "$PROJECT_DIR/$_base"
+            _shadow_link "$_item" "$PROJECT_DIR"
         done
+    fi
+
+    # A DB the app creates at runtime (none on the host yet) must also land
+    # in the persistent state dir, not the wiped-on-restart shadow dir.
+    if [[ ! -e "$PROJECT_DIR/reflex.db" ]]; then
+        ln -sf "$DEV_STATE/reflex.db" "$PROJECT_DIR/reflex.db"
     fi
 
     # Config files the entrypoint will modify: replace symlinks with

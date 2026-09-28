@@ -448,6 +448,9 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
 
         binds: list[str] = list(req.volumes or [])
         binds.append(f"{req.local_path}:/app/dev_src:rw")
+        # The container's own runtime data (SQLite DBs) — kept apart from the
+        # host copy, which SQLite cannot safely share across the VM boundary.
+        binds.append(f"{name}-state:/app/dev_state")
         if req.env_file and os.path.exists(req.env_file):
             binds.append(f"{req.env_file}:/app/injected.env:ro")
 
