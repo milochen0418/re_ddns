@@ -34,6 +34,8 @@ SERVICE_ZONE = os.environ.get("SERVICE_ZONE", "reflex-ddns.com")
 DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
 # re-ddns hosts the install orchestrator + progress manager.
 RE_DDNS_API_URL = os.environ.get("RE_DDNS_API_URL", "http://re-ddns:8000")
+# Dev mode: show the "Dev" button on app cards (off by default).
+DEV_MODE_ENABLED = os.environ.get("APPSTORE_DEV_MODE", "0") == "1"
 
 
 # ---------------------------------------------------------------------------
@@ -529,6 +531,8 @@ def open_button(app: rx.Var[dict]) -> rx.Component:
 
 
 def _dev_btn(app: rx.Var[dict]) -> rx.Component:
+    if not DEV_MODE_ENABLED:
+        return rx.fragment()
     return _btn(
         "Dev",
         "code",

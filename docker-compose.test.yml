@@ -232,6 +232,7 @@ services:
       # App Store catalog (the smart_launch.sh parameter table)
       - CATALOG_PATH=/app/data/appstore_catalog.json
       - DOCKER_SOCK=/var/run/docker.sock
+      - APPSTORE_DEV_MODE=${APPSTORE_DEV_MODE:-0}
 
     volumes:
       # Catalog (the source of truth for which apps exist)

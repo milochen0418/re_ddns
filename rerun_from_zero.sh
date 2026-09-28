@@ -287,6 +287,19 @@ else
     log "略過測試用 app；只啟動 re-ddns 控制台與 App Store。"
 fi
 
+# App Store Dev mode: show "Dev" button on app cards so developers can
+# bind-mount their local source into a container without git push.
+echo
+hint "Dev 模式會在 App Store 的每個 app 卡片上顯示「Dev」按鈕，"
+hint "讓開發者可以直接掛載本機原始碼到容器中測試，不需 commit/push。"
+export APPSTORE_DEV_MODE=0
+if confirm "要啟用 App Store 的 Dev 模式嗎？" N; then
+    export APPSTORE_DEV_MODE=1
+    log "App Store Dev 模式：已啟用（卡片上會出現 Dev 按鈕）。"
+else
+    log "App Store Dev 模式：停用（預設，不顯示 Dev 按鈕）。"
+fi
+
 log "啟動中…（第一次會編譯 Reflex，較慢屬正常）"
 echo -e "${DIM}────────────────────────────────────────────────────────────${NC}"
 # docker_restart.sh 結尾的 health-check 在主機 DNS 尚未設定時會「誤報」，

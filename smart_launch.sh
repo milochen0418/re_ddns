@@ -470,7 +470,8 @@ services:
       - SERVICE_ZONE=reflex-ddns.com
       - RE_DDNS_API_URL=http://re-ddns:8000
       - REFLEX_FRONTEND_HOST=0.0.0.0
-      - REFLEX_BACKEND_HOST=0.0.0.0${EXTRA_REPOS_ENV}
+      - REFLEX_BACKEND_HOST=0.0.0.0
+      - DDNS_AUTH_SECRET=\${DDNS_AUTH_SECRET:-}${EXTRA_REPOS_ENV}
 ${VOLUMES_SECTION}
     restart: unless-stopped
 YAML
