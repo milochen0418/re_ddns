@@ -36,6 +36,11 @@ set -euo pipefail
 #                        Clones sibling repos so path deps in pyproject.toml
 #                        resolve in Docker.
 #                        e.g. "https://github.com/user/lib.git:../lib"
+#   DDNS_AUTH_REPO     – Clone URL for the built-in reflex_ddns_auth library,
+#                        auto-cloned when pyproject.toml declares it as a
+#                        path dep (default: milochen0418/reflex_ddns_auth).
+#                        In DEV_MODE the host's local checkout mounted at
+#                        /app/dev_libs/reflex_ddns_auth is used instead.
 #   ENV_FILE_VARS      – Space-separated list of env var names to write
 #                        into .env (fallback when no .env.template exists)
 #                        e.g. "GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET"
@@ -389,6 +394,55 @@ if [[ -n "${EXTRA_GIT_REPOS:-}" ]]; then
         log "Cloning dependency repo: $_repo → $_target"
         git clone --depth 1 "$_repo" "$_target"
     done
+fi
+
+# ──────────────────────────────────────────────
+# 3.6 Built-in platform library: reflex_ddns_auth
+# ──────────────────────────────────────────────
+# reflex_ddns_auth is the App Store's shared SSO library (DDNS_AUTH_SECRET is
+# injected into every app).  Apps declare it as a Poetry path dep, e.g.
+#   reflex-ddns-auth = {path = "../reflex_ddns_auth", develop = true}
+# so provide it at whatever path the app declares — no per-app EXTRA_GIT_REPOS
+# needed.  Apps that don't declare it are left alone.
+#   DEV_MODE=1 → link the host's local checkout (mounted read-only by re-ddns
+#                at /app/dev_libs/reflex_ddns_auth) so live edits are used;
+#                falls back to GitHub if the host has no local checkout.
+#   otherwise  → clone DDNS_AUTH_REPO from GitHub.
+DDNS_AUTH_REPO="${DDNS_AUTH_REPO:-https://github.com/milochen0418/reflex_ddns_auth.git}"
+DEV_AUTH_SRC="/app/dev_libs/reflex_ddns_auth"
+if [[ -f "pyproject.toml" ]]; then
+    _auth_relpath=$(python3 - <<'PY' 2>/dev/null || true
+import tomllib
+
+poetry = tomllib.load(open("pyproject.toml", "rb")).get("tool", {}).get("poetry", {})
+tables = [poetry.get("dependencies", {})]
+tables += [g.get("dependencies", {}) for g in poetry.get("group", {}).values()]
+for deps in tables:
+    for name, spec in deps.items():
+        if name.lower().replace("_", "-") == "reflex-ddns-auth" and isinstance(spec, dict) and "path" in spec:
+            print(spec["path"])
+            raise SystemExit
+PY
+)
+    if [[ -n "$_auth_relpath" ]]; then
+        # -s: don't resolve a link left by a previous run (it is replaced below)
+        _target="$(realpath -m -s "$_auth_relpath")"
+        # Replace only a link left by a previous run — never delete a real
+        # directory (in dev mode it could be on the host).
+        [[ -L "$_target" ]] && rm -f "$_target"
+        if [[ "$DEV_MODE" == "1" && -f "$DEV_AUTH_SRC/pyproject.toml" && ! -e "$_target" ]]; then
+            ln -s "$DEV_AUTH_SRC" "$_target"
+            log "DEV_MODE: reflex_ddns_auth → local host checkout ($_target → $DEV_AUTH_SRC)"
+            # Hot-reload the app when the library's code changes too.
+            export REFLEX_HOT_RELOAD_INCLUDE_PATHS="$DEV_AUTH_SRC/reflex_ddns_auth${REFLEX_HOT_RELOAD_INCLUDE_PATHS:+:$REFLEX_HOT_RELOAD_INCLUDE_PATHS}"
+        elif [[ -d "$_target" ]]; then
+            log "reflex_ddns_auth already present: $_target — skipping"
+        else
+            [[ "$DEV_MODE" == "1" ]] && log "DEV_MODE: no local reflex_ddns_auth mounted — using GitHub"
+            log "Cloning built-in reflex_ddns_auth: $DDNS_AUTH_REPO → $_target"
+            git clone --depth 1 "$DDNS_AUTH_REPO" "$_target"
+        fi
+    fi
 fi
 
 # ──────────────────────────────────────────────

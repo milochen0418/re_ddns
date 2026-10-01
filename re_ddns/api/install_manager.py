@@ -31,6 +31,7 @@ import io
 import json
 import logging
 import os
+import posixpath
 import re
 import tarfile
 from pathlib import Path
@@ -356,6 +357,14 @@ class DevInstallRequest(BaseModel):
     env_file: str = ""
     env: dict[str, str] = {}
     extra_repos: list[str] = []
+    # Host path of the reflex_ddns_auth checkout to use instead of GitHub
+    # (default: sibling of local_path, i.e. <parent>/reflex_ddns_auth).
+    auth_lib_path: str = ""
+
+
+# Where a dev container sees the host's reflex_ddns_auth checkout; the
+# launcher links it in place of the GitHub clone when this path exists.
+DEV_AUTH_LIB_TARGET = "/app/dev_libs/reflex_ddns_auth"
 
 
 def _container_name(subdomain: str) -> str:
@@ -466,7 +475,23 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
             },
         }
 
+        # Use the host's local reflex_ddns_auth (live edits) instead of the
+        # GitHub copy.  A "Mounts" bind (unlike "Binds") fails instead of
+        # creating an empty dir when the host path is missing — then we
+        # retry without it and the launcher falls back to cloning GitHub.
+        auth_lib = req.auth_lib_path or posixpath.join(
+            posixpath.dirname(req.local_path.rstrip("/")), "reflex_ddns_auth")
+        config["HostConfig"]["Mounts"] = [{
+            "Type": "bind", "Source": auth_lib,
+            "Target": DEV_AUTH_LIB_TARGET, "ReadOnly": True,
+        }]
+
         create = await client.post(f"/containers/create?name={name}", json=config)
+        if create.status_code != 201 and "does not exist" in create.text:
+            _append_log(sub, f"[install] {auth_lib} not found — "
+                             "reflex_ddns_auth will come from GitHub")
+            del config["HostConfig"]["Mounts"]
+            create = await client.post(f"/containers/create?name={name}", json=config)
         if create.status_code != 201:
             _set_job(sub, status="error", phase="error",
                      message=f"建立容器失敗 (HTTP {create.status_code})")

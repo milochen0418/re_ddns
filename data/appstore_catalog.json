@@ -12,8 +12,7 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": [],
-      "extra_repos": ["https://github.com/milochen0418/reflex_ddns_auth.git:../reflex_ddns_auth"]
+      "volumes": []
     },
     {
       "id": "plantuml",
