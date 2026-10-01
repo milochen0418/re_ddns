@@ -190,7 +190,10 @@ if [[ "$DEV_MODE" == "1" ]]; then
 
     # A DB the app creates at runtime (none on the host yet) must also land
     # in the persistent state dir, not the wiped-on-restart shadow dir.
+    # Create the target (an empty file is a valid SQLite DB): a dangling link
+    # crashes Granian's hot-reload watcher ("No path was found").
     if [[ ! -e "$PROJECT_DIR/reflex.db" ]]; then
+        touch "$DEV_STATE/reflex.db"
         ln -sf "$DEV_STATE/reflex.db" "$PROJECT_DIR/reflex.db"
     fi
 

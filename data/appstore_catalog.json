@@ -208,6 +208,24 @@
       ]
     },
     {
+      "id": "ddns-livekit-audio-chat",
+      "name": "LiveKit Audio Chat (self-hosted)",
+      "description": "Real-time audio rooms on a built-in, open-source LiveKit server running inside the app's own container. No LiveKit Cloud account or keys needed.",
+      "icon": "headphones",
+      "subdomain": "livekit",
+      "github_repo": "https://github.com/milochen0418/reflex_ddns_livekit_audio_chat.git",
+      "app_name": "reflex_ddns_livekit_audio_chat",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "ports": ["7881:7881", "7882:7882/udp"],
+      "env_schema": [
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+      ]
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",

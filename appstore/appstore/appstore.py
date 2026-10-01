@@ -99,6 +99,8 @@ def _build_install_cmd(app: dict) -> str:
         parts.append(f"--subdir={app['subdir']}")
     for vol in app.get("volumes", []) or []:
         parts.append(f"-v {vol}")
+    for port in app.get("ports", []) or []:
+        parts.append(f"-p {port}")
     parts.append(app["github_repo"])
     parts.append(app["app_name"])
     parts.append(app["subdomain"])
@@ -321,6 +323,7 @@ class AppStoreState(rx.State):
             "env_file": app.get("env_file") or "",
             "env": env or {},
             "extra_repos": app.get("extra_repos") or [],
+            "ports": app.get("ports") or [],
         }
         try:
             with httpx.Client(timeout=30.0) as client:
@@ -459,6 +462,7 @@ class AppStoreState(rx.State):
             "env_file": app.get("env_file") or "",
             "env": {},
             "extra_repos": app.get("extra_repos") or [],
+            "ports": app.get("ports") or [],
         }
         try:
             with httpx.Client(timeout=30.0) as client:

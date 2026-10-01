@@ -185,6 +185,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | PDF Signature | `pdf-signature` | Draw and export signatures on PDFs |
 | Relack | `relack` | Self-hosted Slack alternative (requires Google OAuth) |
 | LiveKit Audio Chat | `audio-chat` | Real-time audio conferencing (requires LiveKit env) |
+| LiveKit Audio Chat (self-hosted) | `livekit` | Audio rooms on a built-in open-source LiveKit server — no LiveKit Cloud, no keys (publishes media ports 7881/tcp + 7882/udp) |
 | Instagram Story Downloader | `instagram-story-downloader` | Back up Instagram Stories via headless browser |
 | *(add more)* | any subdomain | Any Reflex app on GitHub — add an entry to the JSON |
 
@@ -208,6 +209,11 @@ To add your own app, append an entry to `data/appstore_catalog.json`:
 ```
 
 `icon` accepts any [Lucide](https://lucide.dev/icons/) icon name.
+
+Optional fields:
+
+- `env_schema` — settings the App Store asks for before installing (passed to the app as env vars).
+- `ports` — container ports published on the host, for traffic nginx cannot proxy, such as WebRTC media: `"ports": ["7881:7881", "7882:7882/udp"]`. Every app also receives `EXTERNAL_IP` (the host's LAN IP), so a media server can advertise an address that LAN clients can reach.
 
 ---
 

@@ -72,6 +72,10 @@ For every app declared in the catalog you can:
 Each entry maps directly to a `smart_launch.sh` invocation. `icon` is any
 [Lucide](https://lucide.dev/icons/) icon name.
 
+Optional: `env_schema` (settings asked for before install) and `ports`
+(host-published ports such as `["7881:7881", "7882:7882/udp"]`, for traffic
+nginx cannot proxy, e.g. WebRTC media; `smart_launch.sh -p`).
+
 ## Run it
 
 It is part of the full test stack and starts with everything else:

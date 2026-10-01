@@ -343,6 +343,7 @@ class InstallRequest(BaseModel):
     env_file: str = ""          # host path mounted to /app/injected.env
     env: dict[str, str] = {}    # user-supplied app settings (e.g. API keys)
     extra_repos: list[str] = [] # ["repo_url:relative_path", ...] for path deps
+    ports: list[str] = []       # ["host:container[/udp]", ...] published on the host
 
 
 class DevInstallRequest(BaseModel):
@@ -357,6 +358,7 @@ class DevInstallRequest(BaseModel):
     env_file: str = ""
     env: dict[str, str] = {}
     extra_repos: list[str] = []
+    ports: list[str] = []
     # Host path of the reflex_ddns_auth checkout to use instead of GitHub
     # (default: sibling of local_path, i.e. <parent>/reflex_ddns_auth).
     auth_lib_path: str = ""
@@ -371,8 +373,11 @@ def _container_name(subdomain: str) -> str:
     return f"smart-app-{subdomain}"
 
 
-# Shared SSO secret: relack signs the ddns_auth JWT with it, other apps verify.
-_SHARED_ENV_KEYS = ("DDNS_AUTH_SECRET",)
+# DDNS_AUTH_SECRET: shared SSO secret — relack signs the ddns_auth JWT with it,
+#   other apps verify.
+# EXTERNAL_IP: the Docker host's LAN IP (what the DNS records point to) — apps
+#   that publish ports (e.g. WebRTC media) advertise it to browsers.
+_SHARED_ENV_KEYS = ("DDNS_AUTH_SECRET", "EXTERNAL_IP")
 
 
 def _shared_env(user_env: dict[str, str] | None) -> list[str]:
@@ -381,6 +386,34 @@ def _shared_env(user_env: dict[str, str] | None) -> list[str]:
         for k in _SHARED_ENV_KEYS
         if os.environ.get(k) and k not in (user_env or {})
     ]
+
+
+def _port_bindings(ports: list[str]) -> tuple[dict[str, dict], dict[str, list[dict[str, str]]]]:
+    """``["7882:7882/udp", "7881"]`` → Docker ``ExposedPorts`` + ``PortBindings``.
+
+    Apps only need published ports for traffic nginx cannot proxy (e.g. the
+    UDP/TCP media ports of a WebRTC server); HTTP still goes through nginx.
+    """
+    exposed: dict[str, dict] = {}
+    bindings: dict[str, list[dict[str, str]]] = {}
+    for spec in ports or []:
+        mapping, _, proto = str(spec).strip().partition("/")
+        host_port, _, container_port = mapping.rpartition(":")
+        host_port = host_port or container_port
+        if not (host_port.isdigit() and container_port.isdigit()):
+            logger.warning("Ignoring invalid port spec %r", spec)
+            continue
+        key = f"{container_port}/{proto.lower() or 'tcp'}"
+        exposed[key] = {}
+        bindings.setdefault(key, []).append({"HostPort": host_port})
+    return exposed, bindings
+
+
+def _docker_error(resp: httpx.Response) -> str:
+    try:
+        return str(resp.json().get("message", ""))[:200]
+    except ValueError:
+        return resp.text[:200]
 
 
 def _build_env(req: InstallRequest) -> list[str]:
@@ -485,6 +518,10 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
             "Type": "bind", "Source": auth_lib,
             "Target": DEV_AUTH_LIB_TARGET, "ReadOnly": True,
         }]
+        exposed, bindings = _port_bindings(req.ports)
+        if bindings:
+            config["ExposedPorts"] = exposed
+            config["HostConfig"]["PortBindings"] = bindings
 
         create = await client.post(f"/containers/create?name={name}", json=config)
         if create.status_code != 201 and "does not exist" in create.text:
@@ -501,7 +538,7 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
         start = await client.post(f"/containers/{cid}/start")
         if start.status_code not in (204, 304):
             _set_job(sub, status="error", phase="error",
-                     message=f"啟動容器失敗 (HTTP {start.status_code})")
+                     message=f"啟動容器失敗 (HTTP {start.status_code})：{_docker_error(start)}")
             return
 
         _set_job(sub, status="installing", phase="starting_container", percent=25,
@@ -552,6 +589,10 @@ async def _create_and_start(req: InstallRequest) -> None:
         }
         if binds:
             config["HostConfig"]["Binds"] = binds
+        exposed, bindings = _port_bindings(req.ports)
+        if bindings:
+            config["ExposedPorts"] = exposed
+            config["HostConfig"]["PortBindings"] = bindings
 
         create = await client.post(f"/containers/create?name={name}", json=config)
         if create.status_code != 201:
@@ -563,7 +604,7 @@ async def _create_and_start(req: InstallRequest) -> None:
         start = await client.post(f"/containers/{cid}/start")
         if start.status_code not in (204, 304):
             _set_job(sub, status="error", phase="error",
-                     message=f"啟動容器失敗 (HTTP {start.status_code})")
+                     message=f"啟動容器失敗 (HTTP {start.status_code})：{_docker_error(start)}")
             return
 
         _set_job(sub, status="installing", phase="starting_container", percent=25,
