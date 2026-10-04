@@ -483,8 +483,10 @@ app.add_page(
 from fastapi import FastAPI as _FastAPI  # noqa: E402
 from re_ddns.api.registry_api import router as registry_api_router  # noqa: E402
 from re_ddns.api.install_manager import router as install_manager_router  # noqa: E402
+from re_ddns.api.intent_registry import router as intent_registry_router  # noqa: E402
 
 _api_app = _FastAPI()
 _api_app.include_router(registry_api_router)
 _api_app.include_router(install_manager_router)
+_api_app.include_router(intent_registry_router)
 app._api.mount("", _api_app)

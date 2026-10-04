@@ -215,6 +215,17 @@ Optional fields:
 - `env_schema` — settings the App Store asks for before installing (passed to the app as env vars).
 - `ports` — container ports published on the host, for traffic nginx cannot proxy, such as WebRTC media: `"ports": ["7881:7881", "7882:7882/udp"]`. Every app also receives `EXTERNAL_IP` (the host's LAN IP), so a media server can advertise an address that LAN clients can reach.
 
+### Intent registry
+
+Apps built on [reflex_ddns_auth](https://github.com/milochen0418/reflex_ddns_auth) can open each other's pages as dialogs (DDNS Intent). Each such app serves the actions it provides at `/_ddns_intent/manifest` on its backend. re-ddns reads the manifests of all registered services (over the Docker network, cached for 30 s) and answers:
+
+| Endpoint | Returns |
+|----------|---------|
+| `GET /api/intent/providers?action=call.join` | `{"action": "call.join", "providers": [{"app": "livekit", "title": "Audio Call"}]}` |
+| `GET /api/intent/catalog` | every installed app's actions, with their param schemas |
+
+Apps reach it through `RE_DDNS_API_URL`, which every installed app receives. A caller can then write `Intent.start(None, "call.join", ...)` without naming the app.
+
 ---
 
 ## Smart Launcher: Deploy Any Reflex App
