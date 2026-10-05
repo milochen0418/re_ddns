@@ -226,6 +226,24 @@
       ]
     },
     {
+      "id": "ddns-livekit-video-chat",
+      "name": "LiveKit Video Chat (self-hosted)",
+      "description": "Real-time video rooms (camera + microphone) on a built-in, open-source LiveKit server running inside the app's own container. No LiveKit Cloud account or keys needed.",
+      "icon": "video",
+      "subdomain": "video-chat",
+      "github_repo": "https://github.com/milochen0418/reflex_ddns_livekit_video_chat.git",
+      "app_name": "reflex_ddns_livekit_video_chat",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "ports": ["7981:7981", "7982:7982/udp"],
+      "env_schema": [
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7981/tcp + 7982/udp，可與語音聊天 app（7881/7882）同時安裝。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+      ]
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",

@@ -186,6 +186,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | Relack | `relack` | Self-hosted Slack alternative (requires Google OAuth) |
 | LiveKit Audio Chat | `audio-chat` | Real-time audio conferencing (requires LiveKit env) |
 | LiveKit Audio Chat (self-hosted) | `livekit` | Audio rooms on a built-in open-source LiveKit server — no LiveKit Cloud, no keys (publishes media ports 7881/tcp + 7882/udp) |
+| LiveKit Video Chat (self-hosted) | `video-chat` | Video rooms (camera + microphone) on its own built-in LiveKit server — no keys (publishes media ports 7981/tcp + 7982/udp, so it can run next to the audio app) |
 | Instagram Story Downloader | `instagram-story-downloader` | Back up Instagram Stories via headless browser |
 | *(add more)* | any subdomain | Any Reflex app on GitHub — add an entry to the JSON |
 
@@ -221,10 +222,10 @@ Apps built on [reflex_ddns_auth](https://github.com/milochen0418/reflex_ddns_aut
 
 | Endpoint | Returns |
 |----------|---------|
-| `GET /api/intent/providers?action=call.join` | `{"action": "call.join", "providers": [{"app": "livekit", "title": "Audio Call"}]}` |
+| `GET /api/intent/providers?action=call.join` | `{"action": "call.join", "providers": [{"app": "livekit", "title": "Audio Call"}, {"app": "video-chat", "title": "Video Call"}]}` |
 | `GET /api/intent/catalog` | every installed app's actions, with their param schemas |
 
-Apps reach it through `RE_DDNS_API_URL`, which every installed app receives. A caller can then write `Intent.start(None, "call.join", ...)` without naming the app.
+Apps reach it through `RE_DDNS_API_URL`, which every installed app receives. A caller can then write `Intent.start(None, "call.join", ...)` without naming the app. When several installed apps provide the action, as with the audio and video chat apps for `call.join`, the dialog first asks which one to use.
 
 ---
 
