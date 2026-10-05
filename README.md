@@ -226,7 +226,7 @@ Apps built on [reflex_ddns_auth](https://github.com/milochen0418/reflex_ddns_aut
 | `GET /api/intent/providers?action=call.join` | `{"action": "call.join", "providers": [{"app": "avatar-chat", "title": "Avatar Call"}, {"app": "livekit", "title": "Audio Call"}, {"app": "video-chat", "title": "Video Call"}]}` |
 | `GET /api/intent/catalog` | every installed app's actions, with their param schemas |
 
-Apps reach it through `RE_DDNS_API_URL`, which every installed app receives. A caller can then write `Intent.start(None, "call.join", ...)` without naming the app. When several installed apps provide the action, as with the audio, video and avatar chat apps for `call.join`, the dialog first asks which one to use.
+Apps reach it through `RE_DDNS_API_URL`, which every installed app receives. A caller can then write `Intent.start(None, "call.join", ...)` without naming the app. When several installed apps provide the action, as with the audio, video and avatar chat apps for `call.join`, the dialog first asks which one to use. For a session that several people join, such as a call, only the first one should choose: the caller uses `Intent.choose_app("call.join", on_result=...)`, keeps the chosen app with the call, and everyone then opens it with `Intent.start(app, "call.join", ...)`, so all of them land in the same call app (relack and codoc_in_md do this).
 
 ---
 
