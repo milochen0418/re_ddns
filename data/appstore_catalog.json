@@ -244,6 +244,24 @@
       ]
     },
     {
+      "id": "ddns-livekit-avatar-chat",
+      "name": "LiveKit Avatar Chat (self-hosted)",
+      "description": "Voice calls with emotional cartoon avatars: your face is tracked on your own device and only your voice and expression values are sent, never video. Built-in, open-source LiveKit server; no keys needed.",
+      "icon": "smile",
+      "subdomain": "avatar-chat",
+      "github_repo": "https://github.com/milochen0418/reflex_ddns_livekit_avatar_chat.git",
+      "app_name": "reflex_ddns_livekit_avatar_chat",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "ports": ["7781:7781", "7782:7782/udp"],
+      "env_schema": [
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7781/tcp + 7782/udp，可與語音（7881/7882）、視訊（7981/7982）聊天 app 同時安裝。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+      ]
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
