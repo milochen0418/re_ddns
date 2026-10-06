@@ -33,6 +33,15 @@ RUN poetry run reflex init || true
 RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: true,/' \
     /app/.venv/lib/python3.11/site-packages/reflex/compiler/templates.py 2>/dev/null || true
 
+# ── Pre-install frontend packages into .web/node_modules ──
+# `reflex run` installs the frontend packages (bun install + bun add) before the
+# dev server answers on 3000. Doing it here bakes node_modules + bun.lock into
+# the image, so container start makes no npm downloads.
+# The cache mount keeps bun's download cache across rebuilds, since `COPY . .`
+# invalidates this layer whenever the source changes.
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    poetry run reflex compile
+
 # ── Entrypoint ──
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
