@@ -42,6 +42,10 @@ ASSUME_YES=false
 IFACE="Wi-Fi"
 COMPOSE_FILE="docker-compose.test.yml"
 DOMAINS=(home testapp testapp2 testapp3 aapps)
+# LiveKit English Chat（App Store 的 english-chat）右鍵翻譯用的本地 LLM，
+# 與該 app 的 OLLAMA_MODEL 預設相同；改用別的模型時兩邊都要設。
+EN_CHAT_MODEL="${OLLAMA_MODEL:-qwen2.5:7b}"
+OLLAMA_API="http://127.0.0.1:11434"
 
 usage() {
     cat <<'EOF'
@@ -62,7 +66,8 @@ Options:
   5. 繞過 DNS 驗證後端（health-check 誤報的正解）
   6. 把 Mac DNS 指向本機 BIND9（./macos_set_dns.sh --join）
   7. 安裝 Local CA 憑證（讓 HTTPS 受信任）
-  8. 最終驗收 + 總結
+  8. English Chat 翻譯：檢查 Ollama + qwen2.5:7b，缺的話（同意後）幫你裝好
+  9. 最終驗收 + 總結
 EOF
 }
 
@@ -139,12 +144,69 @@ verify_host_dns() {
     $all_ok
 }
 
+# ── English Chat 翻譯：主機上的 Ollama ─────────────────────────────────────
+# ollama 指令（Homebrew / 官方腳本裝在 PATH；Ollama.app 則在 app 裡）
+ollama_bin() {
+    if command -v ollama >/dev/null 2>&1; then
+        command -v ollama
+    elif [[ -x /Applications/Ollama.app/Contents/Resources/ollama ]]; then
+        echo /Applications/Ollama.app/Contents/Resources/ollama
+    fi
+}
+
+ollama_up() {
+    curl -s --max-time 3 "${OLLAMA_API}/api/version" >/dev/null 2>&1
+}
+
+ollama_has_model() {
+    curl -s --max-time 5 "${OLLAMA_API}/api/tags" 2>/dev/null | grep -qF "\"name\":\"${EN_CHAT_MODEL}\""
+}
+
+# 模型的下載大小（GB，Ollama registry 上 manifest 各層加總）；查不到時印空字串。
+model_size_gb() {
+    local name="${EN_CHAT_MODEL%%:*}" tag="latest"
+    [[ "$EN_CHAT_MODEL" == *:* ]] && tag="${EN_CHAT_MODEL#*:}"
+    [[ "$name" == */* ]] || name="library/${name}"
+    curl -s --max-time 10 -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        "https://registry.ollama.ai/v2/${name}/manifests/${tag}" 2>/dev/null \
+        | grep -o '"size":[0-9]*' | awk -F: '{ s += $2 } END { if (s > 0) printf "%.1f", s / 1e9 }'
+}
+
+# English Chat 的容器經 host.docker.internal:11434 連 Ollama：從執行中的容器實測。
+# 回傳 0 = 連得到，1 = 連不到，2 = 沒有可用來測的容器。
+ollama_from_containers() {
+    local c
+    for c in app-store re-ddns; do
+        docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$c" || continue
+        docker exec "$c" python3 -c "import urllib.request; urllib.request.urlopen('http://host.docker.internal:11434/api/version', timeout=5)" >/dev/null 2>&1
+        return $?
+    done
+    return 2
+}
+
+# 翻譯是否就緒（步驟 8 結尾與最終驗收共用）
+report_en_chat() {
+    if ollama_up && ollama_has_model; then
+        ok "Ollama 執行中，已有翻譯模型 ${EN_CHAT_MODEL}"
+        ollama_from_containers
+        case $? in
+            0) ok "容器可經 host.docker.internal:11434 連到 Ollama（English Chat 的預設位址）" ;;
+            1) warn "容器連不到 host.docker.internal:11434——English Chat 會顯示 Can't reach the translator。"
+               hint "讓 Ollama 也聽外部連線：OLLAMA_HOST=0.0.0.0（見 RUN_FROM_ZERO.md §6）。" ;;
+            *) : ;;
+        esac
+        return 0
+    fi
+    warn "English Chat 的翻譯尚未就緒（字幕照常，右鍵翻譯會失敗）。"
+    return 1
+}
+
 echo -e "${BOLD}Re-DDNS — Run From Zero 引導腳本${NC}"
 hint "專案目錄：$SCRIPT_DIR"
 $ASSUME_YES && warn "--yes 模式：所有問題自動採用建議預設。"
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 1/8 · 環境檢查"
+step "步驟 1/9 · 環境檢查"
 # ════════════════════════════════════════════════════════════════════════════
 
 OS="$(uname)"
@@ -198,7 +260,7 @@ chmod +x docker_restart.sh macos_set_dns.sh 2>/dev/null || true
 ok "專案腳本與 compose 檔齊備"
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 2/8 · 確認 Docker Desktop 已啟動"
+step "步驟 2/9 · 確認 Docker Desktop 已啟動"
 # ════════════════════════════════════════════════════════════════════════════
 
 if docker info >/dev/null 2>&1; then
@@ -223,7 +285,7 @@ else
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 3/8 · 釋放 port 53（BIND9 需要）"
+step "步驟 3/9 · 釋放 port 53（BIND9 需要）"
 # ════════════════════════════════════════════════════════════════════════════
 
 PORT53_USERS=""
@@ -256,7 +318,7 @@ else
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 4/8 · build + 啟動整套 Docker 堆疊"
+step "步驟 4/9 · build + 啟動整套 Docker 堆疊"
 # ════════════════════════════════════════════════════════════════════════════
 
 hint "使用 ${COMPOSE_FILE}（含 nginx + 三個 testapp + App Store），由 docker_restart.sh 編排。"
@@ -313,7 +375,7 @@ if [[ $RESTART_RC -ne 0 ]]; then
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 5/8 · 繞過 DNS，直接驗證 nginx 後端"
+step "步驟 5/9 · 繞過 DNS，直接驗證 nginx 後端"
 # ════════════════════════════════════════════════════════════════════════════
 
 hint "用 curl --resolve 直接打 127.0.0.1，避開尚未設定的主機 DNS。"
@@ -340,7 +402,7 @@ else
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 6/8 · 把 Mac 的 DNS 指向本機 BIND9"
+step "步驟 6/9 · 把 Mac 的 DNS 指向本機 BIND9"
 # ════════════════════════════════════════════════════════════════════════════
 
 if [[ "$OS" != "Darwin" ]]; then
@@ -375,7 +437,7 @@ else
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 7/8 · 安裝 Local CA 憑證（讓 HTTPS 受信任）"
+step "步驟 7/9 · 安裝 Local CA 憑證（讓 HTTPS 受信任）"
 # ════════════════════════════════════════════════════════════════════════════
 
 # 先看是否已受信任（不加 -k 也能通過）
@@ -444,7 +506,149 @@ if [[ "${DO_CA:-false}" != "false" ]]; then
 fi
 
 # ════════════════════════════════════════════════════════════════════════════
-step "步驟 8/8 · 最終驗收"
+step "步驟 8/9 · English Chat 翻譯：Ollama + ${EN_CHAT_MODEL}"
+# ════════════════════════════════════════════════════════════════════════════
+
+hint "App Store 的 LiveKit English Chat（english-chat）：英文即時字幕由 app 內建的 Whisper 產生"
+hint "（app 首次啟動時自動下載約 470 MB，這裡不用準備）；選取字幕文字按右鍵翻譯，則交給"
+hint "這台主機上的 Ollama（本地 LLM）與模型 ${EN_CHAT_MODEL}。少了它字幕照常，只是不能翻譯。"
+echo
+
+OLLAMA_BIN="$(ollama_bin)"
+if [[ -n "$OLLAMA_BIN" ]]; then
+    ok "Ollama：已安裝（$("$OLLAMA_BIN" --version 2>&1 | tail -1 | awk '{print $NF}')，${OLLAMA_BIN}）"
+else
+    warn "Ollama：未安裝"
+fi
+if ollama_up; then
+    ok "Ollama 服務：執行中（${OLLAMA_API}）"
+    if ollama_has_model; then ok "翻譯模型 ${EN_CHAT_MODEL}：已下載"; else warn "翻譯模型 ${EN_CHAT_MODEL}：未下載"; fi
+else
+    warn "Ollama 服務：沒有在執行"
+fi
+
+if ollama_up && ollama_has_model; then
+    report_en_chat || true
+else
+    # 先說清楚還缺什麼、各要多大，再逐項問。
+    echo
+    log "要讓翻譯可用，還需要："
+    if [[ -z "$OLLAMA_BIN" ]]; then
+        if [[ "$OS" == "Darwin" ]] && $HAS_BREW; then
+            hint "• Ollama（Homebrew 版）：約 40 MB"
+        elif [[ "$OS" == "Darwin" ]]; then
+            hint "• Ollama for macOS（官方 app）：約 200 MB，需手動下載"
+        else
+            hint "• Ollama（官方安裝腳本，含 GPU 函式庫）：下載約 1.5 GB，需 sudo"
+        fi
+    fi
+    MODEL_GB="$(model_size_gb)"
+    [[ -z "$MODEL_GB" && "$EN_CHAT_MODEL" == "qwen2.5:7b" ]] && MODEL_GB="4.7"
+    if [[ -n "$MODEL_GB" ]]; then
+        MODEL_SIZE="約 ${MODEL_GB} GB"
+        RAM_NEED=$(awk -v g="$MODEL_GB" 'BEGIN { printf "%d", g + 1.5 }')
+        MODEL_NOTE="${MODEL_SIZE}（存在 ~/.ollama），翻譯時約佔 ${RAM_NEED} GB 記憶體"
+    else
+        MODEL_SIZE="大小查不到"
+        RAM_NEED=0
+        MODEL_NOTE="大小查不到（連不到 Ollama registry），存在 ~/.ollama"
+    fi
+    if ollama_up; then
+        hint "• 翻譯模型 ${EN_CHAT_MODEL}：下載${MODEL_NOTE}"
+    else
+        hint "• 啟動 Ollama 服務（之後登入 / 開機時自動啟動）"
+        hint "• 翻譯模型 ${EN_CHAT_MODEL}（若還沒下載過）：${MODEL_NOTE}"
+    fi
+    FREE_GB=$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {printf "%d", $4/1024/1024}')
+    if [[ "$OS" == "Darwin" ]]; then
+        RAM_GB=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 / 1024 / 1024 ))
+    else
+        RAM_GB=$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo 2>/dev/null)
+    fi
+    hint "  這台：可用磁碟約 ${FREE_GB:-?} GB、記憶體 ${RAM_GB:-?} GB"
+    DISK_NEED=$(awk -v g="${MODEL_GB:-5}" 'BEGIN { printf "%d", g + 1.5 }')
+    if [[ "${FREE_GB:-}" =~ ^[0-9]+$ ]] && (( FREE_GB < DISK_NEED )); then
+        warn "可用磁碟不到 ${DISK_NEED} GB，下載模型可能失敗。"
+    fi
+    if [[ "${RAM_GB:-}" =~ ^[0-9]+$ ]] && (( RAM_NEED > 0 && RAM_GB < 2 * RAM_NEED )); then
+        warn "記憶體 ${RAM_GB} GB：翻譯時模型約佔 ${RAM_NEED} GB，可能拖慢其他 app（也可改用較小的模型，見 RUN_FROM_ZERO.md §6）。"
+    fi
+    echo
+
+    # 1) 安裝 Ollama
+    if [[ -z "$OLLAMA_BIN" ]]; then
+        if [[ "$OS" == "Darwin" ]] && $HAS_BREW; then
+            if confirm "用 Homebrew 安裝 Ollama（brew install ollama，約 40 MB）？" Y; then
+                brew install ollama || err "brew install ollama 失敗，請看上方訊息。"
+            fi
+        elif [[ "$OS" == "Darwin" ]]; then
+            hint "沒有 Homebrew：請到 https://ollama.com/download 下載 Ollama for macOS（約 200 MB），"
+            hint "拖進「應用程式」並開啟一次（它會常駐選單列、登入時自動啟動）。"
+            pause_enter
+        elif confirm "用官方腳本安裝 Ollama（curl -fsSL https://ollama.com/install.sh | sh，下載約 1.5 GB，需 sudo）？" Y; then
+            curl -fsSL https://ollama.com/install.sh | sh || err "Ollama 安裝失敗，請看上方訊息。"
+        fi
+        OLLAMA_BIN="$(ollama_bin)"
+        [[ -n "$OLLAMA_BIN" ]] && ok "Ollama 已安裝：${OLLAMA_BIN}"
+    fi
+
+    # 2) 啟動 Ollama 服務
+    if [[ -n "$OLLAMA_BIN" ]] && ! ollama_up; then
+        STARTED=false
+        if [[ "$OS" == "Darwin" ]] && $HAS_BREW && brew list --formula ollama >/dev/null 2>&1; then
+            confirm "啟動 Ollama 服務並設為登入時自動啟動（brew services start ollama）？" Y \
+                && brew services start ollama && STARTED=true
+        elif [[ "$OS" == "Darwin" && -d /Applications/Ollama.app ]]; then
+            confirm "開啟 Ollama.app（常駐選單列、登入時自動啟動）？" Y && open -a Ollama && STARTED=true
+        elif command -v systemctl >/dev/null 2>&1 && systemctl cat ollama.service >/dev/null 2>&1; then
+            confirm "啟動 Ollama 服務並設為開機自動啟動（sudo systemctl enable --now ollama）？" Y \
+                && sudo systemctl enable --now ollama && STARTED=true
+        elif confirm "在背景啟動 ollama serve（重開機後要再啟動）？" Y; then
+            nohup "$OLLAMA_BIN" serve >"$HOME/.ollama-serve.log" 2>&1 &
+            STARTED=true
+        fi
+        if $STARTED; then
+            log "等待 Ollama 服務就緒（最多 30 秒）…"
+            for _ in $(seq 1 30); do ollama_up && break; sleep 1; done
+            ollama_up && ok "Ollama 服務：執行中" || warn "Ollama 服務仍未回應。"
+        fi
+    fi
+
+    # 3) 下載翻譯模型
+    if ollama_up && ! ollama_has_model; then
+        if confirm "下載翻譯模型 ${EN_CHAT_MODEL}（${MODEL_SIZE}）？" Y; then
+            "$OLLAMA_BIN" pull "$EN_CHAT_MODEL" || err "下載中斷或失敗；重跑本腳本會從中斷處接著下載。"
+        fi
+    fi
+
+    echo
+    if ! report_en_chat; then
+        # 只列出還缺的那幾步
+        hint "之後要補上："
+        if [[ -z "$OLLAMA_BIN" ]]; then
+            if [[ "$OS" == "Darwin" ]] && $HAS_BREW; then
+                hint "  brew install ollama && brew services start ollama && ollama pull ${EN_CHAT_MODEL}"
+            elif [[ "$OS" == "Darwin" ]]; then
+                hint "  到 https://ollama.com/download 安裝並開啟 Ollama，再執行：ollama pull ${EN_CHAT_MODEL}"
+            else
+                hint "  curl -fsSL https://ollama.com/install.sh | sh && ollama pull ${EN_CHAT_MODEL}"
+            fi
+        elif ! ollama_up; then
+            if [[ "$OS" == "Darwin" ]] && $HAS_BREW && brew list --formula ollama >/dev/null 2>&1; then
+                hint "  brew services start ollama && ollama pull ${EN_CHAT_MODEL}"
+            elif [[ "$OS" == "Darwin" && -d /Applications/Ollama.app ]]; then
+                hint "  open -a Ollama && ollama pull ${EN_CHAT_MODEL}"
+            else
+                hint "  先啟動 Ollama（ollama serve），再執行：ollama pull ${EN_CHAT_MODEL}"
+            fi
+        else
+            hint "  ollama pull ${EN_CHAT_MODEL}"
+        fi
+    fi
+fi
+
+# ════════════════════════════════════════════════════════════════════════════
+step "步驟 9/9 · 最終驗收"
 # ════════════════════════════════════════════════════════════════════════════
 
 log "後端（繞過 DNS）："
@@ -465,6 +669,16 @@ if [[ "$OS" == "Darwin" ]]; then
     fi
 fi
 
+echo
+log "English Chat 翻譯（Ollama）："
+report_en_chat || hint "補救方式見步驟 8，或 RUN_FROM_ZERO.md §6。"
+
+if ollama_up && ollama_has_model; then
+    EN_CHAT_LINE="  English Chat 翻譯已就緒（Ollama + ${EN_CHAT_MODEL}）：到 App Store 安裝「LiveKit English Chat」"
+else
+    EN_CHAT_LINE="$(echo -e "${DIM}  English Chat 翻譯尚未就緒（字幕照常，右鍵翻譯不行；補救見步驟 8）${NC}")"
+fi
+
 if ${WITH_TESTAPPS:-true}; then
     TESTAPP_LINES="  https://testapp.reflex-ddns.com    testapp
   https://testapp2.reflex-ddns.com   testapp2（另有 http://localhost:6080/vnc.html）
@@ -480,6 +694,7 @@ $(echo -e "${BOLD}${GREEN}完成！可在瀏覽器開啟（綠色鎖頭、無警
   https://home.reflex-ddns.com       Re-DDNS 控制台
 ${TESTAPP_LINES}
   https://aapps.reflex-ddns.com      App Store（瀏覽 / 安裝 / 啟停管理各 app）
+${EN_CHAT_LINE}
 
 $(echo -e "${DIM}日常：")
   重啟（保留資料）  ./docker_restart.sh --keep-volumes

@@ -184,7 +184,33 @@ curl -s -o /dev/null -w "https verify -> %{http_code}\n" https://home.reflex-ddn
 
 ---
 
-## 6. 最終驗收
+## 6. English Chat 翻譯：Ollama + qwen2.5:7b
+
+App Store 的 **LiveKit English Chat**（`english-chat`）把英文即時轉成字幕：這部分是 app 內建的 Whisper，第一次啟動時自動下載約 470 MB，不用預先準備。選取字幕文字按右鍵「翻譯」，則交給**這台主機上的 Ollama**（本地 LLM）。少了 Ollama 字幕照常，只是翻譯會失敗。
+
+`rerun_from_zero.sh` 的步驟 8 會檢查以下三項，缺的會先列出大小，再逐項問你要不要裝；手動做法：
+
+| 需要 | 大小 | 指令 |
+|------|------|------|
+| Ollama（Homebrew 版） | 約 40 MB | `brew install ollama` |
+| 啟動 Ollama，並設為登入時自動啟動 | — | `brew services start ollama` |
+| 翻譯模型 `qwen2.5:7b` | 下載約 4.7 GB（存在 `~/.ollama`），翻譯時約佔 6 GB 記憶體 | `ollama pull qwen2.5:7b` |
+
+沒有 Homebrew：到 <https://ollama.com/download> 下載官方 app（約 200 MB），開啟一次即可（會常駐選單列、登入時自動啟動）。Linux：`curl -fsSL https://ollama.com/install.sh | sh`（含 GPU 函式庫，下載約 1.5 GB）。
+
+驗證：English Chat 的容器經 `host.docker.internal:11434` 連到主機上的 Ollama（Docker Desktop 會轉到 Ollama 預設聽的 `127.0.0.1`，不用改設定）。
+
+```bash
+ollama list | grep qwen2.5:7b
+docker exec app-store python3 -c "import urllib.request; print(urllib.request.urlopen('http://host.docker.internal:11434/api/version').read())"
+```
+
+- **換模型**（例如記憶體只有 8 GB，想用較小的）：先 `ollama pull <模型>`，安裝 English Chat 時在 App Store 表單的「翻譯用的 Ollama 模型」填它；`OLLAMA_MODEL=<模型> ./rerun_from_zero.sh` 則讓步驟 8 檢查那個模型（大小會從 Ollama registry 查）。
+- **容器連不到 Ollama**（English Chat 顯示 *Can't reach the translator*，常見於 Linux 的 Docker）：讓 Ollama 也聽外部連線，`OLLAMA_HOST=0.0.0.0`：Homebrew 版 `launchctl setenv OLLAMA_HOST 0.0.0.0 && brew services restart ollama`；Linux 用 `sudo systemctl edit ollama` 加上 `Environment="OLLAMA_HOST=0.0.0.0"` 後重啟。容器若不認得 `host.docker.internal`，安裝表單的「Ollama 位址」填 `http://<主機 IP>:11434`。
+
+---
+
+## 7. 最終驗收
 
 瀏覽器開啟（皆為綠色鎖頭、無警告）：
 
@@ -199,7 +225,7 @@ curl -s -o /dev/null -w "https verify -> %{http_code}\n" https://home.reflex-ddn
 
 ---
 
-## 7. 日常使用
+## 8. 日常使用
 
 | 動作 | 指令 |
 |------|------|
@@ -209,12 +235,13 @@ curl -s -o /dev/null -w "https verify -> %{http_code}\n" https://home.reflex-ddn
 | 改 `Dockerfile` / `pyproject.toml` / `docker/` | 需重跑 `./docker_restart.sh`（含 `--build`） |
 | 看日誌 | `docker compose -f docker-compose.test.yml logs -f re-ddns` |
 | 還原 Mac DNS | `./macos_set_dns.sh --leave` |
+| English Chat 翻譯（Ollama）狀態 | `brew services list \| grep ollama`、`ollama list` |
 
 > DNS 與 CA 設定只需做一次。重開機後若 53 又被佔用，重做步驟 2 即可。
 
 ---
 
-## 8. 疑難排解
+## 9. 疑難排解
 
 | 症狀 | 原因 / 解法 |
 |------|------|
@@ -225,6 +252,8 @@ curl -s -o /dev/null -w "https verify -> %{http_code}\n" https://home.reflex-ddn
 | testapp 開不了、home 正常 | 看 `docker logs test-app` 找 `[register]` 是否成功；常見是 re-ddns 還沒 ready 它就註冊，重跑 `./docker_restart.sh` 會依序等待。 |
 | 容器起不來 / port 53 衝突 | 回步驟 2 釋放 53；`docker logs re-ddns` 看 BIND9 設定檢查是否失敗。 |
 | `docker info` 連不上 | Docker Desktop 沒啟動：`open -a Docker`，等就緒再重試。 |
+| English Chat 右鍵翻譯：*Can't reach the translator* | 主機上的 Ollama 沒在跑（`brew services start ollama`），或容器連不到它：見 §6。 |
+| English Chat 右鍵翻譯：*The translator model … is not installed* | `ollama pull qwen2.5:7b`（或你在 App Store 表單填的模型），見 §6。 |
 
 ---
 
