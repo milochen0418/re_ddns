@@ -273,7 +273,7 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": [],
+      "volumes": ["smart-app-english-chat-data:/root/.local/share/reflex_ddns_livekit_english_chat"],
       "ports": ["7681:7681", "7682:7682/udp"],
       "env_schema": [
         {"key": "OLLAMA_MODEL", "label": "翻譯用的 Ollama 模型（選填）", "placeholder": "qwen2.5:7b", "secret": false, "required": false, "help": "選取字幕文字後按右鍵翻譯，由 Docker 主機上的 Ollama（本地 LLM）完成。\n留空使用 qwen2.5:7b，請先在主機執行：ollama pull qwen2.5:7b；也可填任何已 pull 的聊天模型（ollama list）。"},
