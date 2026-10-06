@@ -262,6 +262,26 @@
       ]
     },
     {
+      "id": "ddns-livekit-english-chat",
+      "name": "LiveKit English Chat (self-hosted)",
+      "description": "English conversation as cartoon avatars with live subtitles (Whisper, self-hosted) and right-click translation of any words into your language (local LLM via Ollama).",
+      "icon": "captions",
+      "subdomain": "english-chat",
+      "github_repo": "https://github.com/milochen0418/reflex_ddns_livekit_english_chat.git",
+      "app_name": "reflex_ddns_livekit_english_chat",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "ports": ["7681:7681", "7682:7682/udp"],
+      "env_schema": [
+        {"key": "OLLAMA_MODEL", "label": "翻譯用的 Ollama 模型（選填）", "placeholder": "qwen2.5:7b", "secret": false, "required": false, "help": "選取字幕文字後按右鍵翻譯，由 Docker 主機上的 Ollama（本地 LLM）完成。\n留空使用 qwen2.5:7b，請先在主機執行：ollama pull qwen2.5:7b；也可填任何已 pull 的聊天模型（ollama list）。"},
+        {"key": "OLLAMA_URL", "label": "Ollama 位址（選填）", "placeholder": "http://host.docker.internal:11434", "secret": false, "required": false, "help": "留空即使用 Docker 主機上的 Ollama（http://host.docker.internal:11434）；Ollama 在別台機器時再填它的位址。"},
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7681/tcp + 7682/udp，可與語音（7881/7882）、視訊（7981/7982）、頭像（7781/7782）聊天 app 同時安裝。\n字幕用的 Whisper 語音模型（約 470 MB）會在第一次啟動時自動下載。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+      ]
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
