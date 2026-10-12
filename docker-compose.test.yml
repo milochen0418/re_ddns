@@ -235,12 +235,16 @@ services:
       - CATALOG_PATH=/app/data/appstore_catalog.json
       - DOCKER_SOCK=/var/run/docker.sock
       - APPSTORE_DEV_MODE=${APPSTORE_DEV_MODE:-0}
+      # Host home (mounted below) — lets the Dev form autocomplete host paths
+      - HOST_HOME=${HOME}
 
     volumes:
       # Catalog (the source of truth for which apps exist)
       - ./data/appstore_catalog.json:/app/data/appstore_catalog.json:ro
       # Docker socket — needed to read status and start/stop containers
       - /var/run/docker.sock:/var/run/docker.sock
+      # Host home, read-only, under /hostfs — Dev form path autocomplete
+      - ${HOME}:/hostfs${HOME}:ro
 
     restart: unless-stopped
 

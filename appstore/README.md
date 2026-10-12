@@ -100,6 +100,21 @@ docker logs -f app-store
 | `SERVICE_ZONE`       | `reflex-ddns.com`                     | DNS zone.                                |
 | `CATALOG_PATH`       | `/app/data/appstore_catalog.json`     | App catalog location.                    |
 | `DOCKER_SOCK`        | `/var/run/docker.sock`                | Docker Engine socket for status/control. |
+| `APPSTORE_DEV_MODE`  | `0`                                   | `1` shows the **Dev** button (bind-mount a local checkout). |
+| `HOST_HOME`          | *(empty)*                             | Host home folder; the Dev form autocompletes paths under it. |
+| `HOST_FS_PREFIX`     | `/hostfs`                             | Where the host home is mounted read-only (`${HOME}:/hostfs${HOME}:ro`). |
+
+### Dev form path autocomplete
+
+The Dev form's path field works like a shell: type `/` or `~/` and press
+**Tab** to complete (a unique folder completes; several extend to their
+common prefix, and a second Tab takes the highlighted one). **↑/↓** move
+through the folder list, **Enter** takes the highlighted folder, **Esc**
+hides the list. No prefix match falls back to a substring match
+(`gits/dd` → `re_ddns`). Folders with `rxconfig.py` / `pyproject.toml` are
+tagged, and the line under the field says whether the path is a project.
+Only folders under `HOST_HOME` can be listed; `/` and its ancestors show
+just the way down to it.
 
 ## Notes / limitations
 

@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import posixpath
 from pathlib import Path
 
 import httpx
@@ -36,6 +37,33 @@ DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
 RE_DDNS_API_URL = os.environ.get("RE_DDNS_API_URL", "http://re-ddns:8000")
 # Dev mode: show the "Dev" button on app cards (off by default).
 DEV_MODE_ENABLED = os.environ.get("APPSTORE_DEV_MODE", "0") == "1"
+# Dev mode path autocomplete: the Docker host's home folder is bind-mounted
+# read-only at HOST_FS_PREFIX + <host path>, so the Dev form can list the
+# host's folders (the path the user types is a *host* path).
+HOST_HOME = os.environ.get("HOST_HOME", "").rstrip("/")
+HOST_FS_PREFIX = os.environ.get("HOST_FS_PREFIX", "/hostfs").rstrip("/")
+DEV_SUGGEST_LIMIT = 50
+
+# Keys the Dev path input handles itself: stop Tab from moving focus, the
+# arrows from moving the caret, and Enter from submitting while a suggestion
+# is highlighted. Capture phase, so React's onKeyDown still sees the key.
+_DEV_PATH_KEYS_JS = """
+if (!window.__devPathKeys) {
+  window.__devPathKeys = true;
+  document.addEventListener('keydown', (e) => {
+    if (!e.target || e.target.id !== 'dev_path_input' || e.isComposing) return;
+    const active = document.querySelector('#dev_path_suggest [data-active="true"]');
+    if ((e.key === 'Tab' && !e.shiftKey) || e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' || (e.key === 'Enter' && active)) {
+      e.preventDefault();
+    }
+  }, true);
+}
+"""
+_DEV_SCROLL_ACTIVE_JS = """
+setTimeout(() => document.querySelector('#dev_path_suggest [data-active="true"]')
+  ?.scrollIntoView({block: 'nearest'}), 0);
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +137,68 @@ def _build_install_cmd(app: dict) -> str:
     return " ".join(parts)
 
 
+def _expand_home(path: str) -> str:
+    """``~`` / ``~/x`` → the host home, like a shell."""
+    if HOST_HOME and (path == "~" or path.startswith("~/")):
+        return HOST_HOME + path[1:]
+    return path
+
+
+def _browse_root() -> str:
+    """The host folder the App Store can list, or "" when it is not mounted."""
+    if HOST_HOME and os.path.isdir(HOST_FS_PREFIX + HOST_HOME):
+        return HOST_HOME
+    return ""
+
+
+def _under(root: str, path: str) -> bool:
+    return path == root or path.startswith(root + "/")
+
+
+def _host_subdirs(host_dir: str) -> list[str] | None:
+    """Sub-folder names of a host folder, or None when it can't be listed.
+
+    Inside the browse root this is a real listing. Its ancestors (``/``,
+    ``/Users``, …) list only the next step toward the root, so ``/`` + Tab
+    walks down to the home folder.
+    """
+    root = _browse_root()
+    if not root or not host_dir.startswith("/"):
+        return None
+    d = posixpath.normpath(host_dir)
+    if _under(root, d):
+        try:
+            with os.scandir(HOST_FS_PREFIX + d) as it:
+                return sorted((e.name for e in it if e.is_dir()), key=str.lower)
+        except OSError:
+            return []
+    if d == "/" or root.startswith(d + "/"):
+        return [root[len(d.rstrip("/")) + 1:].split("/")[0]]
+    return None
+
+
+def _match_subdirs(names: list[str], prefix: str) -> list[str]:
+    """Case-insensitive prefix matches; substring matches when there are none.
+    Hidden folders only show once the prefix starts with a dot."""
+    if not prefix.startswith("."):
+        names = [n for n in names if not n.startswith(".")]
+    low = prefix.lower()
+    head = [n for n in names if n.lower().startswith(low)]
+    if head or not low:
+        return head
+    return [n for n in names if low in n.lower()]
+
+
+def _project_kind(host_dir: str) -> str:
+    """'reflex' (has rxconfig.py), 'python' (has pyproject.toml) or ''."""
+    base = HOST_FS_PREFIX + host_dir
+    if os.path.isfile(posixpath.join(base, "rxconfig.py")):
+        return "reflex"
+    if os.path.isfile(posixpath.join(base, "pyproject.toml")):
+        return "python"
+    return ""
+
+
 _STATUS_LABEL = {
     "running": "Running",
     "stopped": "Stopped",
@@ -151,6 +241,17 @@ class AppStoreState(rx.State):
     dev_form_sub: str = ""
     dev_form_name: str = ""
     dev_form_error: str = ""
+    dev_form_subdir: str = ""
+    # Path autocomplete (the input itself is uncontrolled; Tab writes back
+    # through rx.set_value).
+    dev_path: str = ""
+    dev_suggestions: list[dict[str, str]] = []  # {name, kind}
+    dev_suggest_more: int = 0                   # matches beyond the list
+    dev_suggest_index: int = -1                 # highlighted row, -1 = none
+    dev_suggest_open: bool = False
+    dev_path_status: str = ""
+    dev_path_status_kind: str = ""              # ok | info | warn | error
+    dev_browse_root: str = ""
 
     @rx.var
     def progress_width(self) -> str:
@@ -415,7 +516,13 @@ class AppStoreState(rx.State):
         self.dev_form_sub = subdomain
         self.dev_form_name = str(app.get("name", subdomain))
         self.dev_form_error = ""
+        self.dev_form_subdir = str(app.get("subdir") or "").strip("/")
+        self.dev_browse_root = _browse_root()
+        self.dev_path = ""
+        self.dev_suggest_index = -1
+        self._refresh_dev_suggestions()
         self.show_dev_form = True
+        return rx.call_script(_DEV_PATH_KEYS_JS)
 
     @rx.event
     def cancel_dev_form(self):
@@ -423,12 +530,137 @@ class AppStoreState(rx.State):
         self.dev_form_sub = ""
         self.dev_form_error = ""
 
+    def _split_dev_path(self) -> tuple[str, str]:
+        """``/a/b/pre`` → (``/a/b/``, ``pre``). Empty path → (``/``, "")."""
+        path = _expand_home(self.dev_path.strip()) or "/"
+        if "/" not in path:
+            return "", path
+        head, _, prefix = path.rpartition("/")
+        return head + "/", prefix
+
+    def _refresh_dev_suggestions(self):
+        """Recompute the suggestion list and the hint for the typed path."""
+        head, prefix = self._split_dev_path()
+        names = _host_subdirs(head) if head else None
+        matches = _match_subdirs(names or [], prefix) if self.dev_path.strip() else []
+        shown = matches[:DEV_SUGGEST_LIMIT]
+        self.dev_suggestions = [
+            {"name": n, "kind": _project_kind(head + n)} for n in shown
+        ]
+        self.dev_suggest_more = len(matches) - len(shown)
+        if self.dev_suggest_index >= len(shown):
+            self.dev_suggest_index = -1
+
+        root = self.dev_browse_root
+        path = _expand_home(self.dev_path.strip())
+        status, kind = "", ""
+        if not root or not path:
+            pass
+        elif not path.startswith("/"):
+            status, kind = "請輸入絕對路徑（以 / 或 ~/ 開頭）", "error"
+        else:
+            d = posixpath.normpath(path)
+            if not _under(root, d):
+                if names is None:
+                    status, kind = f"這裡無法自動補齊（只看得到 {root} 底下）；會直接使用此路徑", "warn"
+                elif not matches:
+                    status, kind = "找不到這個資料夾", "error"
+            elif os.path.isdir(HOST_FS_PREFIX + d):
+                sub = self.dev_form_subdir
+                project = posixpath.join(d, sub) if sub else d
+                where = f"（子目錄 {sub}）" if sub else ""
+                proj_kind = _project_kind(project)
+                if proj_kind == "reflex":
+                    status, kind = f"✓ Reflex 專案{where}：找到 rxconfig.py", "ok"
+                elif proj_kind == "python":
+                    status, kind = f"✓ 找到 pyproject.toml{where}", "ok"
+                else:
+                    status, kind = f"這個資料夾{where}沒有 pyproject.toml，繼續往下選", "info"
+            elif not matches:
+                status, kind = "找不到這個資料夾", "error"
+        self.dev_path_status, self.dev_path_status_kind = status, kind
+
+    def _set_dev_path(self, path: str):
+        """Write a completed path back into the input and refresh."""
+        self.dev_path = path
+        self.dev_suggest_index = -1
+        self.dev_suggest_open = True
+        self._refresh_dev_suggestions()
+        return [
+            rx.set_value("dev_path_input", path),
+            rx.set_focus("dev_path_input"),
+        ]
+
+    def _accept_dev_dir(self, name: str):
+        head, _ = self._split_dev_path()
+        return self._set_dev_path(head + name + "/")
+
+    def _complete_dev_path(self):
+        """Tab: like a shell, plus a highlight you can confirm with Tab again."""
+        if 0 <= self.dev_suggest_index < len(self.dev_suggestions):
+            return self._accept_dev_dir(self.dev_suggestions[self.dev_suggest_index]["name"])
+        if not self.dev_path.strip():
+            return self._set_dev_path("/")
+        head, prefix = self._split_dev_path()
+        matches = _match_subdirs(_host_subdirs(head) or [], prefix) if head else []
+        if len(matches) == 1:
+            return self._accept_dev_dir(matches[0])
+        if not matches:
+            return
+        # Extend to the longest common prefix (case-insensitive) …
+        common = os.path.commonprefix([m.lower() for m in matches])
+        if common.startswith(prefix.lower()) and len(common) > len(prefix):
+            return self._set_dev_path(head + matches[0][: len(common)])
+        # … otherwise highlight the first match; the next Tab takes it.
+        self.dev_suggest_open = True
+        self.dev_suggest_index = 0
+        return rx.call_script(_DEV_SCROLL_ACTIVE_JS)
+
+    @rx.event
+    def on_dev_path_change(self, value: str):
+        self.dev_path = value
+        self.dev_suggest_index = -1
+        self.dev_suggest_open = True
+        self._refresh_dev_suggestions()
+
+    @rx.event
+    def on_dev_path_key(self, key: str, info: rx.event.KeyInputInfo):
+        if key == "Tab" and not info.get("shift_key"):
+            return self._complete_dev_path()
+        if key in ("ArrowDown", "ArrowUp"):
+            n = len(self.dev_suggestions)
+            if not n:
+                return
+            self.dev_suggest_open = True
+            step = 1 if key == "ArrowDown" else -1
+            if self.dev_suggest_index < 0:
+                self.dev_suggest_index = 0 if step > 0 else n - 1
+            else:
+                self.dev_suggest_index = (self.dev_suggest_index + step) % n
+            return rx.call_script(_DEV_SCROLL_ACTIVE_JS)
+        if key == "Enter" and self.dev_suggest_index >= 0:
+            return self._complete_dev_path()
+        if key == "Escape":
+            self.dev_suggest_open = False
+            self.dev_suggest_index = -1
+
+    @rx.event
+    def pick_dev_suggestion(self, name: str):
+        return self._accept_dev_dir(name)
+
     @rx.event
     def submit_dev_form(self, form_data: dict):
         """Validate local_path then kick off the dev install."""
-        local_path = str(form_data.get("local_path", "")).strip()
+        local_path = _expand_home(str(form_data.get("local_path", "")).strip())
+        if local_path != "/":
+            local_path = local_path.rstrip("/")
         if not local_path:
             self.dev_form_error = "請輸入本機專案路徑"
+            return
+        root = self.dev_browse_root
+        d = posixpath.normpath(local_path)
+        if root and _under(root, d) and not os.path.isdir(HOST_FS_PREFIX + d):
+            self.dev_form_error = f"找不到資料夾：{local_path}"
             return
         self.show_dev_form = False
         self.dev_form_error = ""
@@ -730,6 +962,60 @@ def env_form_panel() -> rx.Component:
     )
 
 
+def dev_suggestion_row(item: rx.Var[dict], index: rx.Var[int]) -> rx.Component:
+    active = index == AppStoreState.dev_suggest_index
+    return rx.el.div(
+        rx.icon("folder", class_name="h-4 w-4 shrink-0 text-purple-400"),
+        rx.el.span(item["name"], class_name="truncate"),
+        rx.match(
+            item["kind"],
+            (
+                "reflex",
+                rx.el.span(
+                    "Reflex",
+                    class_name="ml-auto shrink-0 px-2 rounded-full bg-purple-100 text-purple-700 text-[10px] font-sans font-bold",
+                ),
+            ),
+            (
+                "python",
+                rx.el.span(
+                    "pyproject",
+                    class_name="ml-auto shrink-0 px-2 rounded-full bg-gray-100 text-gray-600 text-[10px] font-sans font-bold",
+                ),
+            ),
+            rx.fragment(),
+        ),
+        on_click=AppStoreState.pick_dev_suggestion(item["name"]),
+        custom_attrs={"data-active": rx.cond(active, "true", "false")},
+        class_name=rx.cond(
+            active,
+            "flex items-center gap-2 px-3 py-1.5 cursor-pointer bg-purple-100 text-purple-900",
+            "flex items-center gap-2 px-3 py-1.5 cursor-pointer text-gray-700 hover:bg-gray-50",
+        ),
+    )
+
+
+def dev_path_suggestions() -> rx.Component:
+    """Folder list under the Dev path input (filtered as you type)."""
+    return rx.cond(
+        AppStoreState.dev_suggest_open & (AppStoreState.dev_suggestions.length() > 0),
+        rx.el.div(
+            rx.foreach(AppStoreState.dev_suggestions, dev_suggestion_row),
+            rx.cond(
+                AppStoreState.dev_suggest_more > 0,
+                rx.el.div(
+                    "…還有 " + AppStoreState.dev_suggest_more.to_string() + " 個，多打幾個字縮小範圍",
+                    class_name="px-3 py-1.5 text-xs font-sans text-gray-400",
+                ),
+                rx.fragment(),
+            ),
+            id="dev_path_suggest",
+            class_name="mt-1 max-h-56 overflow-y-auto border border-gray-200 rounded-xl text-sm font-mono bg-white",
+        ),
+        rx.fragment(),
+    )
+
+
 def dev_form_panel() -> rx.Component:
     """Modal form to collect the local source path for dev-mode install."""
     return rx.cond(
@@ -772,14 +1058,39 @@ def dev_form_panel() -> rx.Component:
                             class_name="text-sm font-semibold text-gray-700",
                         ),
                         rx.el.input(
+                            id="dev_path_input",
                             name="local_path",
-                            placeholder="/home/user/gits/my_app",
+                            placeholder="輸入 / 或 ~/ 再按 Tab",
                             type="text",
                             auto_complete="off",
+                            spell_check=False,
+                            auto_focus=True,
+                            on_change=AppStoreState.on_dev_path_change,
+                            on_key_down=AppStoreState.on_dev_path_key,
                             class_name="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500",
                         ),
+                        dev_path_suggestions(),
+                        rx.cond(
+                            AppStoreState.dev_path_status != "",
+                            rx.el.p(
+                                AppStoreState.dev_path_status,
+                                class_name=rx.match(
+                                    AppStoreState.dev_path_status_kind,
+                                    ("ok", "text-xs text-green-700 mt-1"),
+                                    ("warn", "text-xs text-amber-700 mt-1"),
+                                    ("error", "text-xs text-red-600 mt-1"),
+                                    "text-xs text-gray-500 mt-1",
+                                ),
+                            ),
+                            rx.fragment(),
+                        ),
                         rx.el.p(
-                            "請輸入 Docker host 上的絕對路徑（包含 pyproject.toml 的目錄）",
+                            "Docker host 上的絕對路徑（包含 pyproject.toml 的目錄）",
+                            rx.cond(
+                                AppStoreState.dev_browse_root != "",
+                                rx.el.span(" · Tab 補齊 · ↑↓ 選擇 · Esc 收起"),
+                                rx.el.span(" · 看不到主機資料夾，無法自動補齊"),
+                            ),
                             class_name="text-xs text-gray-400 mt-1",
                         ),
                         class_name="flex flex-col",
