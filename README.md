@@ -190,6 +190,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | LiveKit Avatar Chat (self-hosted) | `avatar-chat` | Voice calls with emotional cartoon avatars: the face is tracked on the device and only voice + expression values are sent, never video (publishes media ports 7781/tcp + 7782/udp) |
 | LiveKit English Chat (self-hosted) | `english-chat` | English conversation as avatars with live subtitles (Whisper in the app) and right-click translation into your language (local LLM via Ollama on the Docker host) (publishes media ports 7681/tcp + 7682/udp) |
 | Instagram Story Downloader | `instagram-story-downloader` | Back up Instagram Stories via headless browser |
+| ReflexGrid | `grid` | Excel-compatible spreadsheet: opens and saves real `.xlsx` workbooks (formulas, styles, tables, charts) |
 | *(add more)* | any subdomain | Any Reflex app on GitHub — add an entry to the JSON |
 
 To add your own app, append an entry to `data/appstore_catalog.json`:

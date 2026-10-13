@@ -299,6 +299,20 @@
         {"key": "IG_DS_USER_ID", "label": "Instagram ds_user_id cookie（選填）", "placeholder": "可留空", "secret": false, "required": false, "help": "同一個 Cookies 清單裡的 ds_user_id 值；不填也可以。"},
         {"key": "IG_CSRFTOKEN", "label": "Instagram csrftoken cookie（選填）", "placeholder": "可留空", "secret": false, "required": false, "help": "同一個 Cookies 清單裡的 csrftoken 值；不填也可以。"}
       ]
+    },
+    {
+      "id": "reflex-grid",
+      "name": "ReflexGrid",
+      "description": "Excel-compatible spreadsheet in the browser: opens and saves real .xlsx workbooks with formulas, styles, tables and charts.",
+      "icon": "sheet",
+      "subdomain": "grid",
+      "github_repo": "https://github.com/milochen0418/reflex_grid.git",
+      "app_name": "reflex_grid",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": []
     }
   ]
 }
