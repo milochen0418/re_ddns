@@ -285,6 +285,14 @@ if [[ "$DEV_MODE" == "1" ]]; then
             log "DEV_MODE:  copied $_cf (safe to modify)"
         fi
     done
+    # Through the package cache, bun writes the cache's URL for every package
+    # into reflex.lock/bun.lock (it only leaves the default npm registry out),
+    # so that folder gets a container copy too.
+    if [[ "$PKG_CACHE_ON" == "1" && -L "$PROJECT_DIR/reflex.lock" && -d "$_DEV_PROJECT/reflex.lock" ]]; then
+        rm -f "$PROJECT_DIR/reflex.lock"
+        cp -R "$_DEV_PROJECT/reflex.lock" "$PROJECT_DIR/reflex.lock"
+        log "DEV_MODE:  copied reflex.lock/ (bun writes the package cache's URLs into it)"
+    fi
 
     log "DEV_MODE: shadow directory ready — original source stays untouched"
 else
@@ -550,40 +558,46 @@ if [[ -f "pyproject.toml" ]]; then
     if grep -q '^\[project\]' pyproject.toml && \
        ! grep -q '^\[tool\.poetry\.dependencies\]' pyproject.toml; then
         log "Converting [project].dependencies to [tool.poetry.dependencies] ..."
-        python3 -c "
-import re, sys
+        # Read the table with a TOML parser: a regex over the file cannot tell
+        # the list's closing "]" from the one in an extra like reflex[pydantic].
+        python3 - <<'PY' || log "WARNING: dependency conversion had issues"
+import json
+import re
+import tomllib
 
-text = open('pyproject.toml').read()
-
-# Extract dependencies from [project] section
-m = re.search(r'dependencies\s*=\s*\[(.*?)\]', text, re.DOTALL)
-if not m:
-    sys.exit(0)
-
-raw = m.group(1)
-deps = []
-for line in raw.split('\n'):
-    line = line.strip().strip(',').strip('\"').strip(\"'\")
-    if not line:
+project = tomllib.load(open("pyproject.toml", "rb"))["project"]
+# PEP 508: name[extras] version-spec (or "@ url") ; markers
+pep508 = re.compile(
+    r"\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[(?P<extras>[^\]]*)\])?"
+    r"\s*(?:@\s*(?P<url>[^;\s]+)|\(?(?P<version>[^;()]*)\)?)\s*(?:;\s*(?P<markers>.+))?"
+)
+lines = []
+for req in project.get("dependencies", []):
+    m = pep508.fullmatch(req)
+    if not m:
+        print(f"[smart-launcher] WARNING: cannot convert dependency {req!r}, skipped")
         continue
-    # Parse 'reflex==0.8.25' or 'reflex>=0.8.23' or 'python-dotenv'
-    match = re.match(r'^([a-zA-Z0-9_-]+)(.*)', line)
-    if match:
-        name = match.group(1)
-        ver = match.group(2).strip()
-        if ver:
-            deps.append(f'{name} = \"{ver}\"')
-        else:
-            deps.append(f'{name} = \"*\"')
+    spec = {}
+    if m["url"]:
+        url = m["url"]
+        spec["git" if url.startswith("git+") else "url"] = url.removeprefix("git+")
+    else:
+        spec["version"] = m["version"].strip() or "*"
+    if m["extras"]:
+        spec["extras"] = [e.strip() for e in m["extras"].split(",") if e.strip()]
+    if m["markers"]:
+        spec["markers"] = m["markers"].strip()
+    fields = ", ".join(f"{k} = {json.dumps(v)}" for k, v in spec.items())
+    lines.append(f"{json.dumps(m['name'])} = {{ {fields} }}")
 
-if deps:
-    section = '\n[tool.poetry.dependencies]\npython = \">=3.11,<4.0\"\n'
-    for d in deps:
-        section += d + '\n'
-    text += section
-    open('pyproject.toml', 'w').write(text)
-    print(f'Added {len(deps)} dependencies to [tool.poetry.dependencies]')
-" 2>/dev/null || log "WARNING: dependency conversion had issues"
+if lines:
+    python = project.get("requires-python") or ">=3.11,<4.0"
+    text = open("pyproject.toml").read()
+    text += f"\n[tool.poetry.dependencies]\npython = {json.dumps(python)}\n" + "\n".join(lines) + "\n"
+    tomllib.loads(text)  # refuse to write anything that is not valid TOML
+    open("pyproject.toml", "w").write(text)
+    print(f"Added {len(lines)} dependencies to [tool.poetry.dependencies]")
+PY
     fi
 
     _pkg_cache_poetry_source

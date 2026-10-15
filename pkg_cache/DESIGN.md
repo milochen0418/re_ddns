@@ -218,6 +218,14 @@ Section 0.5 of `smart_launcher/entrypoint.sh` runs on every container start:
 5. If the cache does not answer, the launcher logs `Package cache not reachable` and downloads
    directly, exactly as before the cache existed.
 
+**Dev mode keeps the checkout clean.** A dev install links the app's checkout into the container,
+but every file the container changes gets a private copy (`pyproject.toml`, `poetry.lock`, …).
+With the cache on, `reflex.lock/` is copied too: bun leaves the registry out of `bun.lock` only
+for npm's default registry, so through the cache it writes `http://pkg-cache:3142/npm/…` into
+every entry. A lock like that must never reach the repo, since it fails wherever the cache does
+not exist. The flip side: frontend lock changes made in a dev container stay in the container,
+as `poetry.lock` changes already do.
+
 A container keeps the image it was created from, so only newly created containers use a new
 launcher image: rebuild `re-ddns/smart-launcher:latest`, then reinstall an app to use the cache.
 

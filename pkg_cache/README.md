@@ -96,6 +96,10 @@ If the cache is not running, the launcher logs `Package cache not reachable` and
 downloads everything directly, as before. To turn it off for one app, give the
 container `PKG_CACHE_URL=` (empty).
 
+In dev mode the launcher also copies the app's `reflex.lock/` instead of linking
+it: through the cache, bun writes `http://pkg-cache:3142/npm/…` into every entry
+of `bun.lock`, and that must not land in your checkout.
+
 The launcher image has to contain this entrypoint: rebuild it with
 `docker build -t re-ddns/smart-launcher:latest ./smart_launcher`
 (`docker_restart.sh` does this). Only newly created app containers use a new

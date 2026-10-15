@@ -209,6 +209,13 @@ pkg_cache/data/                         （host）=  /data（container）
 
 5. 快取沒有回應時，記錄 `Package cache not reachable`，然後直接下載，跟還沒有快取時完全一樣。
 
+**開發模式不會弄髒你的 checkout。** 開發模式安裝會把 app 的 checkout 連結進 container，但
+container 會改動的檔案都拿一份自己的副本（`pyproject.toml`、`poetry.lock`…）。快取開著時，
+`reflex.lock/` 也會複製一份：bun 只有在用 npm 預設 registry 時，才不把 registry 寫進
+`bun.lock`；經過快取時，它會在每一筆都寫上 `http://pkg-cache:3142/npm/…`。這樣的 lock 絕不能
+進到 repo，因為在沒有快取的地方會安裝失敗。代價是：開發模式 container 裡對前端 lock 的變更
+只留在 container 裡，跟 `poetry.lock` 原本的做法一樣。
+
 container 會一直使用建立它時的 image，所以只有新建立的 container 才會用到新的 launcher
 image：重建 `re-ddns/smart-launcher:latest` 之後，重新安裝 app 才會走快取。
 
