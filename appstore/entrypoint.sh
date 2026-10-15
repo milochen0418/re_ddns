@@ -18,22 +18,10 @@ log "Registering DNS record via re-ddns API …"
 poetry run python register_dns.py || log "WARNING: DNS registration failed – continuing anyway"
 
 # ──────────────────────────────────────────────
-# 2. Patch Vite allowedHosts (runtime)
+# 2. Start Reflex dev server
 # ──────────────────────────────────────────────
-VITE_CFG="/app/.web/vite.config.js"
-if [[ -f "$VITE_CFG" ]]; then
-    if grep -q 'allowedHosts: "all"' "$VITE_CFG"; then
-        sed -i 's|allowedHosts: "all"|allowedHosts: true|' "$VITE_CFG"
-        log "Patched vite.config.js: allowedHosts = true"
-    elif ! grep -q "allowedHosts" "$VITE_CFG"; then
-        sed -i 's|port: process.env.PORT,|port: process.env.PORT,\n    allowedHosts: true,|' "$VITE_CFG"
-        log "Patched vite.config.js: allowedHosts = true"
-    fi
-fi
-
-# ──────────────────────────────────────────────
-# 3. Start Reflex dev server
-# ──────────────────────────────────────────────
+# Vite allowedHosts comes from rxconfig.py (vite_allowed_hosts): Reflex 0.10
+# rewrites .web/vite.config.js on every run, so patching the file would not stick.
 log "Starting Reflex dev server on ports 3000/8000 …"
 exec poetry run reflex run \
     --env dev \

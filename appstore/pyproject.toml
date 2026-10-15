@@ -9,10 +9,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "~3.11"
-reflex = "0.8.24.post1"
-# SQLAlchemy 2.1 made greenlet optional; reflex 0.8.24 imports sqlalchemy.ext.asyncio
-# (needs greenlet). No lockfile here, so pin to 2.0.x like the root poetry.lock.
-sqlalchemy = ">=2.0,<2.1"
+reflex = "0.10.0"
 httpx = "*"
 
 [build-system]

@@ -1,9 +1,10 @@
 FROM python:3.11-slim-bookworm
 
 # ── System deps: Node.js (for Reflex frontend build), utilities ──
+# Reflex 0.10 needs Node.js >= 22.22.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl unzip git gcc libffi-dev \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g bun \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -27,11 +28,9 @@ RUN poetry install --no-root || (poetry lock && poetry install --no-root)
 COPY . .
 
 # ── Reflex init (pre-build frontend skeleton) ──
-RUN poetry run reflex init || true
-
-# Patch Reflex Vite config to allow any hostname
-RUN sed -i 's/port: process.env.PORT,/port: process.env.PORT,\n    allowedHosts: true,/' \
-    /app/.venv/lib/python3.11/site-packages/reflex/compiler/templates.py 2>/dev/null || true
+# --no-agents: skip the AI-agent instruction files Reflex writes by default.
+# allowedHosts for the Vite dev server is set in rxconfig.py.
+RUN poetry run reflex init --no-agents || true
 
 # ── Pre-install frontend packages into .web/node_modules ──
 # `reflex run` installs the frontend packages (bun install + bun add) before the

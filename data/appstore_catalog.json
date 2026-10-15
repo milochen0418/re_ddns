@@ -285,7 +285,7 @@
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
-      "icon": "instagram",
+      "icon": "camera",
       "subdomain": "instagram-story-downloader",
       "github_repo": "https://github.com/milochen0418/instagram_story_downloader.git",
       "app_name": "instagram_story_downloader",
