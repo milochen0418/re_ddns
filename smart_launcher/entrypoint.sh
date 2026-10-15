@@ -197,9 +197,10 @@ if [[ "$DEV_MODE" == "1" ]]; then
         ln -sf "$DEV_STATE/reflex.db" "$PROJECT_DIR/reflex.db"
     fi
 
-    # Config files the entrypoint will modify: replace symlinks with
-    # copies so the developer's originals stay untouched.
-    for _cf in pyproject.toml rxconfig.py poetry.lock; do
+    # Files the entrypoint (or `reflex init`) will modify: replace symlinks
+    # with copies so the developer's originals stay untouched.  Reflex >= 0.10
+    # init writes a managed section into AGENTS.md / CLAUDE.md.
+    for _cf in pyproject.toml rxconfig.py poetry.lock AGENTS.md CLAUDE.md; do
         if [[ -L "$PROJECT_DIR/$_cf" && -f "$_DEV_PROJECT/$_cf" ]]; then
             rm -f "$PROJECT_DIR/$_cf"
             cp "$_DEV_PROJECT/$_cf" "$PROJECT_DIR/$_cf"
@@ -546,6 +547,16 @@ fi
 # Ensure httpx is available (needed by register_dns.py)
 poetry run python -c "import httpx" 2>/dev/null || poetry run pip install httpx
 
+# SQLAlchemy >= 2.1 no longer installs greenlet, but its asyncio extension
+# (imported by Reflex 0.8 on startup) still needs it, so an app that gets no
+# greenlet through another dependency cannot even load the reflex CLI.  Try
+# loading it, and add greenlet only when that is the reason it fails.
+_reflex_load_err=$(poetry run python -c "from reflex.reflex import cli" 2>&1 || true)
+if [[ "$_reflex_load_err" == *greenlet* ]]; then
+    log "Reflex cannot load without greenlet (SQLAlchemy asyncio) — adding it"
+    poetry run pip install greenlet || log "WARNING: pip install greenlet failed"
+fi
+
 # ──────────────────────────────────────────────
 # 4.4 Install Playwright browsers (if the app uses Playwright)
 # ──────────────────────────────────────────────
@@ -606,8 +617,60 @@ elif [[ ! -f ".env" ]]; then
 fi
 
 # ──────────────────────────────────────────────
+# 4.6 Node.js new enough for this app's Reflex
+# ──────────────────────────────────────────────
+# One image serves every app, but each Reflex release sets its own Node.js
+# minimum (0.8.x: 20.19, 0.10: 22.22).  Ask the installed Reflex, and when the
+# bundled Node is older, use the latest official build of that major version.
+# It is kept in /opt, which (unlike the dev-mode shadow dir) survives restarts.
+# A failed download only logs a warning: Reflex still runs on the old Node.
+_version_ge() { printf '%s\n%s\n' "$2" "$1" | sort -V -C; }  # is $1 >= $2 ?
+
+_fetch_node() {  # $1 = major version, $2 = install dir
+    local base="https://nodejs.org/dist/latest-v$1.x" arch sums tgz rc
+    case "$(dpkg --print-architecture)" in arm64) arch=arm64 ;; *) arch=x64 ;; esac
+    sums=$(curl -fsSL "$base/SHASUMS256.txt") || return 1
+    tgz=$(awk -v f="linux-$arch.tar.gz" '$2 ~ f"$" {print $2}' <<<"$sums")
+    [[ -n "$tgz" ]] || return 1
+    log "Downloading $base/$tgz ..."
+    curl -fsSL "$base/$tgz" -o "/tmp/$tgz" \
+        && awk -v f="$tgz" '$2 == f {print $1 "  /tmp/" f}' <<<"$sums" | sha256sum -c --quiet - \
+        && rm -rf "$2" && mkdir -p "$2" \
+        && tar -xzf "/tmp/$tgz" -C "$2" --strip-components=1
+    rc=$?
+    rm -f "/tmp/$tgz"
+    [[ $rc -eq 0 ]] || rm -rf "$2"
+    return $rc
+}
+
+_node_min=$(poetry run python -c "from reflex import constants; print('NODE_MIN=' + constants.Node.MIN_VERSION)" 2>/dev/null \
+    | sed -n 's/^NODE_MIN=//p' || true)
+_node_cur=$(node --version 2>/dev/null | sed 's/^v//' || true)
+if [[ -z "$_node_min" ]]; then
+    log "Could not read the Node.js minimum from Reflex — keeping Node.js ${_node_cur:-none}"
+elif _version_ge "$_node_cur" "$_node_min"; then
+    log "Node.js $_node_cur meets Reflex's minimum $_node_min"
+else
+    _node_dir="/opt/node-v${_node_min%%.*}"
+    _node_cached=$("$_node_dir/bin/node" --version 2>/dev/null | sed 's/^v//' || true)
+    log "Node.js ${_node_cur:-none} is older than Reflex's minimum $_node_min"
+    if _version_ge "$_node_cached" "$_node_min" || _fetch_node "${_node_min%%.*}" "$_node_dir"; then
+        export PATH="$_node_dir/bin:$PATH"
+        log "Using Node.js $(node --version) from $_node_dir"
+    else
+        log "WARNING: could not download Node.js ${_node_min%%.*} — keeping ${_node_cur:-none}"
+    fi
+fi
+
+# ──────────────────────────────────────────────
 # 5. Initialize Reflex
 # ──────────────────────────────────────────────
+# Allow the Vite dev server to answer for https://<subdomain>.<zone>.
+# Reflex >= 0.10 rewrites .web/vite.config.js on every `reflex run` from a
+# template the allowedHosts sed patches below no longer reach, but reads this
+# config override instead.  Older Reflex has no such option and ignores it.
+export REFLEX_VITE_ALLOWED_HOSTS=true
+
 log "Running reflex init ..."
 poetry run reflex init || true
 
