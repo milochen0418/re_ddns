@@ -30,6 +30,8 @@ from pathlib import Path
 import httpx
 import reflex as rx
 
+from .monitor import MonitorState, monitor
+
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
 SERVICE_ZONE = os.environ.get("SERVICE_ZONE", "reflex-ddns.com")
 DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
@@ -1254,18 +1256,29 @@ def index() -> rx.Component:
                         ),
                         class_name="flex items-center gap-3",
                     ),
-                    rx.el.button(
-                        rx.cond(
-                            AppStoreState.loading,
-                            rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
-                            rx.icon("refresh-cw", class_name="h-4 w-4"),
+                    rx.el.div(
+                        rx.link(
+                            rx.el.div(
+                                rx.icon("activity", class_name="h-4 w-4"),
+                                rx.el.span("記憶體監控"),
+                                class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
+                            ),
+                            href="/monitor",
                         ),
-                        rx.el.span("Refresh"),
-                        on_click=AppStoreState.refresh,
-                        disabled=AppStoreState.loading,
-                        class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50",
+                        rx.el.button(
+                            rx.cond(
+                                AppStoreState.loading,
+                                rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
+                                rx.icon("refresh-cw", class_name="h-4 w-4"),
+                            ),
+                            rx.el.span("Refresh"),
+                            on_click=AppStoreState.refresh,
+                            disabled=AppStoreState.loading,
+                            class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50",
+                        ),
+                        class_name="flex flex-wrap items-center gap-2",
                     ),
-                    class_name="flex items-center justify-between mb-2",
+                    class_name="flex flex-wrap items-center justify-between gap-3 mb-2",
                 ),
                 rx.el.p(
                     "Browse, install, and manage Reflex apps deployed behind re-ddns.",
@@ -1313,3 +1326,4 @@ app = rx.App(
     ],
 )
 app.add_page(index, on_load=AppStoreState.refresh)
+app.add_page(monitor, route="/monitor", title="容器記憶體監控", on_load=MonitorState.refresh)
