@@ -45,6 +45,7 @@ Re-DDNS is a **self-hosted deployment platform** that runs entirely in Docker on
 | **nginx** | Unified HTTPS reverse proxy — one TLS terminator for every app |
 | **Local CA** | Self-signed Certificate Authority — issues trusted certs for each subdomain |
 | **Agentic App Store** | Browser UI to browse, install, start, stop, and uninstall apps |
+| **pkg-cache** | Download cache for app installs: apt packages, PyPI wheels, npm packages, Node.js / bun / Playwright builds are fetched once per exact version and kept in `pkg_cache/data/` ([usage](pkg_cache/README.md), design: [English](pkg_cache/DESIGN.md) / [中文](pkg_cache/DESIGN_ZH.md)) |
 
 Any [Reflex](https://reflex.dev) application hosted on GitHub can be deployed here by pointing the App Store (or an AI agent) at its repo URL. The platform handles DNS registration, certificate issuance, and reverse-proxy config automatically — **zero host shell commands needed after first setup**.
 
@@ -247,6 +248,8 @@ Smart Launcher container (smart-app-<subdomain>)
 
 After step 4, the app is accessible at `https://<subdomain>.reflex-ddns.com` with a trusted HTTPS certificate.
 
+When the `pkg-cache` container is running, the launcher sends every download of steps 2–5 (apt, Poetry / pip / uv, bun's npm packages, Node.js, Playwright) through it. A file already downloaded for an earlier install, in the same version, comes from `pkg_cache/data/` on the host instead of the internet; see [pkg_cache/README.md](pkg_cache/README.md).
+
 ### Deploy manually via CLI
 
 ```bash
@@ -419,6 +422,8 @@ Removes Poetry envs and Reflex artifacts, reinstalls everything, then starts the
 docker compose -f docker-compose.test.yml logs -f re-ddns
 docker logs -f app-store
 docker logs -f smart-app-md                  # any Smart Launcher app
+docker logs -f pkg-cache                      # download cache: MISS lines + per-minute summary
+open http://localhost:3142                    # download cache status (hits, MB saved)
 
 # ── DNS ──────────────────────────────────────────────────────────────────
 ./macos_set_dns.sh --join                     # enable local DNS

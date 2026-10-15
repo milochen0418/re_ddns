@@ -84,6 +84,7 @@ sudo bash macos_set_dns.sh
 | `EXTRA_PIP_PACKAGES` | _(空)_ | 額外安裝的 pip 套件（空格分隔） |
 | `EXTRA_APT_PACKAGES` | _(空)_ | 額外安裝的 apt 套件（空格分隔） |
 | `SKIP_DNS_REGISTER` | `0` | 設為 `1` 跳過 DNS 註冊 |
+| `PKG_CACHE_URL` | `http://pkg-cache:3142` | 下載快取位址：apt、Poetry / pip / uv、bun 的 npm 套件、Node.js、Playwright 都先經過它，同版本的檔案只從網路下載一次（見 [pkg_cache/README.md](../pkg_cache/README.md)）。設為空字串停用；快取沒在跑時直接從網路下載 |
 
 ## 部署多個應用
 

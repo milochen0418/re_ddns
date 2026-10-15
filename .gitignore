@@ -12,6 +12,9 @@ __pycache__/
 # Ignore uploaded files
 uploaded_files/
 
+# pkg-cache: downloaded packages (apt, PyPI, npm, Node.js, ...) kept on the host
+pkg_cache/data/
+
 # Ignore environment variable files
 .env
 smart_launcher/.env.mount*

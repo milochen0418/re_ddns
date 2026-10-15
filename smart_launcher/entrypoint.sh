@@ -86,6 +86,84 @@ log "  BACKEND_PORT:      $BACKEND_PORT"
 log "=================================="
 
 # ──────────────────────────────────────────────
+# 0.5 Package cache (pkg-cache)
+# ──────────────────────────────────────────────
+# re-ddns can run a pull-through download cache next to the apps (pkg_cache/
+# in the re_ddns repo).  When it answers, every downloader below goes through
+# it: apt, Poetry / pip / uv (PyPI), bun (npm, via the registry Reflex writes
+# into .web/bunfig.toml), Node.js, Reflex's bun installer and Playwright.  It
+# keeps each file under its exact URL, so only the very same version is ever
+# reused, and re-checks package indexes upstream, so versions resolve as they
+# would without it.  PKG_CACHE_URL="" turns it off; while the cache is down,
+# everything downloads directly as before.
+PKG_CACHE_URL="${PKG_CACHE_URL-http://pkg-cache:3142}"
+PKG_CACHE_ON=0
+_APT_HOSTS_RE='deb\.debian\.org|security\.debian\.org|deb\.nodesource\.com'
+_APT_ORIG=/var/lib/smart-launcher/apt-sources-orig
+# Put back the apt sources a previous start pointed at the cache: it may be
+# gone this time.
+if [[ -d "$_APT_ORIG" ]]; then
+    cp -a "$_APT_ORIG/." /
+    rm -rf "$_APT_ORIG"
+fi
+if [[ -n "$PKG_CACHE_URL" ]]; then
+    # It may still be starting when Docker brings every container up at once.
+    for _try in 1 2 3 4 5; do
+        if curl -fsS -m 2 "$PKG_CACHE_URL/_health" >/dev/null 2>&1; then
+            PKG_CACHE_ON=1
+            break
+        fi
+        sleep 1
+    done
+fi
+if [[ "$PKG_CACHE_ON" == "1" ]]; then
+    log "Package cache: $PKG_CACHE_URL (apt, PyPI, npm, Node.js, bun, Playwright)"
+    for _f in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+        if [[ -f "$_f" ]] && grep -qE "https?://($_APT_HOSTS_RE)/" "$_f"; then
+            mkdir -p "$_APT_ORIG$(dirname "$_f")"
+            cp -p "$_f" "$_APT_ORIG$_f"
+            sed -i -E "s#https?://($_APT_HOSTS_RE)/#$PKG_CACHE_URL/apt/\1/#g" "$_f"
+        fi
+    done
+    _pkg_cache_host="${PKG_CACHE_URL#*://}"
+    export PIP_INDEX_URL="$PKG_CACHE_URL/pypi/simple/"
+    export PIP_TRUSTED_HOST="${_pkg_cache_host%%/*}"
+    export UV_DEFAULT_INDEX="$PKG_CACHE_URL/pypi/simple/"
+    export UV_PYTHON_INSTALL_MIRROR="$PKG_CACHE_URL/github/astral-sh/python-build-standalone/releases/download"
+    export NPM_CONFIG_REGISTRY="$PKG_CACHE_URL/npm/"
+    export BUN_CONFIG_REGISTRY="$PKG_CACHE_URL/npm/"
+    export GITHUB="$PKG_CACHE_URL/github"   # base URL of Reflex's bun installer
+    export PLAYWRIGHT_DOWNLOAD_HOST="$PKG_CACHE_URL/playwright"
+    NODE_DIST_URL="$PKG_CACHE_URL/nodejs/dist"
+elif [[ -n "$PKG_CACHE_URL" ]]; then
+    log "Package cache not reachable at $PKG_CACHE_URL — downloading directly"
+fi
+NODE_DIST_URL="${NODE_DIST_URL:-https://nodejs.org/dist}"
+
+# Poetry takes package indexes only from pyproject.toml: add the cache as the
+# primary source (which replaces the implicit PyPI) unless the app has chosen
+# its own primary source.
+_pkg_cache_poetry_source() {
+    [[ "$PKG_CACHE_ON" == "1" ]] || return 0
+    python3 - "$PKG_CACHE_URL/pypi/simple/" <<'PY' || log "WARNING: could not add the package cache to pyproject.toml"
+import sys
+import tomllib
+
+text = open("pyproject.toml").read()
+sources = tomllib.loads(text).get("tool", {}).get("poetry", {}).get("source", [])
+if any(s.get("name") == "pkg-cache" for s in sources):
+    raise SystemExit
+if any(s.get("priority", "primary") in ("primary", "default") for s in sources):
+    print("[smart-launcher] pyproject.toml has its own primary package source; Poetry skips the cache")
+    raise SystemExit
+text += f'\n[[tool.poetry.source]]\nname = "pkg-cache"\nurl = "{sys.argv[1]}"\npriority = "primary"\n'
+tomllib.loads(text)  # refuse to write anything that is not valid TOML
+open("pyproject.toml", "w").write(text)
+print("[smart-launcher] Poetry source: pkg-cache (primary)")
+PY
+}
+
+# ──────────────────────────────────────────────
 # 1. Install extra APT packages (if any)
 # ──────────────────────────────────────────────
 if [[ -n "${EXTRA_APT_PACKAGES:-}" ]]; then
@@ -508,6 +586,8 @@ if deps:
 " 2>/dev/null || log "WARNING: dependency conversion had issues"
     fi
 
+    _pkg_cache_poetry_source
+
     # Remove stale lockfile from the cloned repo to avoid compatibility issues.
     rm -f poetry.lock
     log "Running poetry lock ..."
@@ -535,6 +615,7 @@ httpx = "*"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 TOMLEOF
+    _pkg_cache_poetry_source
     poetry install --no-root || (poetry lock && poetry install --no-root)
 fi
 
@@ -627,13 +708,16 @@ fi
 _version_ge() { printf '%s\n%s\n' "$2" "$1" | sort -V -C; }  # is $1 >= $2 ?
 
 _fetch_node() {  # $1 = major version, $2 = install dir
-    local base="https://nodejs.org/dist/latest-v$1.x" arch sums tgz rc
+    local base="$NODE_DIST_URL/latest-v$1.x" arch sums tgz url rc
     case "$(dpkg --print-architecture)" in arm64) arch=arm64 ;; *) arch=x64 ;; esac
     sums=$(curl -fsSL "$base/SHASUMS256.txt") || return 1
     tgz=$(awk -v f="linux-$arch.tar.gz" '$2 ~ f"$" {print $2}' <<<"$sums")
     [[ -n "$tgz" ]] || return 1
-    log "Downloading $base/$tgz ..."
-    curl -fsSL "$base/$tgz" -o "/tmp/$tgz" \
+    # Fetch it from its version folder (node-v22.22.0-… → v22.22.0/), which
+    # never changes the way latest-v22.x does, so the package cache keeps it.
+    url="$NODE_DIST_URL/$(sed -E 's/^node-(v[0-9.]+)-.*/\1/' <<<"$tgz")/$tgz"
+    log "Downloading $url ..."
+    curl -fsSL "$url" -o "/tmp/$tgz" \
         && awk -v f="$tgz" '$2 == f {print $1 "  /tmp/" f}' <<<"$sums" | sha256sum -c --quiet - \
         && rm -rf "$2" && mkdir -p "$2" \
         && tar -xzf "/tmp/$tgz" -C "$2" --strip-components=1

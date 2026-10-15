@@ -8,6 +8,7 @@ set -euo pipefail
 # Order:
 #   1. Stop all containers & remove volumes (clean stale registry/nginx configs)
 #   2. Start re-ddns and wait until its API is ready
+#      (+ build the smart-launcher image, start pkg-cache)
 #   3. Start testapp, testapp2, testapp3
 #
 # Usage:
@@ -150,6 +151,19 @@ if docker build -t re-ddns/smart-launcher:latest ./smart_launcher >/tmp/smart-la
 else
     warn "smart-launcher image build failed (App Store will build it on demand)."
     warn "  See /tmp/smart-launcher-build.log for details."
+fi
+
+# ──────────────────────────────────────────────
+# 2.6 Start the package cache
+# ──────────────────────────────────────────────
+# App installs fetch apt / PyPI / npm / Node.js files through pkg-cache, which
+# keeps them in ./pkg_cache/data (a bind mount: `down -v` above keeps it).
+# Optional — without it, installs download directly.
+log "Starting pkg-cache (package download cache) ..."
+if docker compose -f "$COMPOSE_FILE" up -d --build pkg-cache; then
+    ok "pkg-cache ready (status page: http://localhost:3142)"
+else
+    warn "pkg-cache did not start — app installs will download everything directly."
 fi
 
 # ──────────────────────────────────────────────

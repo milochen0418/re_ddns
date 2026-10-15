@@ -27,6 +27,7 @@
 #   http://testapp3.reflex-ddns.com   → test-app3 (frontend↔backend integration)
 #   http://aapps.reflex-ddns.com      → app-store (browse/install/manage apps)
 #   http://localhost:6080/vnc.html    → noVNC (testapp2 container desktop)
+#   http://localhost:3142             → pkg-cache (package download cache status)
 
 networks:
   ddns-net:
@@ -246,6 +247,32 @@ services:
       # Host home, read-only, under /hostfs — Dev form path autocomplete
       - ${HOME}:/hostfs${HOME}:ro
 
+    restart: unless-stopped
+
+  # ── Package cache (pkg-cache) ──────────────────────────────────────
+  # Pull-through cache for what app installs download: apt .debs, PyPI
+  # wheels, npm tarballs, Node.js / bun / Playwright builds. Smart-launcher
+  # containers find it as http://pkg-cache:3142 on ddns-net; a file is
+  # downloaded once per exact version and kept in ./pkg_cache/data on the
+  # host (git-ignored). See pkg_cache/README.md.
+  pkg-cache:
+    build:
+      context: ./pkg_cache
+      dockerfile: Dockerfile
+    container_name: pkg-cache
+    hostname: pkg-cache
+
+    networks:
+      ddns-net:
+
+    # Status page + use from the Mac: http://localhost:3142
+    ports:
+      - "127.0.0.1:3142:3142"
+
+    volumes:
+      - ./pkg_cache/data:/data
+
+    mem_limit: 512m
     restart: unless-stopped
 
 volumes:
