@@ -169,6 +169,7 @@ _MARKERS: list[tuple[str, str, int]] = [
     ("Running database migrations", "initializing", 82),
     ("Registering DNS record", "registering", 86),
     ("Starting Reflex dev server", "starting_app", 92),
+    ("Starting Reflex prod server", "starting_app", 92),
     ("App running at", "running", 100),
     ("App running", "running", 100),
 ]

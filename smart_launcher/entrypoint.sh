@@ -30,6 +30,8 @@ set -euo pipefail
 #   FRONTEND_PORT      – Reflex frontend port (default: 3000)
 #   BACKEND_PORT       – Reflex backend port (default: 8000)
 #   SKIP_DNS_REGISTER  – Set to "1" to skip DNS registration
+#   REFLEX_ENV         – "dev" (default: Vite dev server, hot reload) or
+#                        "prod" (prebuilt frontend, much less memory)
 #   EXTRA_PIP_PACKAGES – Space-separated extra pip packages to install
 #   EXTRA_APT_PACKAGES – Space-separated extra apt packages to install
 #   EXTRA_GIT_REPOS    – Space-separated "repo_url:relative_path" pairs.
@@ -828,9 +830,16 @@ mkdir -p uploaded_files
 export CODOC_BACKEND_BASE_URL="${EXTERNAL_URL}"
 log "CODOC_BACKEND_BASE_URL=${CODOC_BACKEND_BASE_URL}"
 
-log "Starting Reflex dev server on ports $FRONTEND_PORT/$BACKEND_PORT ..."
+# REFLEX_ENV=prod builds the frontend once and serves the static files instead
+# of running the Vite dev server: no hot reload, but that Node process (often
+# 0.2–1.3 GB per app) is gone.  The App Store's /monitor page switches it by
+# recreating the container with the other value.
+REFLEX_ENV="${REFLEX_ENV:-dev}"
+[[ "$REFLEX_ENV" == "prod" ]] || REFLEX_ENV=dev
+
+log "Starting Reflex $REFLEX_ENV server on ports $FRONTEND_PORT/$BACKEND_PORT ..."
 exec poetry run reflex run \
-    --env dev \
+    --env "$REFLEX_ENV" \
     --frontend-port "$FRONTEND_PORT" \
     --backend-port "$BACKEND_PORT" \
     --loglevel info

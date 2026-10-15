@@ -50,6 +50,9 @@ from . import i18n
 
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
 DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
+SERVICE_ZONE = os.environ.get("SERVICE_ZONE", "reflex-ddns.com")
+# Platform containers that serve a page but carry no SERVICE_SUBDOMAIN.
+PLATFORM_SUBDOMAINS = {"re-ddns": "home"}
 
 # Seconds between samples while the page is open.
 POLL_SECONDS = 4.0
@@ -125,6 +128,27 @@ async def _get(client: httpx.AsyncClient, path: str):
         return None
 
 
+async def _port_open(host: str, port: int) -> bool:
+    """Whether something accepts TCP connections on host:port right now."""
+    try:
+        _, writer = await asyncio.wait_for(asyncio.open_connection(host, port), 0.8)
+    except Exception:  # noqa: BLE001 - refused, unreachable, timeout: all "no"
+        return False
+    writer.close()
+    try:
+        await writer.wait_closed()
+    except Exception:  # noqa: BLE001
+        pass
+    return True
+
+
+def _frontend_port(env: dict[str, str], name: str) -> int:
+    """The port the container's web UI answers on (what nginx proxies to)."""
+    if name == "pkg-cache":
+        return int(env.get("PKG_CACHE_PORT") or 3142)
+    return int(env.get("FRONTEND_PORT") or 3000)
+
+
 async def _probe(client: httpx.AsyncClient, name: str) -> tuple[str, dict | None, dict | None]:
     """One container's stats + inspect, fetched together.
 
@@ -187,6 +211,108 @@ def _spark(samples: list[int]) -> str:
     )
 
 
+def _env_of(insp: dict | None) -> dict[str, str]:
+    """A container's environment as a dict."""
+    return dict(
+        e.split("=", 1) for e in ((insp or {}).get("Config") or {}).get("Env") or [] if "=" in e
+    )
+
+
+# Config keys a container is created with, copied from its inspect output when
+# it is recreated.
+_CREATE_KEYS = (
+    "Hostname", "Domainname", "User", "Tty", "OpenStdin", "StdinOnce",
+    "AttachStdin", "AttachStdout", "AttachStderr", "ExposedPorts", "Labels",
+    "Volumes", "StopSignal", "StopTimeout", "Healthcheck",
+)
+# Keys an image supplies; copied only where the container overrode them, so a
+# rebuilt image's own defaults (PATH, entrypoint, …) take effect.
+_IMAGE_KEYS = ("Cmd", "Entrypoint", "WorkingDir")
+
+
+async def recreate(name: str, env_set: dict[str, str]) -> None:
+    """Recreate a container with the same settings and some env vars changed.
+
+    Docker cannot change an existing container's environment, so switching an
+    app between dev and prod means a new container.  Everything else is taken
+    from ``inspect``: image, mounts and named volumes (so app data survives),
+    published ports, network, restart policy, memory limit.  Env entries that
+    merely repeat the old image's defaults are dropped, so the image's current
+    defaults apply.
+
+    The old container is stopped and parked under another name until the new
+    one has started; if anything fails it is renamed back and started again,
+    and the error is raised.
+    """
+    async with _client() as c:
+        r = await c.get(f"/containers/{name}/json")
+        r.raise_for_status()
+        insp = r.json()
+        cfg, host = insp["Config"], insp["HostConfig"]
+        img = await _get(c, f"/images/{insp['Image']}/json") or {}
+        img_cfg = img.get("Config") or {}
+
+        base_env = set(img_cfg.get("Env") or [])
+        env = [
+            e for e in cfg.get("Env") or []
+            if e not in base_env and e.split("=", 1)[0] not in env_set
+        ]
+        env += [f"{k}={v}" for k, v in env_set.items()]
+
+        body: dict = {"Image": cfg["Image"], "Env": env, "HostConfig": host}
+        body.update({k: cfg[k] for k in _CREATE_KEYS if cfg.get(k) is not None})
+        body.update({
+            k: cfg[k] for k in _IMAGE_KEYS
+            if cfg.get(k) is not None and cfg.get(k) != img_cfg.get(k)
+        })
+        endpoints = {}
+        for net, ep in ((insp.get("NetworkSettings") or {}).get("Networks") or {}).items():
+            entry: dict = {}
+            # Docker adds the container's short id as an alias; drop the old one.
+            aliases = [a for a in ep.get("Aliases") or [] if a != insp["Id"][:12]]
+            if aliases:
+                entry["Aliases"] = aliases
+            if ep.get("IPAMConfig"):
+                entry["IPAMConfig"] = ep["IPAMConfig"]
+            endpoints[net] = entry
+        body["NetworkingConfig"] = {"EndpointsConfig": endpoints}
+
+        parked = f"{name}-switching"
+        await c.post(f"/containers/{name}/stop?t=10", timeout=60.0)
+        r = await c.post(f"/containers/{name}/rename?name={parked}")
+        if r.status_code != 204:
+            await c.post(f"/containers/{name}/start")
+            raise RuntimeError(f"rename failed (HTTP {r.status_code})")
+        try:
+            r = await c.post(f"/containers/create?name={name}", json=body)
+            if r.status_code != 201:
+                raise RuntimeError(f"create: HTTP {r.status_code} {r.text[:160]}")
+            r = await c.post(f"/containers/{r.json()['Id']}/start")
+            if r.status_code not in (204, 304):
+                raise RuntimeError(f"start: HTTP {r.status_code} {r.text[:160]}")
+        except Exception:
+            await c.delete(f"/containers/{name}?force=true")
+            await c.post(f"/containers/{parked}/rename?name={name}")
+            await c.post(f"/containers/{name}/start")
+            raise
+        await c.delete(f"/containers/{parked}?force=true")
+
+
+def _app_url(name: str, insp: dict | None) -> str:
+    """The ``https://<subdomain>.<zone>`` a container answers on, or "".
+
+    Read from the container's own ``SERVICE_SUBDOMAIN`` / ``SERVICE_ZONE``
+    (what it registered with re-ddns), so a dev install under another
+    subdomain still links correctly.  re-ddns serves its control panel as
+    ``home`` without that variable; pkg-cache has no domain at all.
+    """
+    env = _env_of(insp)
+    sub = env.get("SERVICE_SUBDOMAIN") or PLATFORM_SUBDOMAINS.get(name, "")
+    if not sub:
+        return ""
+    return f"https://{sub}.{env.get('SERVICE_ZONE') or SERVICE_ZONE}"
+
+
 def _status_of(insp: dict | None, listed_state: str, t: Mapping[str, str]) -> tuple[str, str]:
     """``(status, translated label)``, including the half-dead case.
 
@@ -243,10 +369,26 @@ async def collect(
             listed_by_name[name] = item
         probes = await asyncio.gather(*(_probe(client, n) for n in names))
 
+    # A recreated container runs long before its app serves anything: the
+    # launcher is still reinstalling, and nginx answers 502 meanwhile.  A TCP
+    # check on the UI port separates "running" from "still starting", so the
+    # page explains the 502 instead of showing a healthy green badge.
+    ports = {
+        name: _frontend_port(_env_of(insp), name)
+        for name, _stats, insp in probes
+        if ((insp or {}).get("State") or {}).get("Running")
+    }
+    answering = dict(zip(
+        ports,
+        await asyncio.gather(*(_port_open(n, p) for n, p in ports.items())),
+    ))
+
     total_bytes = total_kb * 1024
     for name, stats, insp in probes:
         item = listed_by_name.get(name, {})
         status, label = _status_of(insp, str(item.get("State") or ""), t)
+        if status == "running" and not answering.get(name, True):
+            status, label = "starting", t["st_starting"]
         ws = _working_set(stats) if status != "stopped" else 0
         cpu, sample = _cpu_percent(stats, prev_cpu.get(name))
         if sample:
@@ -259,6 +401,12 @@ async def collect(
         limit = int(((insp or {}).get("HostConfig") or {}).get("Memory") or 0)
         sub = name[len("smart-app-"):] if name.startswith("smart-app-") else ""
         info = meta.get(sub, {})
+        url = _app_url(name, insp)
+        env = _env_of(insp)
+        # Only smart-launcher apps understand REFLEX_ENV; re-ddns and app-store
+        # have their own entrypoints and are managed by docker compose.
+        switchable = bool(sub) and "APP_NAME" in env
+        mode = (env.get("REFLEX_ENV") or "dev") if switchable else ""
         rows.append(
             {
                 "name": name,
@@ -280,6 +428,10 @@ async def collect(
                 "limit_mb": str(limit // MIB),
                 "limit_label": f"{limit // MIB:,} MB" if limit else t["no_limit"],
                 "spark": _spark(series),
+                "url": url,
+                "host": url.removeprefix("https://"),
+                "mode": mode,
+                "mode_label": t["mode_prod"] if mode == "prod" else t["mode_dev"] if mode else "",
                 "can_stop": "" if name in NO_STOP or status == "stopped" else "1",
                 "can_restart": "" if name in NO_RESTART else "1",
                 "_sort": f"{ws:020d}",
@@ -341,6 +493,14 @@ class MonitorState(rx.State):
     edit_value: str = ""
     edit_current: str = ""
     edit_hint: str = ""
+
+    # The ☰ menu that is open (container name, "" = none), and the dev/prod
+    # switch waiting for confirmation.
+    menu_name: str = ""
+    switch_name: str = ""
+    switch_to: str = ""        # "dev" | "prod"
+    switch_text: str = ""      # the confirmation question, in the current language
+    switching: str = ""        # container being recreated right now
 
     # Backend-only: CPU samples to diff against, and the sparkline history.
     _cpu: dict[str, list[int]] = {}
@@ -404,6 +564,79 @@ class MonitorState(rx.State):
     @rx.event
     def toggle_langs(self):
         self.show_langs = not self.show_langs
+        self.menu_name = ""
+
+    # ── ☰ menu ──
+
+    @rx.event
+    def toggle_menu(self, name: str):
+        self.menu_name = "" if self.menu_name == name else name
+        self.show_langs = False
+
+    @rx.event
+    def close_menus(self):
+        """Click outside any open menu."""
+        self.menu_name = ""
+        self.show_langs = False
+
+    @rx.event
+    def menu_restart(self, name: str):
+        self.menu_name = ""
+        return MonitorState.restart_container(name)
+
+    @rx.event
+    def ask_switch(self, name: str, to: str):
+        """Show the confirmation for a dev ↔ prod switch (it recreates the container)."""
+        t = self._strings()
+        self.menu_name = ""
+        self.edit_name = ""
+        self.switch_name = name
+        self.switch_to = "prod" if to == "prod" else "dev"
+        mode = t["mode_prod"] if self.switch_to == "prod" else t["mode_dev"]
+        self.switch_text = t["switch_confirm"].format(name=name, mode=mode)
+        self.message = ""
+
+    @rx.event
+    def cancel_switch(self):
+        self.switch_name = ""
+        self.switch_to = ""
+
+    @rx.event(background=True)
+    async def confirm_switch(self):
+        """Recreate the container with REFLEX_ENV changed.
+
+        Runs in the background: stopping the old container alone can take ten
+        seconds, and the page keeps updating meanwhile.
+        """
+        async with self:
+            name, to = self.switch_name, self.switch_to
+            t = self._strings()
+            if not name or self.switching:
+                if self.switching:
+                    self.message = t["msg_switch_busy"]
+                    self.message_kind = "error"
+                return
+            self.switching = name
+            self.switch_name = ""
+            mode = t["mode_prod"] if to == "prod" else t["mode_dev"]
+            self.message = t["msg_switch_working"].format(name=name, mode=mode)
+            self.message_kind = "info"
+        try:
+            await recreate(name, {"REFLEX_ENV": to})
+        except Exception as exc:  # noqa: BLE001 - recreate() restored the old one
+            async with self:
+                self.switching = ""
+                self.message = t["msg_switch_failed"].format(name=name, error=exc)
+                self.message_kind = "error"
+            return
+        async with self:
+            self.switching = ""
+            self.message = t["msg_switch_started"].format(name=name, mode=mode)
+            self.message_kind = "success"
+            try:
+                await self._sample()
+            except Exception:  # noqa: BLE001
+                pass
 
     @rx.event
     async def tick(self):
@@ -469,6 +702,8 @@ class MonitorState(rx.State):
 
     @rx.event
     def begin_edit(self, name: str, current_limit: str, ws_mb: str):
+        self.menu_name = ""
+        self.switch_name = ""
         self.edit_name = name
         self.edit_value = current_limit if current_limit != "0" else ""
         self.edit_current = ws_mb
@@ -699,6 +934,7 @@ def row_badge(row: rx.Var[dict]) -> rx.Component:
                 row["status"],
                 ("running", "h-2 w-2 rounded-full bg-green-500"),
                 ("half_dead", "h-2 w-2 rounded-full bg-red-500 animate-pulse"),
+                ("starting", "h-2 w-2 rounded-full bg-amber-500 animate-pulse"),
                 ("restarting", "h-2 w-2 rounded-full bg-amber-500 animate-pulse"),
                 ("stopped", "h-2 w-2 rounded-full bg-gray-300"),
                 "h-2 w-2 rounded-full bg-gray-300",
@@ -709,6 +945,7 @@ def row_badge(row: rx.Var[dict]) -> rx.Component:
             row["status"],
             ("running", "flex items-center gap-2 px-2.5 py-1 rounded-full bg-green-50 text-green-700"),
             ("half_dead", "flex items-center gap-2 px-2.5 py-1 rounded-full bg-red-50 text-red-700"),
+            ("starting", "flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800"),
             ("restarting", "flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800"),
             ("stopped", "flex items-center gap-2 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500"),
             "flex items-center gap-2 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500",
@@ -746,6 +983,138 @@ def _row_btn(label: str, icon: str, on_click, color: str) -> rx.Component:
         rx.el.span(label, class_name="hidden sm:inline"),
         on_click=on_click,
         class_name=f"flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all {color}",
+    )
+
+
+_MENU_ITEM = "flex items-start gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-left"
+
+
+def _menu_item(icon: str, label, hint, on_click, active=False):
+    """One row of the ☰ menu: icon, label and a grey line under it."""
+    return rx.el.button(
+        rx.icon(icon, class_name="h-4 w-4 mt-0.5 shrink-0"),
+        rx.el.div(
+            rx.el.div(label, class_name="font-medium"),
+            rx.el.div(hint, class_name="text-xs text-gray-400"),
+            class_name="flex-1 min-w-0",
+        ),
+        rx.cond(active, rx.icon("check", class_name="h-4 w-4 mt-0.5 text-blue-600"), None),
+        on_click=on_click,
+        disabled=active,
+        class_name=rx.cond(
+            active,
+            f"{_MENU_ITEM} text-gray-700 opacity-60 cursor-default",
+            f"{_MENU_ITEM} text-gray-700 hover:bg-gray-50",
+        ),
+    )
+
+
+def row_menu(row: rx.Var[dict]) -> rx.Component:
+    """☰ menu: open the app's link, restart, switch between Dev and Non-Dev.
+
+    The link shows its full URL on hover.  The switch items appear only for
+    smart-launcher apps (``row["mode"]`` set); the current mode is ticked.
+    """
+    return rx.el.div(
+        rx.el.button(
+            rx.icon("menu", class_name="h-4 w-4"),
+            on_click=MonitorState.toggle_menu(row["name"]),
+            title=MonitorState.t["menu_title"],
+            class_name=rx.cond(
+                MonitorState.menu_name == row["name"],
+                "flex items-center px-2.5 py-1.5 rounded-lg bg-gray-900 text-white",
+                "flex items-center px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200",
+            ),
+        ),
+        rx.cond(
+            MonitorState.menu_name == row["name"],
+            rx.el.div(
+                rx.cond(
+                    (row["url"] != "")
+                    & (row["status"] != "stopped")
+                    & (row["status"] != "starting"),
+                    rx.el.a(
+                        rx.icon("external-link", class_name="h-4 w-4 mt-0.5 shrink-0"),
+                        rx.el.div(
+                            rx.el.div(MonitorState.t["menu_open"], class_name="font-medium"),
+                            rx.el.div(row["host"], class_name="text-xs text-blue-500 truncate"),
+                            class_name="flex-1 min-w-0",
+                        ),
+                        href=row["url"],
+                        target="_blank",
+                        rel="noopener noreferrer",
+                        title=row["url"],
+                        on_click=MonitorState.close_menus,
+                        class_name=f"{_MENU_ITEM} text-gray-700 hover:bg-gray-50",
+                    ),
+                    None,
+                ),
+                rx.cond(
+                    row["can_restart"] != "",
+                    _menu_item(
+                        "rotate-cw",
+                        MonitorState.t["menu_restart"],
+                        MonitorState.t["menu_restart_hint"],
+                        MonitorState.menu_restart(row["name"]),
+                    ),
+                    None,
+                ),
+                rx.cond(
+                    row["mode"] != "",
+                    rx.el.div(
+                        rx.el.div(class_name="my-1 border-t border-gray-100"),
+                        _menu_item(
+                            "code",
+                            MonitorState.t["menu_to_dev"],
+                            MonitorState.t["menu_to_dev_hint"],
+                            MonitorState.ask_switch(row["name"], "dev"),
+                            active=row["mode"] == "dev",
+                        ),
+                        _menu_item(
+                            "leaf",
+                            MonitorState.t["menu_to_prod"],
+                            MonitorState.t["menu_to_prod_hint"],
+                            MonitorState.ask_switch(row["name"], "prod"),
+                            active=row["mode"] == "prod",
+                        ),
+                    ),
+                    None,
+                ),
+                class_name="absolute right-0 top-full mt-2 z-30 w-72 p-1 bg-white border border-gray-200 rounded-xl shadow-lg",
+            ),
+            None,
+        ),
+        class_name="relative",
+    )
+
+
+def switch_confirm() -> rx.Component:
+    """Confirmation for a Dev ↔ Non-Dev switch, which recreates the container."""
+    return rx.el.div(
+        rx.el.p(MonitorState.switch_text, class_name="text-sm text-gray-700"),
+        rx.el.div(
+            rx.el.button(
+                MonitorState.t["switch_go"],
+                on_click=MonitorState.confirm_switch,
+                class_name="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-black",
+            ),
+            rx.el.button(
+                MonitorState.t["switch_cancel"],
+                on_click=MonitorState.cancel_switch,
+                class_name="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200",
+            ),
+            class_name="flex items-center gap-2 mt-2",
+        ),
+        class_name="mt-3 p-3 rounded-xl bg-blue-50/60 border border-blue-100",
+    )
+
+
+def menu_backdrop() -> rx.Component:
+    """Invisible layer behind an open menu: a click anywhere else closes it."""
+    return rx.cond(
+        (MonitorState.menu_name != "") | MonitorState.show_langs,
+        rx.el.div(on_click=MonitorState.close_menus, class_name="fixed inset-0 z-10"),
+        None,
     )
 
 
@@ -802,6 +1171,14 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                 rx.el.div(
                     rx.el.span(row["name"], class_name="text-xs text-gray-400 truncate"),
                     rx.cond(
+                        row["host"] != "",
+                        rx.el.span(
+                            "→ " + row["host"],
+                            class_name="text-xs text-blue-500 truncate",
+                        ),
+                        None,
+                    ),
+                    rx.cond(
                         row["restarts"] != "0",
                         rx.el.span(
                             row["restarts_label"],
@@ -813,7 +1190,27 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                 ),
                 class_name="flex flex-col gap-0.5 min-w-0 flex-1",
             ),
-            row_badge(row),
+            rx.el.div(
+                rx.cond(
+                    row["mode"] != "",
+                    rx.el.span(
+                        row["mode_label"],
+                        title=rx.cond(
+                            row["mode"] == "prod",
+                            MonitorState.t["menu_to_prod_hint"],
+                            MonitorState.t["menu_to_dev_hint"],
+                        ),
+                        class_name=rx.cond(
+                            row["mode"] == "prod",
+                            "px-2 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-bold",
+                            "px-2 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-bold",
+                        ),
+                    ),
+                    None,
+                ),
+                row_badge(row),
+                class_name="flex items-center gap-2 shrink-0",
+            ),
             class_name="flex items-start justify-between gap-3",
         ),
         # memory bar + numbers
@@ -869,20 +1266,6 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                     "bg-gray-50 text-gray-600 hover:bg-gray-100",
                 ),
                 rx.cond(
-                    row["can_restart"] != "",
-                    _row_btn(
-                        MonitorState.t["act_restart"],
-                        "rotate-cw",
-                        lambda: MonitorState.restart_container(row["name"]),
-                        rx.cond(
-                            row["status"] == "half_dead",
-                            "bg-red-600 text-white hover:bg-red-700",
-                            "bg-blue-50 text-blue-700 hover:bg-blue-100",
-                        ),
-                    ),
-                    None,
-                ),
-                rx.cond(
                     row["can_stop"] != "",
                     _row_btn(
                         MonitorState.t["act_stop"],
@@ -892,11 +1275,22 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                     ),
                     None,
                 ),
+                row_menu(row),
                 class_name="flex items-center gap-2 shrink-0",
             ),
             class_name="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50",
         ),
         rx.cond(MonitorState.edit_name == row["name"], limit_editor(), None),
+        rx.cond(MonitorState.switch_name == row["name"], switch_confirm(), None),
+        rx.cond(
+            MonitorState.switching == row["name"],
+            rx.el.div(
+                rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
+                rx.el.span(MonitorState.t["switching"]),
+                class_name="flex items-center gap-2 mt-3 text-sm text-blue-700",
+            ),
+            None,
+        ),
         class_name=rx.match(
             row["status"],
             ("half_dead", "p-4 bg-white rounded-2xl border-2 border-red-200 shadow-sm"),
@@ -946,6 +1340,7 @@ def poll_timer() -> rx.Component:
 def monitor() -> rx.Component:
     return rx.el.main(
         poll_timer(),
+        menu_backdrop(),
         rx.el.div(
             # header
             rx.el.div(
