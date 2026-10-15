@@ -24,8 +24,15 @@ Everything is read through the Docker Engine API over the socket bind-mounted
 at ``/var/run/docker.sock`` (the same socket the app cards already use), plus
 ``/proc/meminfo``, which inside a container describes the whole Docker VM.
 
-This module is self-contained on purpose: ``appstore.py`` imports it, so it
-must not import ``appstore.py`` back.
+The page is translated: it starts in English and the picker in its header
+switches language without a reload, remembering the choice in the browser.
+All the text lives in the ``i18n`` package next door — see its ``__init__`` for
+how to add a language.  Strings with ``{placeholders}`` are formatted on the
+server (a Reflex Var cannot be ``.format()``-ed in a component), so anything
+the UI shows ready-made is composed in ``collect()`` or in a computed var.
+
+This module is self-contained apart from ``i18n``: ``appstore.py`` imports it,
+so it must not import ``appstore.py`` back.
 """
 
 from __future__ import annotations
@@ -33,10 +40,13 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Mapping
 from pathlib import Path
 
 import httpx
 import reflex as rx
+
+from . import i18n
 
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
 DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
@@ -56,6 +66,8 @@ NO_RESTART = {"app-store"}
 # MemAvailable thresholds for the warning line.
 CRITICAL_MB = 800
 TIGHT_MB = 1536
+# Docker itself refuses anything under 6 MB; keep a workable floor.
+MIN_LIMIT_MB = 128
 
 
 # ---------------------------------------------------------------------------
@@ -175,8 +187,8 @@ def _spark(samples: list[int]) -> str:
     )
 
 
-def _status_of(insp: dict | None, listed_state: str) -> tuple[str, str]:
-    """``(status, label)``, including the half-dead case.
+def _status_of(insp: dict | None, listed_state: str, t: Mapping[str, str]) -> tuple[str, str]:
+    """``(status, translated label)``, including the half-dead case.
 
     ``OOMKilled`` stays true from the moment the OOM killer took a process in
     the container until it is started again, so ``running`` + ``OOMKilled``
@@ -185,13 +197,13 @@ def _status_of(insp: dict | None, listed_state: str) -> tuple[str, str]:
     state = (insp or {}).get("State") or {}
     status = str(state.get("Status") or listed_state or "unknown")
     if status == "restarting":
-        return "restarting", "重啟中"
+        return "restarting", t["st_restarting"]
     if status == "running":
         if state.get("OOMKilled"):
-            return "half_dead", "OOM 半死"
-        return "running", "執行中"
+            return "half_dead", t["st_half_dead"]
+        return "running", t["st_running"]
     if status in ("exited", "created", "dead", "paused", "removing"):
-        return "stopped", "已停止"
+        return "stopped", t["st_stopped"]
     return "unknown", status
 
 
@@ -199,6 +211,7 @@ async def collect(
     prev_cpu: dict[str, list[int]],
     hist: dict[str, list[int]],
     meta: dict[str, dict[str, str]],
+    t: Mapping[str, str],
 ) -> tuple[list[dict[str, str]], dict[str, str], dict[str, list[int]]]:
     """Sample the VM and every container once.
 
@@ -217,7 +230,7 @@ async def collect(
     rows: list[dict[str, str]] = []
     next_cpu: dict[str, list[int]] = {}
     if not os.path.exists(DOCKER_SOCK):
-        return rows, {"error": "Docker socket 無法存取"}, next_cpu
+        return rows, {"error": t["socket_error"]}, next_cpu
 
     async with _client() as client:
         listed = await _get(client, "/containers/json?all=1") or []
@@ -233,7 +246,7 @@ async def collect(
     total_bytes = total_kb * 1024
     for name, stats, insp in probes:
         item = listed_by_name.get(name, {})
-        status, label = _status_of(insp, str(item.get("State") or ""))
+        status, label = _status_of(insp, str(item.get("State") or ""), t)
         ws = _working_set(stats) if status != "stopped" else 0
         cpu, sample = _cpu_percent(stats, prev_cpu.get(name))
         if sample:
@@ -260,9 +273,12 @@ async def collect(
                 "bar": f"{min(100.0, (ws / total_bytes * 100) if total_bytes else 0):.2f}%",
                 "cpu": f"{cpu:.1f}",
                 "restarts": str((insp or {}).get("RestartCount") or 0),
+                "restarts_label": t["restarts"].format(
+                    count=(insp or {}).get("RestartCount") or 0
+                ),
                 "uptime": str(item.get("Status") or ""),
                 "limit_mb": str(limit // MIB),
-                "limit_label": f"{limit // MIB:,} MB" if limit else "無上限",
+                "limit_label": f"{limit // MIB:,} MB" if limit else t["no_limit"],
                 "spark": _spark(series),
                 "can_stop": "" if name in NO_STOP or status == "stopped" else "1",
                 "can_restart": "" if name in NO_RESTART else "1",
@@ -276,18 +292,13 @@ async def collect(
 
     avail_mb = avail_kb // 1024
     level = "ok"
-    note = "記憶體充足。"
+    note = t["note_ok"]
     if avail_mb < CRITICAL_MB:
         level = "critical"
-        note = (
-            f"只剩 {avail_mb:,} MB 可用：下一次通話或 Whisper 載入（約 1.7 GB）"
-            "很可能觸發全域 OOM，殺掉當下最肥的行程（不一定是兇手）。"
-        )
+        note = t["note_critical"].format(avail=f"{avail_mb:,}")
     elif avail_mb < TIGHT_MB:
         level = "tight"
-        note = (
-            f"可用記憶體只有 {avail_mb:,} MB：再開一個吃記憶體的 app 就有 OOM 風險。"
-        )
+        note = t["note_tight"].format(avail=f"{avail_mb:,}")
     summary = {
         "error": "",
         "total": f"{total_kb / 1048576:.1f} GB",
@@ -299,7 +310,7 @@ async def collect(
         "cache_bar": f"{(cache_kb / total_kb * 100) if total_kb else 0:.2f}%",
         "swap": f"{swap_used_kb / 1048576:.2f} / {swap_total_kb / 1048576:.1f} GB",
         "swap_bar": f"{(swap_used_kb / swap_total_kb * 100) if swap_total_kb else 0:.2f}%",
-        "containers": str(len(rows)),
+        "containers": t["vm_containers"].format(count=len(rows)),
         "level": level,
         "note": note,
     }
@@ -320,17 +331,42 @@ class MonitorState(rx.State):
     message: str = ""
     message_kind: str = "info"  # info | success | error
 
+    # The chosen language, kept in the browser so it survives a reload. New
+    # visitors start in English (i18n.DEFAULT).
+    locale: str = rx.LocalStorage(i18n.DEFAULT, name="appstore_monitor_locale")
+    show_langs: bool = False
+
     # Memory-limit editor (one row at a time).
     edit_name: str = ""
     edit_value: str = ""
     edit_current: str = ""
+    edit_hint: str = ""
 
     # Backend-only: CPU samples to diff against, and the sparkline history.
     _cpu: dict[str, list[int]] = {}
     _hist: dict[str, list[int]] = {}
 
+    @rx.var
+    def t(self) -> dict[str, str]:
+        """The string table the components read, e.g. ``MonitorState.t["refresh"]``."""
+        return dict(i18n.strings(self.locale))
+
+    @rx.var
+    def subtitle(self) -> str:
+        """Composed here because a Var cannot be ``.format()``-ed in a component."""
+        return i18n.strings(self.locale)["subtitle"].format(seconds=int(POLL_SECONDS))
+
+    @rx.var
+    def lang_label(self) -> str:
+        return i18n.label(self.locale)
+
+    def _strings(self):
+        return i18n.strings(self.locale)
+
     async def _sample(self):
-        rows, vm, cpu = await collect(self._cpu, self._hist, _catalog_meta())
+        rows, vm, cpu = await collect(
+            self._cpu, self._hist, _catalog_meta(), self._strings()
+        )
         self.rows = rows
         self.vm = vm
         self._cpu = cpu
@@ -343,9 +379,31 @@ class MonitorState(rx.State):
         try:
             await self._sample()
         except Exception as exc:  # noqa: BLE001
-            self.message = f"讀取失敗：{exc}"
+            self.message = self._strings()["msg_read_failed"].format(error=exc)
             self.message_kind = "error"
         self.loading = False
+
+    @rx.event
+    async def set_locale(self, code: str):
+        """Switch language, and re-sample so the server-built text follows.
+
+        Status labels, the VM note and "N containers" are composed while
+        sampling, so they would otherwise keep the old language until the next
+        tick.
+        """
+        self.locale = code if code in i18n.CODES else i18n.DEFAULT
+        self.show_langs = False
+        self.message = ""
+        if self.edit_name:
+            self.edit_hint = self._strings()["limit_hint"].format(mb=self.edit_current)
+        try:
+            await self._sample()
+        except Exception:  # noqa: BLE001 - the language still changed
+            pass
+
+    @rx.event
+    def toggle_langs(self):
+        self.show_langs = not self.show_langs
 
     @rx.event
     async def tick(self):
@@ -368,37 +426,43 @@ class MonitorState(rx.State):
 
     # ── container actions ──
 
-    async def _act(self, name: str, verb: str, path: str, ok_label: str):
+    async def _act(self, name: str, path: str, keys: tuple[str, str, str]):
+        """POST a container action; ``keys`` are the ok / HTTP / error messages."""
+        ok_key, http_key, err_key = keys
+        t = self._strings()
         try:
             async with _client() as client:
                 r = await client.post(f"/containers/{name}/{path}", timeout=60.0)
         except Exception as exc:  # noqa: BLE001
-            self.message = f"{verb} {name} 失敗：{exc}"
+            self.message = t[err_key].format(name=name, error=exc)
             self.message_kind = "error"
             return
         if r.status_code in (204, 304):
-            self.message = f"{name} {ok_label}。"
+            self.message = t[ok_key].format(name=name)
             self.message_kind = "success"
         else:
-            self.message = f"{verb} {name} 失敗（HTTP {r.status_code}）。"
+            self.message = t[http_key].format(name=name, code=r.status_code)
             self.message_kind = "error"
 
     @rx.event
     async def stop_container(self, name: str):
         if name in NO_STOP:
-            self.message = f"{name} 是平台容器，停掉會讓這個頁面無法使用。"
+            self.message = self._strings()["msg_stop_protected"].format(name=name)
             self.message_kind = "error"
             return
-        await self._act(name, "停止", "stop?t=10", "已停止")
+        await self._act(name, "stop?t=10", ("msg_stop_ok", "msg_stop_http", "msg_stop_err"))
         yield MonitorState.refresh
 
     @rx.event
     async def restart_container(self, name: str):
         if name in NO_RESTART:
-            self.message = f"{name} 無法從自己的頁面重啟（會中斷這個連線）。"
+            self.message = self._strings()["msg_restart_protected"].format(name=name)
             self.message_kind = "error"
             return
-        await self._act(name, "重啟", "restart?t=10", "已重啟")
+        await self._act(
+            name, "restart?t=10",
+            ("msg_restart_ok", "msg_restart_http", "msg_restart_err"),
+        )
         yield MonitorState.refresh
 
     # ── memory limit ──
@@ -408,12 +472,14 @@ class MonitorState(rx.State):
         self.edit_name = name
         self.edit_value = current_limit if current_limit != "0" else ""
         self.edit_current = ws_mb
+        self.edit_hint = self._strings()["limit_hint"].format(mb=ws_mb)
         self.message = ""
 
     @rx.event
     def cancel_edit(self):
         self.edit_name = ""
         self.edit_value = ""
+        self.edit_hint = ""
 
     @rx.event
     async def apply_limit(self, form_data: dict):
@@ -433,28 +499,29 @@ class MonitorState(rx.State):
         raw = str(form_data.get("limit_mb", "")).strip()
         if not name:
             return
+        t = self._strings()
         release = raw in ("", "0")
         if release:
             mb = (_read_meminfo().get("MemTotal", 0) // 1024) or 0
             if not mb:
-                self.message = "讀不到 VM 總記憶體，無法解除上限。"
+                self.message = t["msg_no_memtotal"]
                 self.message_kind = "error"
                 return
         elif raw.isdigit():
             mb = int(raw)
         else:
-            self.message = "請輸入 MB 數字，或留空代表解除上限。"
+            self.message = t["msg_not_number"]
             self.message_kind = "error"
             return
-        if not release and mb < 128:
-            self.message = "上限至少 128 MB。"
+        if not release and mb < MIN_LIMIT_MB:
+            self.message = t["msg_min_limit"].format(min=MIN_LIMIT_MB)
             self.message_kind = "error"
             return
         current = int(self.edit_current or 0)
         if not release and mb < current * 1.1:
-            self.message = (
-                f"{name} 目前就用了 {current:,} MB，上限設 {mb:,} MB 會立刻被 OOM 殺掉。"
-                f"請設在 {int(current * 1.1):,} MB 以上。"
+            self.message = t["msg_below_usage"].format(
+                name=name, current=f"{current:,}", wanted=f"{mb:,}",
+                suggested=f"{int(current * 1.1):,}",
             )
             self.message_kind = "error"
             return
@@ -463,25 +530,25 @@ class MonitorState(rx.State):
             async with _client() as client:
                 r = await client.post(f"/containers/{name}/update", json=body, timeout=30.0)
         except Exception as exc:  # noqa: BLE001
-            self.message = f"設定 {name} 上限失敗：{exc}"
+            self.message = t["msg_limit_err"].format(name=name, error=exc)
             self.message_kind = "error"
             return
         if r.status_code == 200:
-            self.message = (
-                f"{name} 上限放寬到 VM 總量 {mb:,} MB（等同解除；Docker 無法在不重建容器的"
-                "情況下真正移除上限，要完全移除請重新安裝這個 app）。" if release
-                else f"{name} 記憶體上限設為 {mb:,} MB（超過就只殺它自己）。"
-            )
+            key = "msg_released" if release else "msg_limit_set"
+            self.message = t[key].format(name=name, mb=f"{mb:,}")
             self.message_kind = "success"
             self.edit_name = ""
             self.edit_value = ""
+            self.edit_hint = ""
         else:
             detail = ""
             try:
                 detail = str(r.json().get("message", ""))[:160]
             except Exception:  # noqa: BLE001
                 detail = r.text[:160]
-            self.message = f"設定 {name} 上限失敗（HTTP {r.status_code}）：{detail}"
+            self.message = t["msg_limit_http"].format(
+                name=name, code=r.status_code, detail=detail
+            )
             self.message_kind = "error"
         yield MonitorState.refresh
 
@@ -497,17 +564,59 @@ _LEVEL_BAR = {
 }
 
 
+def language_picker() -> rx.Component:
+    """Switches language without a reload; the options come from i18n.LOCALES.
+
+    The list is built from a plain Python loop because the available languages
+    are fixed when the app compiles — only the *choice* is state.
+    """
+    return rx.el.div(
+        rx.el.button(
+            rx.icon("languages", class_name="h-4 w-4"),
+            rx.el.span(MonitorState.lang_label),
+            rx.icon("chevron-down", class_name="h-3.5 w-3.5 opacity-60"),
+            on_click=MonitorState.toggle_langs,
+            title=MonitorState.t["language"],
+            class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
+        ),
+        rx.cond(
+            MonitorState.show_langs,
+            rx.el.div(
+                *[
+                    rx.el.button(
+                        rx.el.span(loc["label"], class_name="flex-1 text-left"),
+                        rx.cond(
+                            MonitorState.locale == loc["code"],
+                            rx.icon("check", class_name="h-4 w-4 text-blue-600"),
+                            None,
+                        ),
+                        on_click=MonitorState.set_locale(loc["code"]),
+                        class_name="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg",
+                    )
+                    for loc in i18n.LOCALES
+                ],
+                class_name="absolute right-0 z-20 mt-2 w-44 p-1 bg-white border border-gray-200 rounded-xl shadow-lg",
+            ),
+            None,
+        ),
+        class_name="relative",
+    )
+
+
 def vm_card() -> rx.Component:
     """Docker VM totals: a used / cache / free bar plus the warning line."""
     return rx.el.div(
         rx.el.div(
             rx.el.div(
                 rx.icon("server", class_name="h-5 w-5 text-blue-600"),
-                rx.el.h2("Docker VM 記憶體", class_name="text-lg font-bold text-gray-900"),
+                rx.el.h2(
+                    MonitorState.t["vm_title"],
+                    class_name="text-lg font-bold text-gray-900",
+                ),
                 class_name="flex items-center gap-2",
             ),
             rx.el.span(
-                MonitorState.vm["containers"] + " 個容器",
+                MonitorState.vm["containers"],
                 class_name="text-sm text-gray-500",
             ),
             class_name="flex items-center justify-between mb-4",
@@ -531,16 +640,16 @@ def vm_card() -> rx.Component:
         ),
         rx.el.div(
             rx.el.div(
-                rx.el.p("已用", class_name="text-xs text-gray-500"),
+                rx.el.p(MonitorState.t["vm_used"], class_name="text-xs text-gray-500"),
                 rx.el.p(MonitorState.vm["used"], class_name="text-xl font-bold text-gray-900"),
                 class_name="",
             ),
             rx.el.div(
-                rx.el.p("快取（可回收）", class_name="text-xs text-gray-500"),
+                rx.el.p(MonitorState.t["vm_cache"], class_name="text-xs text-gray-500"),
                 rx.el.p(MonitorState.vm["cache"], class_name="text-xl font-bold text-gray-500"),
             ),
             rx.el.div(
-                rx.el.p("可用", class_name="text-xs text-gray-500"),
+                rx.el.p(MonitorState.t["vm_avail"], class_name="text-xs text-gray-500"),
                 rx.el.p(
                     MonitorState.vm["avail"],
                     class_name=rx.match(
@@ -552,11 +661,11 @@ def vm_card() -> rx.Component:
                 ),
             ),
             rx.el.div(
-                rx.el.p("Swap", class_name="text-xs text-gray-500"),
+                rx.el.p(MonitorState.t["vm_swap"], class_name="text-xs text-gray-500"),
                 rx.el.p(MonitorState.vm["swap"], class_name="text-xl font-bold text-gray-700"),
             ),
             rx.el.div(
-                rx.el.p("總量", class_name="text-xs text-gray-500"),
+                rx.el.p(MonitorState.t["vm_total"], class_name="text-xs text-gray-500"),
                 rx.el.p(MonitorState.vm["total"], class_name="text-xl font-bold text-gray-700"),
             ),
             class_name="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-4",
@@ -640,36 +749,32 @@ def _row_btn(label: str, icon: str, on_click, color: str) -> rx.Component:
     )
 
 
-def limit_editor(row: rx.Var[dict]) -> rx.Component:
-    """Inline form for one container's memory limit."""
+def limit_editor() -> rx.Component:
+    """Inline form for the container in ``edit_name``."""
     return rx.el.form(
         rx.el.div(
             rx.el.input(
                 name="limit_mb",
                 default_value=MonitorState.edit_value,
-                placeholder="MB（留空 = 放寬到 VM 總量）",
+                placeholder=MonitorState.t["limit_placeholder"],
                 input_mode="numeric",
                 auto_focus=True,
                 class_name="w-40 px-3 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500",
             ),
             rx.el.button(
-                "套用",
+                MonitorState.t["limit_apply"],
                 type="submit",
                 class_name="px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-black",
             ),
             rx.el.button(
-                "取消",
+                MonitorState.t["limit_cancel"],
                 type="button",
                 on_click=MonitorState.cancel_edit,
                 class_name="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200",
             ),
             class_name="flex items-center gap-2",
         ),
-        rx.el.p(
-            "目前用量 " + row["ws_mb"] + " MB。有上限時，超量的是這個容器自己被殺，"
-            "不會讓 kernel 挑整台 VM 最肥的行程下手。",
-            class_name="text-xs text-gray-400 mt-1",
-        ),
+        rx.el.p(MonitorState.edit_hint, class_name="text-xs text-gray-400 mt-1"),
         on_submit=MonitorState.apply_limit,
         reset_on_submit=False,
         class_name="mt-2",
@@ -687,7 +792,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                     rx.cond(
                         row["kind"] == "platform",
                         rx.el.span(
-                            "平台",
+                            MonitorState.t["badge_platform"],
                             class_name="px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 text-[10px] font-bold shrink-0",
                         ),
                         None,
@@ -699,7 +804,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                     rx.cond(
                         row["restarts"] != "0",
                         rx.el.span(
-                            "重啟 " + row["restarts"] + " 次",
+                            row["restarts_label"],
                             class_name="text-xs text-amber-600 font-medium shrink-0",
                         ),
                         None,
@@ -741,7 +846,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
             rx.el.div(
                 rx.el.span(
                     rx.icon("cpu", class_name="h-3.5 w-3.5 inline mr-1 -mt-0.5"),
-                    "CPU " + row["cpu"] + "%",
+                    MonitorState.t["cpu"] + " " + row["cpu"] + "%",
                     class_name="text-xs text-gray-500",
                 ),
                 rx.el.span(
@@ -758,7 +863,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
             ),
             rx.el.div(
                 _row_btn(
-                    "上限",
+                    MonitorState.t["act_limit"],
                     "sliders-horizontal",
                     lambda: MonitorState.begin_edit(row["name"], row["limit_mb"], row["ws_mb"]),
                     "bg-gray-50 text-gray-600 hover:bg-gray-100",
@@ -766,7 +871,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                 rx.cond(
                     row["can_restart"] != "",
                     _row_btn(
-                        "重啟",
+                        MonitorState.t["act_restart"],
                         "rotate-cw",
                         lambda: MonitorState.restart_container(row["name"]),
                         rx.cond(
@@ -780,7 +885,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                 rx.cond(
                     row["can_stop"] != "",
                     _row_btn(
-                        "停止",
+                        MonitorState.t["act_stop"],
                         "square",
                         lambda: MonitorState.stop_container(row["name"]),
                         "bg-yellow-50 text-yellow-700 hover:bg-yellow-100",
@@ -791,7 +896,7 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
             ),
             class_name="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-50",
         ),
-        rx.cond(MonitorState.edit_name == row["name"], limit_editor(row), None),
+        rx.cond(MonitorState.edit_name == row["name"], limit_editor(), None),
         class_name=rx.match(
             row["status"],
             ("half_dead", "p-4 bg-white rounded-2xl border-2 border-red-200 shadow-sm"),
@@ -848,12 +953,13 @@ def monitor() -> rx.Component:
                     rx.el.div(
                         rx.icon("activity", class_name="h-8 w-8 text-blue-600"),
                         rx.el.h1(
-                            "容器記憶體監控",
+                            MonitorState.t["page_title"],
                             class_name="text-3xl font-black text-gray-900",
                         ),
                         class_name="flex items-center gap-3",
                     ),
                     rx.el.div(
+                        language_picker(),
                         rx.el.button(
                             rx.cond(
                                 MonitorState.auto,
@@ -861,7 +967,11 @@ def monitor() -> rx.Component:
                                 rx.icon("zap-off", class_name="h-4 w-4"),
                             ),
                             rx.el.span(
-                                rx.cond(MonitorState.auto, "自動更新中", "已暫停"),
+                                rx.cond(
+                                    MonitorState.auto,
+                                    MonitorState.t["auto_on"],
+                                    MonitorState.t["auto_off"],
+                                ),
                             ),
                             on_click=MonitorState.toggle_auto,
                             class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
@@ -872,7 +982,7 @@ def monitor() -> rx.Component:
                                 rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
                                 rx.icon("refresh-cw", class_name="h-4 w-4"),
                             ),
-                            rx.el.span("更新"),
+                            rx.el.span(MonitorState.t["refresh"]),
                             on_click=MonitorState.refresh,
                             disabled=MonitorState.loading,
                             class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50",
@@ -880,7 +990,7 @@ def monitor() -> rx.Component:
                         rx.link(
                             rx.el.div(
                                 rx.icon("arrow-left", class_name="h-4 w-4"),
-                                rx.el.span("App Store"),
+                                rx.el.span(MonitorState.t["back_to_store"]),
                                 class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
                             ),
                             href="/",
@@ -889,11 +999,7 @@ def monitor() -> rx.Component:
                     ),
                     class_name="flex flex-wrap items-center justify-between gap-3 mb-2",
                 ),
-                rx.el.p(
-                    "每 4 秒取樣一次。記憶體用的是 working set（扣掉可回收的檔案快取），"
-                    "與 docker stats 相同。",
-                    class_name="text-gray-500",
-                ),
+                rx.el.p(MonitorState.subtitle, class_name="text-gray-500"),
                 class_name="mb-8",
             ),
             monitor_banner(),
@@ -914,7 +1020,10 @@ def monitor() -> rx.Component:
                 ),
                 rx.el.div(
                     rx.icon("loader-circle", class_name="h-10 w-10 text-gray-300 animate-spin mb-4"),
-                    rx.el.p("讀取容器資料…", class_name="text-gray-400 font-medium"),
+                    rx.el.p(
+                        MonitorState.t["loading_rows"],
+                        class_name="text-gray-400 font-medium",
+                    ),
                     class_name="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-100 rounded-3xl",
                 ),
             ),

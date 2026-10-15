@@ -1260,7 +1260,7 @@ def index() -> rx.Component:
                         rx.link(
                             rx.el.div(
                                 rx.icon("activity", class_name="h-4 w-4"),
-                                rx.el.span("記憶體監控"),
+                                rx.el.span("Memory"),
                                 class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
                             ),
                             href="/monitor",
@@ -1326,4 +1326,11 @@ app = rx.App(
     ],
 )
 app.add_page(index, on_load=AppStoreState.refresh)
-app.add_page(monitor, route="/monitor", title="容器記憶體監控", on_load=MonitorState.refresh)
+app.add_page(
+    monitor,
+    route="/monitor",
+    # The tab title is fixed when the app compiles, so it stays in the default
+    # language; everything inside the page follows the picker.
+    title="Container Memory",
+    on_load=MonitorState.refresh,
+)
