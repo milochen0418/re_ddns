@@ -763,6 +763,24 @@ else
 fi
 
 # ──────────────────────────────────────────────
+# 4.7 One port for prod mode on Reflex >= 0.10
+# ──────────────────────────────────────────────
+# Reflex 0.10's prod mode serves the built frontend and the backend from one
+# process on one port, and exits with "frontend and backend must run on the
+# same port" when given two — which looped the container on every start.
+# Fold the backend onto the frontend port HERE, before the DNS registration
+# below, so re-ddns points nginx's backend upstream at the same port.
+# Reflex 0.8's prod mode (sirv + a separate backend) still wants two ports.
+if [[ "${REFLEX_ENV:-dev}" == "prod" ]]; then
+    _rx_ver=$(poetry run python -c "from reflex import constants; print(constants.Reflex.VERSION)" 2>/dev/null || true)
+    if [[ -n "$_rx_ver" ]] && _version_ge "$_rx_ver" "0.10.0"; then
+        BACKEND_PORT="$FRONTEND_PORT"
+        export FRONTEND_PORT BACKEND_PORT
+        log "Reflex $_rx_ver prod serves a single port — backend folded onto $FRONTEND_PORT"
+    fi
+fi
+
+# ──────────────────────────────────────────────
 # 5. Initialize Reflex
 # ──────────────────────────────────────────────
 # Allow the Vite dev server to answer for https://<subdomain>.<zone>.
