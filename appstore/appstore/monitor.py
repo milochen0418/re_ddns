@@ -230,8 +230,21 @@ _CREATE_KEYS = (
 _IMAGE_KEYS = ("Cmd", "Entrypoint", "WorkingDir")
 
 
-async def recreate(name: str, env_set: dict[str, str]) -> None:
+#: Env vars every smart-launcher app should carry; ``recreate`` adds the ones
+#: a container made before they existed is missing.
+PLATFORM_ENV_DEFAULTS = {
+    # Hide the fixed "Built with Reflex" badge Reflex adds in prod mode.
+    "REFLEX_SHOW_BUILT_WITH_REFLEX": "false",
+}
+
+
+async def recreate(
+    name: str, env_set: dict[str, str], env_default: dict[str, str] | None = None
+) -> None:
     """Recreate a container with the same settings and some env vars changed.
+
+    ``env_set`` entries replace the container's values; ``env_default`` entries
+    are added only when the container has no value for that key.
 
     Docker cannot change an existing container's environment, so switching an
     app between dev and prod means a new container.  Everything else is taken
@@ -258,6 +271,8 @@ async def recreate(name: str, env_set: dict[str, str]) -> None:
             if e not in base_env and e.split("=", 1)[0] not in env_set
         ]
         env += [f"{k}={v}" for k, v in env_set.items()]
+        present = {e.split("=", 1)[0] for e in env}
+        env += [f"{k}={v}" for k, v in (env_default or {}).items() if k not in present]
 
         body: dict = {"Image": cfg["Image"], "Env": env, "HostConfig": host}
         body.update({k: cfg[k] for k in _CREATE_KEYS if cfg.get(k) is not None})
@@ -622,7 +637,7 @@ class MonitorState(rx.State):
             self.message = t["msg_switch_working"].format(name=name, mode=mode)
             self.message_kind = "info"
         try:
-            await recreate(name, {"REFLEX_ENV": to})
+            await recreate(name, {"REFLEX_ENV": to}, env_default=PLATFORM_ENV_DEFAULTS)
         except Exception as exc:  # noqa: BLE001 - recreate() restored the old one
             async with self:
                 self.switching = ""

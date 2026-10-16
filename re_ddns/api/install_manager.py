@@ -429,6 +429,8 @@ def _build_env(req: InstallRequest) -> list[str]:
         "RE_DDNS_API_URL=http://re-ddns:8000",
         "REFLEX_FRONTEND_HOST=0.0.0.0",
         "REFLEX_BACKEND_HOST=0.0.0.0",
+        # Hide the fixed "Built with Reflex" badge Reflex adds in prod mode.
+        "REFLEX_SHOW_BUILT_WITH_REFLEX=false",
         *_shared_env(req.env),
     ]
     # User-supplied app settings (e.g. LiveKit / Google OAuth credentials).
@@ -459,6 +461,8 @@ def _build_dev_env(req: DevInstallRequest) -> list[str]:
         "RE_DDNS_API_URL=http://re-ddns:8000",
         "REFLEX_FRONTEND_HOST=0.0.0.0",
         "REFLEX_BACKEND_HOST=0.0.0.0",
+        # Hide the fixed "Built with Reflex" badge Reflex adds in prod mode.
+        "REFLEX_SHOW_BUILT_WITH_REFLEX=false",
         *_shared_env(req.env),
     ]
     user_keys: list[str] = []

@@ -32,6 +32,10 @@ set -euo pipefail
 #   SKIP_DNS_REGISTER  – Set to "1" to skip DNS registration
 #   REFLEX_ENV         – "dev" (default: Vite dev server, hot reload) or
 #                        "prod" (prebuilt frontend, much less memory)
+#   REFLEX_SHOW_BUILT_WITH_REFLEX
+#                      – "false" (default): hide the "Built with Reflex" badge
+#                        Reflex pins to the bottom-right of every page in prod
+#                        mode.  Set to "true" to show it.
 #   EXTRA_PIP_PACKAGES – Space-separated extra pip packages to install
 #   EXTRA_APT_PACKAGES – Space-separated extra apt packages to install
 #   EXTRA_GIT_REPOS    – Space-separated "repo_url:relative_path" pairs.
@@ -854,6 +858,14 @@ log "CODOC_BACKEND_BASE_URL=${CODOC_BACKEND_BASE_URL}"
 # recreating the container with the other value.
 REFLEX_ENV="${REFLEX_ENV:-dev}"
 [[ "$REFLEX_ENV" == "prod" ]] || REFLEX_ENV=dev
+
+# In prod mode Reflex wraps every page in a fixed "Built with Reflex" badge
+# (bottom-right, z-index 9998) whenever rx.Config.show_built_with_reflex is
+# unset — it only defaults to off for paid Reflex Cloud deploys.  Every Config
+# field can be overridden with REFLEX_<FIELD>, and the env var beats whatever
+# the app's rxconfig.py says, so hide it for every app the platform hosts.
+# Works on Reflex 0.8 and 0.10; a container env of "true" shows it again.
+export REFLEX_SHOW_BUILT_WITH_REFLEX="${REFLEX_SHOW_BUILT_WITH_REFLEX:-false}"
 
 log "Starting Reflex $REFLEX_ENV server on ports $FRONTEND_PORT/$BACKEND_PORT ..."
 exec poetry run reflex run \
