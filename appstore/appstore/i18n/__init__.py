@@ -1,4 +1,8 @@
-"""Translations for the container monitor page.
+"""Translations for the App Store page and its container monitor page.
+
+Both pages read the same table: the language picked on either one applies to
+the other (``lang.LocaleState``).  Keys used by one page only are grouped by
+page in ``en.py``.
 
 **Adding a language** takes two steps:
 

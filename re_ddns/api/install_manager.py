@@ -196,6 +196,45 @@ _PHASE_LABEL = {
     "error": "安裝失敗",
 }
 
+# Job messages by key.  ``message`` keeps this (Chinese) text for anything that
+# reads the API directly; ``msg`` + ``msg_args`` let the App Store show the
+# message in the viewer's language.  Its i18n tables hold ``job_<key>`` for
+# every key here, and ``phase_<phase>`` for the {phase} of "phase".
+_MESSAGES: dict[str, str] = {
+    "queued": "排隊中…",
+    "queued_dev": "排隊中（開發模式）…",
+    "building_image": "首次安裝：正在建置啟動器映像檔（約需數分鐘）…",
+    "image_context_missing": "找不到啟動器建置內容：{path}",
+    "image_build_http": "映像檔建置失敗 (HTTP {code})",
+    "image_build_failed": "映像檔建置失敗：{error}",
+    "image_build_exception": "映像檔建置發生例外：{error}",
+    "image_missing": "映像檔建置後仍找不到。",
+    "creating": "建立 {name} 容器…",
+    "creating_dev": "建立 {name} 開發容器…",
+    "create_failed": "建立容器失敗 (HTTP {code})",
+    "start_failed": "啟動容器失敗 (HTTP {code})：{error}",
+    "installing": "{name} 安裝中…",
+    "installing_dev": "{name} 開發模式安裝中…",
+    "phase": "{name}：{phase}",
+    "installed": "{name} 安裝完成，已啟動！",
+    "container_exited": "{name} 容器已結束 (exit code {code})。",
+    "install_start_failed": "安裝啟動失敗：{error}",
+    "dev_install_start_failed": "開發模式安裝啟動失敗：{error}",
+    "stop_waiting": "{name}：等待容器結束…（{seconds} 秒）",
+    "uninstalled": "{name} 已移除。",
+    "uninstall_failed": "{name} 移除失敗：{error}",
+}
+
+
+def _msg(key: str, **args: Any) -> dict[str, Any]:
+    """The message fields of a job update, e.g. ``**_msg("creating", name=x)``."""
+    args = {k: str(v) for k, v in args.items()}
+    shown = dict(args)
+    if "phase" in shown:
+        phase = shown["phase"]
+        shown["phase"] = _PHASE_LABEL.get(phase) or _UNINSTALL_PHASE_LABEL.get(phase, phase)
+    return {"message": _MESSAGES[key].format(**shown), "msg": key, "msg_args": args}
+
 
 def _phase_from_line(line: str) -> tuple[str, int] | None:
     for substr, phase, percent in _MARKERS:
@@ -261,13 +300,13 @@ async def _ensure_image(subdomain: str) -> bool:
             return True
 
         _set_job(subdomain, phase="building_image", percent=8,
-                 message="首次安裝：正在建置啟動器映像檔（約需數分鐘）…")
+                 **_msg("building_image"))
         _append_log(subdomain, "[install] Building launcher image (first run)…")
 
         context = _build_context_tar()
         if not context:
             _set_job(subdomain, status="error", phase="error",
-                     message=f"找不到啟動器建置內容：{LAUNCHER_DIR}")
+                     **_msg("image_context_missing", path=LAUNCHER_DIR))
             return False
 
         try:
@@ -281,7 +320,7 @@ async def _ensure_image(subdomain: str) -> bool:
                 if resp.status_code != 200:
                     body = await resp.aread()
                     _set_job(subdomain, status="error", phase="error",
-                             message=f"映像檔建置失敗 (HTTP {resp.status_code})")
+                             **_msg("image_build_http", code=resp.status_code))
                     _append_log(subdomain, body.decode("utf-8", "ignore")[:500])
                     return False
                 pct = 8
@@ -295,7 +334,7 @@ async def _ensure_image(subdomain: str) -> bool:
                         continue
                     if "error" in evt:
                         _set_job(subdomain, status="error", phase="error",
-                                 message=f"映像檔建置失敗：{evt['error'][:200]}")
+                                 **_msg("image_build_failed", error=evt["error"][:200]))
                         return False
                     stream = evt.get("stream", "")
                     if stream.strip():
@@ -306,7 +345,7 @@ async def _ensure_image(subdomain: str) -> bool:
         except Exception as exc:  # noqa: BLE001
             logger.exception("Image build failed")
             _set_job(subdomain, status="error", phase="error",
-                     message=f"映像檔建置發生例外：{exc}")
+                     **_msg("image_build_exception", error=exc))
             return False
 
         # Verify it now exists.
@@ -314,7 +353,7 @@ async def _ensure_image(subdomain: str) -> bool:
             _append_log(subdomain, "[install] Launcher image ready.")
             return True
         _set_job(subdomain, status="error", phase="error",
-                 message="映像檔建置後仍找不到。")
+                 **_msg("image_missing"))
         return False
 
 
@@ -494,7 +533,7 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
 
     network = await _docker_network_name()
     async with _client() as client:
-        _set_job(sub, phase="creating", percent=22, message=f"建立 {display} 開發容器…")
+        _set_job(sub, phase="creating", percent=22, **_msg("creating_dev", name=display))
         await _remove_existing_container(client, name)
 
         binds: list[str] = list(req.volumes or [])
@@ -540,18 +579,18 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
             create = await client.post(f"/containers/create?name={name}", json=config)
         if create.status_code != 201:
             _set_job(sub, status="error", phase="error",
-                     message=f"建立容器失敗 (HTTP {create.status_code})")
+                     **_msg("create_failed", code=create.status_code))
             return
         cid = create.json()["Id"]
 
         start = await client.post(f"/containers/{cid}/start")
         if start.status_code not in (204, 304):
             _set_job(sub, status="error", phase="error",
-                     message=f"啟動容器失敗 (HTTP {start.status_code})：{_docker_error(start)}")
+                     **_msg("start_failed", code=start.status_code, error=_docker_error(start)))
             return
 
         _set_job(sub, status="installing", phase="starting_container", percent=25,
-                 message=f"{display} 開發模式安裝中…", container=name, cid=cid, seen=0)
+                 **_msg("installing_dev", name=display), container=name, cid=cid, seen=0)
 
 
 # ---------------------------------------------------------------------------
@@ -579,7 +618,7 @@ async def _create_and_start(req: InstallRequest) -> None:
 
     network = await _docker_network_name()
     async with _client() as client:
-        _set_job(sub, phase="creating", percent=22, message=f"建立 {display} 容器…")
+        _set_job(sub, phase="creating", percent=22, **_msg("creating", name=display))
         await _remove_existing_container(client, name)
 
         binds: list[str] = list(req.volumes or [])
@@ -606,18 +645,18 @@ async def _create_and_start(req: InstallRequest) -> None:
         create = await client.post(f"/containers/create?name={name}", json=config)
         if create.status_code != 201:
             _set_job(sub, status="error", phase="error",
-                     message=f"建立容器失敗 (HTTP {create.status_code})")
+                     **_msg("create_failed", code=create.status_code))
             return
         cid = create.json()["Id"]
 
         start = await client.post(f"/containers/{cid}/start")
         if start.status_code not in (204, 304):
             _set_job(sub, status="error", phase="error",
-                     message=f"啟動容器失敗 (HTTP {start.status_code})：{_docker_error(start)}")
+                     **_msg("start_failed", code=start.status_code, error=_docker_error(start)))
             return
 
         _set_job(sub, status="installing", phase="starting_container", percent=25,
-                 message=f"{display} 安裝中…", container=name, cid=cid, seen=0)
+                 **_msg("installing", name=display), container=name, cid=cid, seen=0)
 
 
 async def _advance(sub: str) -> None:
@@ -667,12 +706,12 @@ async def _advance(sub: str) -> None:
 
         if reached_running:
             _set_job(sub, status="installed", phase="running", percent=100, seen=seen,
-                     message=f"{display} 安裝完成，已啟動！", log=tail)
+                     **_msg("installed", name=display), log=tail)
             return
         if best is not None:
             phase, percent = best
             _set_job(sub, phase=phase, percent=percent, seen=seen,
-                     message=f"{display}：{_PHASE_LABEL.get(phase, phase)}", log=tail)
+                     **_msg("phase", name=display, phase=phase), log=tail)
         else:
             _set_job(sub, seen=seen, log=tail)
 
@@ -683,7 +722,8 @@ async def _advance(sub: str) -> None:
                 state = insp.json().get("State", {})
                 if not state.get("Running", False) and state.get("Status") in ("exited", "dead"):
                     _set_job(sub, status="error", phase="error",
-                             message=f"{display} 容器已結束 (exit code {state.get('ExitCode', 0)})。")
+                             **_msg("container_exited", name=display,
+                                    code=state.get("ExitCode", 0)))
         except Exception:  # noqa: BLE001
             pass
 
@@ -746,7 +786,7 @@ def _take_lease(sub: str) -> dict[str, Any] | None:
 
 def _uninstall_phase(sub: str, display: str, phase: str, percent: int, **extra: Any) -> None:
     _set_job(sub, phase=phase, percent=percent,
-             message=f"{display}：{_UNINSTALL_PHASE_LABEL.get(phase, phase)}", **extra)
+             **_msg("phase", name=display, phase=phase), **extra)
 
 
 async def _request_stop(client: httpx.AsyncClient, name: str, grace: int) -> None:
@@ -830,7 +870,7 @@ async def _uninstall_step(sub: str, job: dict[str, Any]) -> None:
                 _set_job(sub, _stop_resent=True)
                 await _request_stop(client, name, 2)
             _set_job(sub, percent=min(30, 10 + int(waited * 2)),
-                     message=f"{display}：等待容器結束…（{int(waited)} 秒）")
+                     **_msg("stop_waiting", name=display, seconds=int(waited)))
             return
 
     if phase == "removing_container":
@@ -912,7 +952,7 @@ async def _uninstall_step(sub: str, job: dict[str, Any]) -> None:
 def _finish_uninstall(sub: str, display: str) -> None:
     _append_log(sub, f"[uninstall] {display} removed.")
     _set_job(sub, status="uninstalled", phase="done", percent=100,
-             message=f"{display} 已移除。")
+             **_msg("uninstalled", name=display))
 
 
 async def _advance_uninstall(sub: str) -> None:
@@ -926,7 +966,7 @@ async def _advance_uninstall(sub: str) -> None:
         logger.exception("Uninstall step failed for %s", sub)
         _append_log(sub, f"[uninstall] ERROR: {exc}")
         _set_job(sub, status="error", phase="error",
-                 message=f"{job.get('name') or sub} 移除失敗：{exc}")
+                 **_msg("uninstall_failed", name=job.get("name") or sub, error=exc))
     finally:
         _set_job(sub, _lease=0)
 
@@ -979,7 +1019,7 @@ async def install_endpoint(req: InstallRequest):
             "phase": "queued",
             "percent": 2,
             "_max_percent": 2,
-            "message": "排隊中…",
+            **_msg("queued"),
             "log": [],
             "container": _container_name(req.subdomain),
             "seen": 0,
@@ -991,7 +1031,7 @@ async def install_endpoint(req: InstallRequest):
     except Exception as exc:  # noqa: BLE001
         logger.exception("Install of %s failed to start", req.subdomain)
         _set_job(req.subdomain, status="error", phase="error",
-                 message=f"安裝啟動失敗：{exc}")
+                 **_msg("install_start_failed", error=exc))
 
     logger.info("Install container started for %s", req.subdomain)
     return InstallStarted(ok=True, subdomain=req.subdomain, message="安裝已開始。")
@@ -1044,7 +1084,7 @@ async def dev_install_endpoint(req: DevInstallRequest):
             "phase": "queued",
             "percent": 2,
             "_max_percent": 2,
-            "message": "排隊中（開發模式）…",
+            **_msg("queued_dev"),
             "log": [],
             "container": _container_name(req.subdomain),
             "seen": 0,
@@ -1057,7 +1097,7 @@ async def dev_install_endpoint(req: DevInstallRequest):
     except Exception as exc:  # noqa: BLE001
         logger.exception("Dev install of %s failed to start", req.subdomain)
         _set_job(req.subdomain, status="error", phase="error",
-                 message=f"開發模式安裝啟動失敗：{exc}")
+                 **_msg("dev_install_start_failed", error=exc))
 
     logger.info("Dev install container started for %s (local_path=%s)", req.subdomain, req.local_path)
     return InstallStarted(ok=True, subdomain=req.subdomain, message="開發模式安裝已開始。")
@@ -1087,7 +1127,7 @@ async def uninstall_endpoint(req: UninstallRequest):
             "phase": "queued",
             "percent": 2,
             "_max_percent": 2,
-            "message": "排隊中…",
+            **_msg("queued"),
             "log": [],
             "container": _container_name(sub),
             "zone": req.zone or "reflex-ddns.com",

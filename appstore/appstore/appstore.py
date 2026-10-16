@@ -20,6 +20,13 @@ app declared in the catalog (``data/appstore_catalog.json`` — the
 Status & control are done through the Docker Engine API over the Unix
 socket bind-mounted at ``/var/run/docker.sock``; installs are orchestrated
 by re-ddns over its own copy of that socket.
+
+The page is translated, and shares its language with ``/monitor`` (see
+``lang.py``).  Every text comes from the ``i18n`` tables; one with
+``{placeholders}`` is stored as a key plus its arguments and rendered by a
+computed var, so it follows a language switch made on either page.  The app
+descriptions and settings-form texts come from the catalog entry's optional
+``i18n`` block (see ``_localized``), falling back to its base fields.
 """
 
 from __future__ import annotations
@@ -28,11 +35,14 @@ import asyncio
 import json
 import os
 import posixpath
+from collections.abc import Mapping
 from pathlib import Path
 
 import httpx
 import reflex as rx
 
+from . import i18n
+from .lang import LocaleState, language_picker
 from .monitor import MonitorState, monitor
 
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
@@ -204,17 +214,38 @@ def _project_kind(host_dir: str) -> str:
     return ""
 
 
-_STATUS_LABEL = {
-    "running": "Running",
-    "stopped": "Stopped",
-    "not_installed": "Not installed",
-    "unknown": "Unknown",
-}
+def _fmt(t: Mapping[str, str], key: str, args: Mapping[str, object] | None = None) -> str:
+    """``t[key]`` with its ``{placeholders}`` filled in; "" when there is no key.
+
+    A template that does not match its arguments (a slip in a translation) is
+    shown as it is rather than breaking the page.
+    """
+    if not key:
+        return ""
+    text = t.get(key, key)
+    try:
+        return text.format(**(args or {}))
+    except (KeyError, IndexError, ValueError):
+        return text
 
 
-def _catalog_rows() -> list[dict[str, str]]:
-    """The catalog merged with each app's live Docker status (the grid)."""
-    rows: list[dict[str, str]] = []
+def _localized(entry: Mapping, field: str, code: str) -> str:
+    """A catalog text in language ``code``.
+
+    An entry may carry ``"i18n": {"<code>": {"description": "…"}}``; a
+    language or field it does not list falls back to the base field.
+    """
+    text = ((entry.get("i18n") or {}).get(code) or {}).get(field)
+    return str(text or entry.get(field, ""))
+
+
+def _catalog_rows() -> list[dict]:
+    """The catalog merged with each app's live Docker status (the grid).
+
+    Each row keeps its entry's ``i18n`` block; ``AppStoreState.apps`` picks
+    the texts of the current language from it.
+    """
+    rows: list[dict] = []
     for app in _load_catalog():
         status = _container_status(app)
         rows.append(
@@ -226,9 +257,9 @@ def _catalog_rows() -> list[dict[str, str]]:
                 "subdomain": str(app["subdomain"]),
                 "url": f"https://{app['subdomain']}.{SERVICE_ZONE}",
                 "status": status,
-                "status_label": _STATUS_LABEL.get(status, "Unknown"),
                 "install_cmd": _build_install_cmd(app),
                 "uninstall_cmd": f"./smart_launch.sh --remove={app['subdomain']}",
+                "i18n": app.get("i18n") or {},
             }
         )
     return rows
@@ -238,12 +269,21 @@ def _catalog_rows() -> list[dict[str, str]]:
 # State
 # ---------------------------------------------------------------------------
 
-class AppStoreState(rx.State):
-    """Holds the merged catalog + live status and drives all actions."""
+class AppStoreState(LocaleState):
+    """Holds the merged catalog + live status and drives all actions.
 
-    apps: list[dict[str, str]] = []
+    The language (``locale``, ``t``) comes from LocaleState, shared with the
+    monitor page.  Texts with arguments are kept as a string-table key plus
+    the arguments (backend vars) and rendered by the computed vars below.
+    """
+
+    _rows: list[dict] = []      # catalog + live status, all languages
     loading: bool = False
-    message: str = ""
+    show_langs: bool = False    # the language menu is open
+
+    # The banner, rendered by `message`.
+    _msg_key: str = ""
+    _msg_args: dict[str, str] = {}
     message_kind: str = "info"  # info | success | error
 
     # Live install progress (driven by re-ddns /api/appstore/status).
@@ -253,8 +293,12 @@ class AppStoreState(rx.State):
     install_status: str = ""    # installing | installed | error
     install_phase: str = ""
     install_percent: int = 0
-    install_message: str = ""
     install_log: list[str] = []
+    # What the panel says, rendered by `install_message`: a string-table key
+    # and its arguments, or the text re-ddns sent when it has no known key.
+    _job_key: str = ""
+    _job_args: dict[str, str] = {}
+    _job_text: str = ""
     job_kind: str = "install"   # install | uninstall — what the panel shows
     job_seq: int = 0            # bumped per job, so an old poller steps aside
 
@@ -271,14 +315,16 @@ class AppStoreState(rx.State):
     show_env_form: bool = False
     env_form_sub: str = ""
     env_form_name: str = ""
-    env_form_error: str = ""
-    env_form_schema: list[dict[str, str]] = []
+    _env_items: list[dict] = []        # the entry's env_schema
+    _env_i18n: dict = {}               # the entry's i18n block
+    _env_missing: list[str] = []       # required keys left empty
 
     # Dev mode form (local source path).
     show_dev_form: bool = False
     dev_form_sub: str = ""
     dev_form_name: str = ""
-    dev_form_error: str = ""
+    _dev_err_key: str = ""
+    _dev_err_args: dict[str, str] = {}
     dev_form_subdir: str = ""
     # Path autocomplete (the input itself is uncontrolled; Tab writes back
     # through rx.set_value).
@@ -287,7 +333,8 @@ class AppStoreState(rx.State):
     dev_suggest_more: int = 0                   # matches beyond the list
     dev_suggest_index: int = -1                 # highlighted row, -1 = none
     dev_suggest_open: bool = False
-    dev_path_status: str = ""
+    _dev_status_key: str = ""                   # the line under the path field
+    _dev_status_args: dict[str, str] = {}
     dev_path_status_kind: str = ""              # ok | info | warn | error
     dev_browse_root: str = ""
 
@@ -300,14 +347,145 @@ class AppStoreState(rx.State):
     def install_busy(self) -> bool:
         return self.install_status in ("installing", "uninstalling")
 
+    # Texts in the current language.  Each reads self.locale itself, so it is
+    # recomputed when the language changes, on this page or the other one.
+
+    @rx.var
+    def apps(self) -> list[dict[str, str]]:
+        """The grid rows, each description in the current language."""
+        code = self.locale
+        return [
+            {
+                **{k: v for k, v in row.items() if k != "i18n"},
+                "description": _localized(row, "description", code),
+            }
+            for row in self._rows
+        ]
+
+    @rx.var
+    def message(self) -> str:
+        return _fmt(i18n.strings(self.locale), self._msg_key, self._msg_args)
+
+    @rx.var
+    def install_message(self) -> str:
+        t = i18n.strings(self.locale)
+        if self._job_key not in t:
+            return self._job_text
+        args = dict(self._job_args)
+        if "phase" in args:
+            args["phase"] = t.get(f"phase_{args['phase']}", args["phase"])
+        return _fmt(t, self._job_key, args)
+
     @rx.var
     def progress_title(self) -> str:
-        verb = "移除" if self.job_kind == "uninstall" else "安裝"
-        return f"{verb} {self.active_name}"
+        key = "job_title_uninstall" if self.job_kind == "uninstall" else "job_title_install"
+        return _fmt(i18n.strings(self.locale), key, {"name": self.active_name})
+
+    @rx.var
+    def uninstall_title(self) -> str:
+        return _fmt(i18n.strings(self.locale), "un_title", {"name": self.uninstall_name})
+
+    @rx.var
+    def uninstall_body(self) -> list[str]:
+        """The explanation, split around ``{container}`` (shown as code)."""
+        before, _, after = i18n.strings(self.locale)["un_body"].partition("{container}")
+        return [before, after]
 
     @rx.var
     def uninstall_volume_list(self) -> str:
-        return "、".join(self.uninstall_volumes)
+        return i18n.strings(self.locale)["list_sep"].join(self.uninstall_volumes)
+
+    @rx.var
+    def env_form_title(self) -> str:
+        return _fmt(i18n.strings(self.locale), "env_title", {"name": self.env_form_name})
+
+    @rx.var
+    def env_form_schema(self) -> list[dict[str, str]]:
+        """The settings form's fields, their texts in the current language.
+
+        Translations sit in the entry's i18n block under
+        ``"<code>": {"env": {"<KEY>": {"label", "placeholder", "help"}}}``.
+        """
+        own = ((self._env_i18n.get(self.locale) or {}).get("env")) or {}
+        rows: list[dict[str, str]] = []
+        for item in self._env_items:
+            key = str(item.get("key", ""))
+            tr = own.get(key) or {}
+            rows.append(
+                {
+                    "key": key,
+                    "label": str(tr.get("label") or item.get("label") or key),
+                    "placeholder": str(tr.get("placeholder") or item.get("placeholder", "")),
+                    "help": str(tr.get("help") or item.get("help", "")),
+                    "secret": "1" if item.get("secret") else "",
+                    "required": "1" if item.get("required", True) else "",
+                }
+            )
+        return rows
+
+    @rx.var
+    def env_form_error(self) -> str:
+        if not self._env_missing:
+            return ""
+        t = i18n.strings(self.locale)
+        labels = {row["key"]: row["label"] for row in self.env_form_schema}
+        fields = t["list_sep"].join(labels.get(k, k) for k in self._env_missing)
+        return _fmt(t, "env_missing", {"fields": fields})
+
+    @rx.var
+    def dev_form_title(self) -> str:
+        return _fmt(i18n.strings(self.locale), "dev_title", {"name": self.dev_form_name})
+
+    @rx.var
+    def dev_form_error(self) -> str:
+        return _fmt(i18n.strings(self.locale), self._dev_err_key, self._dev_err_args)
+
+    @rx.var
+    def dev_path_status(self) -> str:
+        return _fmt(i18n.strings(self.locale), self._dev_status_key, self._dev_status_args)
+
+    @rx.var
+    def dev_suggest_more_text(self) -> str:
+        return _fmt(i18n.strings(self.locale), "dev_more", {"count": self.dev_suggest_more})
+
+    def _say(self, key: str, kind: str = "info", **args) -> None:
+        """Show ``t[key]`` (with ``args``) in the banner; "" hides it."""
+        self._msg_key = key
+        self._msg_args = {k: str(v) for k, v in args.items()}
+        self.message_kind = kind
+
+    def _job_say(self, key: str, **args) -> None:
+        """Put ``t[key]`` (with ``args``) in the progress panel."""
+        self._job_key = key
+        self._job_args = {k: str(v) for k, v in args.items()}
+        self._job_text = ""
+
+    def _job_from(self, data: dict) -> None:
+        """Take over a re-ddns job's message: its ``msg`` key and ``msg_args``,
+        with its ready-made ``message`` for a key the tables do not have."""
+        msg = str(data.get("msg") or "")
+        args = data.get("msg_args")
+        self._job_key = f"job_{msg}" if msg else ""
+        self._job_args = (
+            {str(k): str(v) for k, v in args.items()} if isinstance(args, dict) else {}
+        )
+        self._job_text = str(data.get("message") or "")
+
+    # ── language menu ──
+
+    @rx.event
+    def set_locale(self, code: str):
+        """Every text on the page is a computed var, so this is all it takes."""
+        self._set_locale(code)
+        self.show_langs = False
+
+    @rx.event
+    def toggle_langs(self):
+        self.show_langs = not self.show_langs
+
+    @rx.event
+    def close_langs(self):
+        self.show_langs = False
 
     def _lookup(self, subdomain: str) -> dict | None:
         for app in _load_catalog():
@@ -319,9 +497,9 @@ class AppStoreState(rx.State):
     def refresh(self):
         """Reload catalog and recompute each app's live status."""
         self.loading = True
-        self.message = ""
+        self._say("")
         yield
-        self.apps = _catalog_rows()
+        self._rows = _catalog_rows()
         self.loading = False
 
     @rx.event
@@ -332,17 +510,13 @@ class AppStoreState(rx.State):
         name = _container_name(app)
         r = _docker_request("POST", f"/containers/{name}/start")
         if r is None:
-            self.message = "Docker socket unavailable — cannot start container."
-            self.message_kind = "error"
+            self._say("store_no_socket_start", "error")
         elif r.status_code in (204, 304):
-            self.message = f"Started {name}."
-            self.message_kind = "success"
+            self._say("store_started", "success", name=name)
         elif r.status_code == 404:
-            self.message = f"{name} is not installed yet. Use Install first."
-            self.message_kind = "error"
+            self._say("store_not_installed_yet", "error", name=name)
         else:
-            self.message = f"Start failed (HTTP {r.status_code})."
-            self.message_kind = "error"
+            self._say("store_start_failed", "error", code=r.status_code)
         yield AppStoreState.refresh
 
     @rx.event
@@ -353,14 +527,11 @@ class AppStoreState(rx.State):
         name = _container_name(app)
         r = _docker_request("POST", f"/containers/{name}/stop")
         if r is None:
-            self.message = "Docker socket unavailable — cannot stop container."
-            self.message_kind = "error"
+            self._say("store_no_socket_stop", "error")
         elif r.status_code in (204, 304):
-            self.message = f"Stopped {name}."
-            self.message_kind = "success"
+            self._say("store_stopped", "success", name=name)
         else:
-            self.message = f"Stop failed (HTTP {r.status_code})."
-            self.message_kind = "error"
+            self._say("store_stop_failed", "error", code=r.status_code)
         yield AppStoreState.refresh
 
     @rx.event
@@ -373,23 +544,13 @@ class AppStoreState(rx.State):
         app = self._lookup(subdomain)
         if not app:
             return
-        schema = app.get("env_schema") or []
+        schema = [item for item in app.get("env_schema") or [] if item.get("key")]
         if schema:
             self.env_form_sub = subdomain
             self.env_form_name = str(app.get("name", subdomain))
-            self.env_form_error = ""
-            self.env_form_schema = [
-                {
-                    "key": str(item.get("key", "")),
-                    "label": str(item.get("label", item.get("key", ""))),
-                    "placeholder": str(item.get("placeholder", "")),
-                    "help": str(item.get("help", "")),
-                    "secret": "1" if item.get("secret") else "",
-                    "required": "1" if item.get("required", True) else "",
-                }
-                for item in schema
-                if item.get("key")
-            ]
+            self._env_missing = []
+            self._env_items = schema
+            self._env_i18n = app.get("i18n") or {}
             self.show_env_form = True
             return
         return AppStoreState.install_app(subdomain, {})
@@ -398,21 +559,21 @@ class AppStoreState(rx.State):
     def cancel_env_form(self):
         self.show_env_form = False
         self.env_form_sub = ""
-        self.env_form_schema = []
-        self.env_form_error = ""
+        self._env_items = []
+        self._env_missing = []
 
     @rx.event
     def submit_env_form(self, form_data: dict):
         """Validate the required settings, then kick off the install."""
         sub = self.env_form_sub
         missing = [
-            item["label"] or item["key"]
+            item["key"]
             for item in self.env_form_schema
             if item.get("required") == "1"
             and not str(form_data.get(item["key"], "")).strip()
         ]
         if missing:
-            self.env_form_error = "請填寫必填欄位：" + "、".join(missing)
+            self._env_missing = missing
             return
         env = {
             k: str(v)
@@ -420,7 +581,7 @@ class AppStoreState(rx.State):
             if str(v).strip() != ""
         }
         self.show_env_form = False
-        self.env_form_error = ""
+        self._env_missing = []
         return AppStoreState.install_app(sub, env)
 
     @rx.event
@@ -439,9 +600,9 @@ class AppStoreState(rx.State):
         self.install_status = "installing"
         self.install_phase = "queued"
         self.install_percent = 2
-        self.install_message = "正在送出安裝請求…"
+        self._job_say("job_sending_install")
         self.install_log = []
-        self.message = ""
+        self._say("")
 
         spec = {
             "subdomain": subdomain,
@@ -463,11 +624,11 @@ class AppStoreState(rx.State):
                 r = client.post(f"{RE_DDNS_API_URL}/api/appstore/install", json=spec)
             if r.status_code != 200:
                 self.install_status = "error"
-                self.install_message = f"無法開始安裝 (HTTP {r.status_code})：{r.text[:200]}"
+                self._job_say("job_install_refused", code=r.status_code, detail=r.text[:200])
                 return
         except Exception as exc:  # noqa: BLE001
             self.install_status = "error"
-            self.install_message = f"無法連線 re-ddns：{exc}"
+            self._job_say("job_unreachable", error=exc)
             return
         # Kick off background polling.
         return AppStoreState.poll_progress
@@ -501,7 +662,7 @@ class AppStoreState(rx.State):
                     self.install_status = data.get("status", self.install_status)
                     self.install_phase = data.get("phase", self.install_phase)
                     self.install_percent = int(data.get("percent", self.install_percent))
-                    self.install_message = data.get("message", self.install_message)
+                    self._job_from(data)
                     log = data.get("log", [])
                     if isinstance(log, list):
                         self.install_log = [str(x) for x in log[-14:]]
@@ -514,15 +675,11 @@ class AppStoreState(rx.State):
                 async with self:
                     if self.active_sub != sub or self.job_seq != seq:
                         return
-                    self.apps = rows
+                    self._rows = rows
                     if status == "installed":
-                        self.message = f"{self.active_name} 安裝完成！"
-                        self.message_kind = "success"
+                        self._say("store_installed", "success", name=self.active_name)
                     elif status == "uninstalled":
-                        self.message = (
-                            f"{self.active_name} 已移除：容器、DNS 記錄、nginx 設定與 TLS 憑證都清掉了。"
-                        )
-                        self.message_kind = "success"
+                        self._say("store_uninstalled", "success", name=self.active_name)
                 return
 
             await asyncio.sleep(1.5)
@@ -589,9 +746,9 @@ class AppStoreState(rx.State):
         self.install_status = "uninstalling"
         self.install_phase = "queued"
         self.install_percent = 2
-        self.install_message = "正在送出移除請求…"
+        self._job_say("job_sending_uninstall")
         self.install_log = []
-        self.message = ""
+        self._say("")
 
         spec = {
             "subdomain": subdomain,
@@ -604,11 +761,11 @@ class AppStoreState(rx.State):
                 r = client.post(f"{RE_DDNS_API_URL}/api/appstore/uninstall", json=spec)
             if r.status_code != 200:
                 self.install_status = "error"
-                self.install_message = f"無法開始移除 (HTTP {r.status_code})：{r.text[:200]}"
+                self._job_say("job_uninstall_refused", code=r.status_code, detail=r.text[:200])
                 return
         except Exception as exc:  # noqa: BLE001
             self.install_status = "error"
-            self.install_message = f"無法連線 re-ddns：{exc}"
+            self._job_say("job_unreachable", error=exc)
             return
         return AppStoreState.poll_progress
 
@@ -631,7 +788,7 @@ class AppStoreState(rx.State):
             return
         self.dev_form_sub = subdomain
         self.dev_form_name = str(app.get("name", subdomain))
-        self.dev_form_error = ""
+        self._dev_err_key = ""
         self.dev_form_subdir = str(app.get("subdir") or "").strip("/")
         self.dev_browse_root = _browse_root()
         self.dev_path = ""
@@ -644,7 +801,7 @@ class AppStoreState(rx.State):
     def cancel_dev_form(self):
         self.show_dev_form = False
         self.dev_form_sub = ""
-        self.dev_form_error = ""
+        self._dev_err_key = ""
 
     def _split_dev_path(self) -> tuple[str, str]:
         """``/a/b/pre`` → (``/a/b/``, ``pre``). Empty path → (``/``, "")."""
@@ -669,32 +826,34 @@ class AppStoreState(rx.State):
 
         root = self.dev_browse_root
         path = _expand_home(self.dev_path.strip())
-        status, kind = "", ""
+        key, kind, args = "", "", {}
         if not root or not path:
             pass
         elif not path.startswith("/"):
-            status, kind = "請輸入絕對路徑（以 / 或 ~/ 開頭）", "error"
+            key, kind = "dev_st_relative", "error"
         else:
             d = posixpath.normpath(path)
             if not _under(root, d):
                 if names is None:
-                    status, kind = f"這裡無法自動補齊（只看得到 {root} 底下）；會直接使用此路徑", "warn"
+                    key, kind, args = "dev_st_outside", "warn", {"root": root}
                 elif not matches:
-                    status, kind = "找不到這個資料夾", "error"
+                    key, kind = "dev_st_not_found", "error"
             elif os.path.isdir(HOST_FS_PREFIX + d):
                 sub = self.dev_form_subdir
                 project = posixpath.join(d, sub) if sub else d
-                where = f"（子目錄 {sub}）" if sub else ""
                 proj_kind = _project_kind(project)
                 if proj_kind == "reflex":
-                    status, kind = f"✓ Reflex 專案{where}：找到 rxconfig.py", "ok"
+                    key, kind = "dev_st_reflex", "ok"
                 elif proj_kind == "python":
-                    status, kind = f"✓ 找到 pyproject.toml{where}", "ok"
+                    key, kind = "dev_st_python", "ok"
                 else:
-                    status, kind = f"這個資料夾{where}沒有 pyproject.toml，繼續往下選", "info"
+                    key, kind = "dev_st_none", "info"
+                if sub:
+                    key, args = key + "_sub", {"sub": sub}
             elif not matches:
-                status, kind = "找不到這個資料夾", "error"
-        self.dev_path_status, self.dev_path_status_kind = status, kind
+                key, kind = "dev_st_not_found", "error"
+        self._dev_status_key, self._dev_status_args = key, args
+        self.dev_path_status_kind = kind
 
     def _set_dev_path(self, path: str):
         """Write a completed path back into the input and refresh."""
@@ -771,15 +930,15 @@ class AppStoreState(rx.State):
         if local_path != "/":
             local_path = local_path.rstrip("/")
         if not local_path:
-            self.dev_form_error = "請輸入本機專案路徑"
+            self._dev_err_key, self._dev_err_args = "dev_err_empty", {}
             return
         root = self.dev_browse_root
         d = posixpath.normpath(local_path)
         if root and _under(root, d) and not os.path.isdir(HOST_FS_PREFIX + d):
-            self.dev_form_error = f"找不到資料夾：{local_path}"
+            self._dev_err_key, self._dev_err_args = "dev_err_missing", {"path": local_path}
             return
         self.show_dev_form = False
-        self.dev_form_error = ""
+        self._dev_err_key = ""
         return AppStoreState.dev_install_app(self.dev_form_sub, local_path)
 
     @rx.event
@@ -797,9 +956,9 @@ class AppStoreState(rx.State):
         self.install_status = "installing"
         self.install_phase = "queued"
         self.install_percent = 2
-        self.install_message = "正在送出開發模式安裝請求…"
+        self._job_say("job_sending_dev_install")
         self.install_log = []
-        self.message = ""
+        self._say("")
 
         spec = {
             "subdomain": subdomain,
@@ -819,11 +978,11 @@ class AppStoreState(rx.State):
                 r = client.post(f"{RE_DDNS_API_URL}/api/appstore/dev-install", json=spec)
             if r.status_code != 200:
                 self.install_status = "error"
-                self.install_message = f"無法開始開發模式安裝 (HTTP {r.status_code})：{r.text[:200]}"
+                self._job_say("job_dev_install_refused", code=r.status_code, detail=r.text[:200])
                 return
         except Exception as exc:  # noqa: BLE001
             self.install_status = "error"
-            self.install_message = f"無法連線 re-ddns：{exc}"
+            self._job_say("job_unreachable", error=exc)
             return
         return AppStoreState.poll_progress
 
@@ -843,27 +1002,38 @@ def status_badge(app: rx.Var[dict]) -> rx.Component:
                 "h-2 w-2 rounded-full bg-gray-300",
             ),
         ),
-        rx.el.span(app["status_label"], class_name="text-xs font-bold"),
+        rx.el.span(
+            rx.match(
+                app["status"],
+                ("running", AppStoreState.t["st_running"]),
+                ("stopped", AppStoreState.t["st_stopped"]),
+                ("not_installed", AppStoreState.t["st_not_installed"]),
+                AppStoreState.t["st_unknown"],
+            ),
+            # One line: CJK labels would otherwise break mid-word
+            # (未インスト/ール) when a long app name squeezes the badge.
+            class_name="text-xs font-bold whitespace-nowrap",
+        ),
         class_name=rx.match(
             app["status"],
             (
                 "running",
-                "flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 text-green-700",
+                "flex shrink-0 items-center gap-2 px-3 py-1 rounded-full bg-green-50 text-green-700",
             ),
             (
                 "stopped",
-                "flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-50 text-yellow-700",
+                "flex shrink-0 items-center gap-2 px-3 py-1 rounded-full bg-yellow-50 text-yellow-700",
             ),
             (
                 "not_installed",
-                "flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-500",
+                "flex shrink-0 items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-500",
             ),
-            "flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-500",
+            "flex shrink-0 items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-500",
         ),
     )
 
 
-def _btn(label: str, icon: str, on_click, color: str) -> rx.Component:
+def _btn(label, icon: str, on_click, color: str) -> rx.Component:
     return rx.el.button(
         rx.icon(icon, class_name="h-4 w-4"),
         rx.el.span(label),
@@ -876,7 +1046,7 @@ def open_button(app: rx.Var[dict]) -> rx.Component:
     return rx.link(
         rx.el.div(
             rx.icon("external-link", class_name="h-4 w-4"),
-            rx.el.span("Open"),
+            rx.el.span(AppStoreState.t["store_open"]),
             class_name="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all",
         ),
         href=app["url"],
@@ -888,7 +1058,7 @@ def _dev_btn(app: rx.Var[dict]) -> rx.Component:
     if not DEV_MODE_ENABLED:
         return rx.fragment()
     return _btn(
-        "Dev",
+        AppStoreState.t["store_dev"],
         "code",
         lambda: AppStoreState.begin_dev_install(app["subdomain"]),
         "bg-purple-50 text-purple-700 hover:bg-purple-100",
@@ -900,13 +1070,17 @@ def job_indicator() -> rx.Component:
     return rx.el.div(
         rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
         rx.el.span(
-            rx.cond(AppStoreState.job_kind == "uninstall", "移除中", "安裝中"),
+            rx.cond(
+                AppStoreState.job_kind == "uninstall",
+                AppStoreState.t["store_uninstalling"],
+                AppStoreState.t["store_installing"],
+            ),
             " ",
             AppStoreState.install_percent.to_string() + "%",
             class_name="text-sm font-semibold",
         ),
         rx.el.button(
-            "查看進度",
+            AppStoreState.t["store_view_progress"],
             on_click=AppStoreState.open_progress,
             class_name="ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black",
         ),
@@ -931,13 +1105,13 @@ def _action_buttons(app: rx.Var[dict]) -> rx.Component:
             rx.el.div(
                 open_button(app),
                 _btn(
-                    "Stop",
+                    AppStoreState.t["store_stop"],
                     "square",
                     lambda: AppStoreState.stop_app(app["subdomain"]),
                     "bg-yellow-50 text-yellow-700 hover:bg-yellow-100",
                 ),
                 _btn(
-                    "Uninstall",
+                    AppStoreState.t["store_uninstall"],
                     "trash-2",
                     lambda: AppStoreState.ask_uninstall(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
@@ -950,13 +1124,13 @@ def _action_buttons(app: rx.Var[dict]) -> rx.Component:
             "stopped",
             rx.el.div(
                 _btn(
-                    "Start",
+                    AppStoreState.t["store_start"],
                     "play",
                     lambda: AppStoreState.start_app(app["subdomain"]),
                     "bg-green-600 text-white hover:bg-green-700",
                 ),
                 _btn(
-                    "Uninstall",
+                    AppStoreState.t["store_uninstall"],
                     "trash-2",
                     lambda: AppStoreState.ask_uninstall(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
@@ -968,7 +1142,7 @@ def _action_buttons(app: rx.Var[dict]) -> rx.Component:
         # not_installed / unknown
         rx.el.div(
             _btn(
-                "Install",
+                AppStoreState.t["store_install"],
                 "download",
                 lambda: AppStoreState.begin_install(app["subdomain"]),
                 "bg-gray-900 text-white hover:bg-black",
@@ -1053,7 +1227,7 @@ def env_form_panel() -> rx.Component:
                     rx.el.div(
                         rx.icon("settings", class_name="h-6 w-6 text-blue-600"),
                         rx.el.h3(
-                            "設定 " + AppStoreState.env_form_name,
+                            AppStoreState.env_form_title,
                             class_name="text-lg font-bold text-gray-900",
                         ),
                         class_name="flex items-center gap-3",
@@ -1066,7 +1240,7 @@ def env_form_panel() -> rx.Component:
                     class_name="flex items-center justify-between mb-2",
                 ),
                 rx.el.p(
-                    "這個應用程式需要一些設定才能運作。這些值會在安裝時注入容器環境變數並寫入 .env。",
+                    AppStoreState.t["env_intro"],
                     class_name="text-sm text-gray-500 mb-4",
                 ),
                 rx.cond(
@@ -1084,14 +1258,14 @@ def env_form_panel() -> rx.Component:
                     ),
                     rx.el.div(
                         rx.el.button(
-                            "取消",
+                            AppStoreState.t["cancel"],
                             type="button",
                             on_click=AppStoreState.cancel_env_form,
                             class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
                         ),
                         rx.el.button(
                             rx.icon("download", class_name="h-4 w-4"),
-                            rx.el.span("安裝"),
+                            rx.el.span(AppStoreState.t["store_install"]),
                             type="submit",
                             class_name="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white font-semibold rounded-xl hover:bg-black",
                         ),
@@ -1150,7 +1324,7 @@ def dev_path_suggestions() -> rx.Component:
             rx.cond(
                 AppStoreState.dev_suggest_more > 0,
                 rx.el.div(
-                    "…還有 " + AppStoreState.dev_suggest_more.to_string() + " 個，多打幾個字縮小範圍",
+                    AppStoreState.dev_suggest_more_text,
                     class_name="px-3 py-1.5 text-xs font-sans text-gray-400",
                 ),
                 rx.fragment(),
@@ -1172,7 +1346,7 @@ def dev_form_panel() -> rx.Component:
                     rx.el.div(
                         rx.icon("code", class_name="h-6 w-6 text-purple-600"),
                         rx.el.h3(
-                            "Dev 模式 — " + AppStoreState.dev_form_name,
+                            AppStoreState.dev_form_title,
                             class_name="text-lg font-bold text-gray-900",
                         ),
                         class_name="flex items-center gap-3",
@@ -1185,7 +1359,7 @@ def dev_form_panel() -> rx.Component:
                     class_name="flex items-center justify-between mb-2",
                 ),
                 rx.el.p(
-                    "輸入本機專案的絕對路徑。容器會 bind mount 這個目錄，跳過 git clone，直接在正確的 Linux 環境中執行你的 app。改 code 後 Reflex 會自動 hot reload。",
+                    AppStoreState.t["dev_intro"],
                     class_name="text-sm text-gray-500 mb-4",
                 ),
                 rx.cond(
@@ -1199,14 +1373,14 @@ def dev_form_panel() -> rx.Component:
                 rx.form(
                     rx.el.div(
                         rx.el.label(
-                            "本機專案路徑",
+                            AppStoreState.t["dev_path_label"],
                             rx.el.span(" *", class_name="text-red-500"),
                             class_name="text-sm font-semibold text-gray-700",
                         ),
                         rx.el.input(
                             id="dev_path_input",
                             name="local_path",
-                            placeholder="輸入 / 或 ~/ 再按 Tab",
+                            placeholder=AppStoreState.t["dev_path_placeholder"],
                             type="text",
                             auto_complete="off",
                             spell_check=False,
@@ -1231,11 +1405,11 @@ def dev_form_panel() -> rx.Component:
                             rx.fragment(),
                         ),
                         rx.el.p(
-                            "Docker host 上的絕對路徑（包含 pyproject.toml 的目錄）",
+                            AppStoreState.t["dev_path_hint"],
                             rx.cond(
                                 AppStoreState.dev_browse_root != "",
-                                rx.el.span(" · Tab 補齊 · ↑↓ 選擇 · Esc 收起"),
-                                rx.el.span(" · 看不到主機資料夾，無法自動補齊"),
+                                rx.el.span(AppStoreState.t["dev_path_keys"]),
+                                rx.el.span(AppStoreState.t["dev_path_no_browse"]),
                             ),
                             class_name="text-xs text-gray-400 mt-1",
                         ),
@@ -1243,14 +1417,14 @@ def dev_form_panel() -> rx.Component:
                     ),
                     rx.el.div(
                         rx.el.button(
-                            "取消",
+                            AppStoreState.t["cancel"],
                             type="button",
                             on_click=AppStoreState.cancel_dev_form,
                             class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
                         ),
                         rx.el.button(
                             rx.icon("code", class_name="h-4 w-4"),
-                            rx.el.span("Dev Install"),
+                            rx.el.span(AppStoreState.t["dev_install"]),
                             type="submit",
                             class_name="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700",
                         ),
@@ -1277,7 +1451,7 @@ def uninstall_confirm_panel() -> rx.Component:
                     rx.el.div(
                         rx.icon("trash-2", class_name="h-6 w-6 text-red-600"),
                         rx.el.h3(
-                            "移除 " + AppStoreState.uninstall_name,
+                            AppStoreState.uninstall_title,
                             class_name="text-lg font-bold text-gray-900",
                         ),
                         class_name="flex items-center gap-3",
@@ -1290,18 +1464,18 @@ def uninstall_confirm_panel() -> rx.Component:
                     class_name="flex items-center justify-between mb-2",
                 ),
                 rx.el.p(
-                    "會停止並刪除容器 ",
+                    AppStoreState.uninstall_body[0],
                     rx.el.code(
                         AppStoreState.uninstall_container,
                         class_name="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded",
                     ),
-                    "，再移除它的 DNS 記錄、nginx 設定與 TLS 憑證。移除後它不再佔用記憶體；之後隨時可以重新安裝。",
+                    AppStoreState.uninstall_body[1],
                     class_name="text-sm text-gray-600 mb-3 leading-relaxed",
                 ),
                 rx.cond(
                     AppStoreState.uninstall_running,
                     rx.el.p(
-                        "這個應用程式目前正在執行，會先停止再移除。",
+                        AppStoreState.t["un_running"],
                         class_name="p-3 mb-3 bg-amber-50 text-amber-800 rounded-xl text-sm border border-amber-100",
                     ),
                     rx.fragment(),
@@ -1310,7 +1484,7 @@ def uninstall_confirm_panel() -> rx.Component:
                     AppStoreState.uninstall_volumes.length() > 0,
                     rx.el.div(
                         rx.checkbox(
-                            "同時刪除資料 volume",
+                            AppStoreState.t["un_remove_data"],
                             checked=AppStoreState.uninstall_remove_data,
                             on_change=AppStoreState.set_uninstall_remove_data,
                             color_scheme="red",
@@ -1321,7 +1495,7 @@ def uninstall_confirm_panel() -> rx.Component:
                             class_name="text-xs font-mono text-gray-500 mt-1 ml-6",
                         ),
                         rx.el.p(
-                            "不勾選就保留，重新安裝會沿用這些資料。Dev 模式掛載的本機資料夾一律不會動。",
+                            AppStoreState.t["un_keep_hint"],
                             class_name="text-xs text-gray-500 mt-1 ml-6",
                         ),
                         class_name="p-3 mb-3 rounded-xl border border-gray-200",
@@ -1330,14 +1504,14 @@ def uninstall_confirm_panel() -> rx.Component:
                 ),
                 rx.el.div(
                     rx.el.button(
-                        "取消",
+                        AppStoreState.t["cancel"],
                         type="button",
                         on_click=AppStoreState.cancel_uninstall,
                         class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
                     ),
                     rx.el.button(
                         rx.icon("trash-2", class_name="h-4 w-4"),
-                        rx.el.span("移除"),
+                        rx.el.span(AppStoreState.t["un_confirm"]),
                         type="button",
                         on_click=AppStoreState.confirm_uninstall,
                         class_name="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700",
@@ -1431,14 +1605,14 @@ def progress_panel() -> rx.Component:
                         rx.el.button(
                             rx.cond(
                                 AppStoreState.job_kind == "uninstall",
-                                "移除進行中…（可關閉視窗，移除會在背景繼續）",
-                                "安裝進行中…（可關閉視窗，安裝會在背景繼續）",
+                                AppStoreState.t["job_busy_uninstall"],
+                                AppStoreState.t["job_busy_install"],
                             ),
                             on_click=AppStoreState.close_progress,
                             class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
                         ),
                         rx.el.button(
-                            "完成",
+                            AppStoreState.t["job_done"],
                             on_click=AppStoreState.close_progress,
                             class_name="px-4 py-2 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700",
                         ),
@@ -1484,8 +1658,18 @@ def message_banner() -> rx.Component:
     )
 
 
+def lang_backdrop() -> rx.Component:
+    """Invisible layer behind the open language menu: a click elsewhere closes it."""
+    return rx.cond(
+        AppStoreState.show_langs,
+        rx.el.div(on_click=AppStoreState.close_langs, class_name="fixed inset-0 z-10"),
+        None,
+    )
+
+
 def index() -> rx.Component:
     return rx.el.main(
+        lang_backdrop(),
         progress_panel(),
         uninstall_confirm_panel(),
         env_form_panel(),
@@ -1503,10 +1687,11 @@ def index() -> rx.Component:
                         class_name="flex items-center gap-3",
                     ),
                     rx.el.div(
+                        language_picker(AppStoreState),
                         rx.link(
                             rx.el.div(
                                 rx.icon("activity", class_name="h-4 w-4"),
-                                rx.el.span("Memory"),
+                                rx.el.span(AppStoreState.t["store_memory"]),
                                 class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
                             ),
                             href="/monitor",
@@ -1517,7 +1702,7 @@ def index() -> rx.Component:
                                 rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
                                 rx.icon("refresh-cw", class_name="h-4 w-4"),
                             ),
-                            rx.el.span("Refresh"),
+                            rx.el.span(AppStoreState.t["refresh"]),
                             on_click=AppStoreState.refresh,
                             disabled=AppStoreState.loading,
                             class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50",
@@ -1527,7 +1712,7 @@ def index() -> rx.Component:
                     class_name="flex flex-wrap items-center justify-between gap-3 mb-2",
                 ),
                 rx.el.p(
-                    "Browse, install, and manage Reflex apps deployed behind re-ddns.",
+                    AppStoreState.t["store_subtitle"],
                     class_name="text-gray-500",
                 ),
                 class_name="mb-8",
@@ -1543,11 +1728,11 @@ def index() -> rx.Component:
                 rx.el.div(
                     rx.icon("package-open", class_name="h-12 w-12 text-gray-300 mb-4"),
                     rx.el.p(
-                        "No apps in the catalog yet.",
+                        AppStoreState.t["store_empty"],
                         class_name="text-gray-400 font-medium",
                     ),
                     rx.el.p(
-                        "Add entries to data/appstore_catalog.json.",
+                        AppStoreState.t["store_empty_hint"],
                         class_name="text-gray-400 text-sm mt-1",
                     ),
                     class_name="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-100 rounded-3xl",
@@ -1555,6 +1740,8 @@ def index() -> rx.Component:
             ),
             class_name="max-w-6xl mx-auto py-12 px-6",
         ),
+        # The page's language, so CJK text is drawn with the right glyphs.
+        lang=LocaleState.locale,
         class_name="min-h-screen bg-gray-50 font-['Inter']",
     )
 

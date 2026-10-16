@@ -19,6 +19,7 @@ For every app declared in the catalog you can:
 | **Stop**     | Stops the app's container.                                                |
 | **Install**  | Installs the app **in-page** with a live progress bar — no host commands. |
 | **Uninstall**| Confirms, then removes the app **in-page with live progress**: container, registry, DNS, nginx, TLS cert. Data volumes are kept unless ticked. |
+| **Language** | English, 繁體中文, 简体中文, Español, 日本語 — one choice for this page and `/monitor` (kept in the browser, synced across tabs). |
 
 > **Real, in-page install (no host shell needed):** every smart app is just the
 > generic `re-ddns/smart-launcher` image started with different environment
@@ -84,6 +85,30 @@ Each entry maps directly to a `smart_launch.sh` invocation. `icon` is any
 Optional: `env_schema` (settings asked for before install) and `ports`
 (host-published ports such as `["7881:7881", "7882:7882/udp"]`, for traffic
 nginx cannot proxy, e.g. WebRTC media; `smart_launch.sh -p`).
+
+`i18n` (optional) holds the entry's texts in other languages. The base fields
+are English and are used for any language or field it leaves out:
+
+```json
+"i18n": {
+  "zh-Hant": {"description": "多人協作編輯文件，以 Markdown 呈現。"},
+  "ja": {
+    "description": "…",
+    "env": {"ADMIN_PASSCODE": {"label": "…", "placeholder": "…", "help": "…"}}
+  }
+}
+```
+
+## Languages
+
+The UI text of this page and of `/monitor` lives in `appstore/i18n/` (one
+table per language; `en.py` is the reference). Both pages inherit the chosen
+language from `LocaleState` in `appstore/lang.py`, so switching on either page
+switches both. Install and uninstall progress from re-ddns arrives as a
+message key plus arguments (`msg`, `msg_args`), which the App Store renders
+from the same tables. To add a language, follow the steps in
+`appstore/i18n/__init__.py`, and add the language to the catalog's `i18n`
+blocks if the app descriptions should follow.
 
 ## Run it
 

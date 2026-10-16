@@ -25,14 +25,16 @@ at ``/var/run/docker.sock`` (the same socket the app cards already use), plus
 ``/proc/meminfo``, which inside a container describes the whole Docker VM.
 
 The page is translated: it starts in English and the picker in its header
-switches language without a reload, remembering the choice in the browser.
-All the text lives in the ``i18n`` package next door — see its ``__init__`` for
-how to add a language.  Strings with ``{placeholders}`` are formatted on the
-server (a Reflex Var cannot be ``.format()``-ed in a component), so anything
-the UI shows ready-made is composed in ``collect()`` or in a computed var.
+switches language without a reload.  The language is shared with the App Store
+page (``MonitorState`` inherits it from ``lang.LocaleState``), remembered in the
+browser and synced across tabs.  All the text lives in the ``i18n`` package
+next door — see its ``__init__`` for how to add a language.  Strings with
+``{placeholders}`` are formatted on the server (a Reflex Var cannot be
+``.format()``-ed in a component), so anything the UI shows ready-made is
+composed in ``collect()`` or in a computed var.
 
-This module is self-contained apart from ``i18n``: ``appstore.py`` imports it,
-so it must not import ``appstore.py`` back.
+This module is self-contained apart from ``i18n`` and ``lang``: ``appstore.py``
+imports it, so it must not import ``appstore.py`` back.
 """
 
 from __future__ import annotations
@@ -47,6 +49,7 @@ import httpx
 import reflex as rx
 
 from . import i18n
+from .lang import LocaleState, language_picker
 
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
 DOCKER_SOCK = os.environ.get("DOCKER_SOCK", "/var/run/docker.sock")
@@ -488,8 +491,12 @@ async def collect(
 # State
 # ---------------------------------------------------------------------------
 
-class MonitorState(rx.State):
-    """Live container memory table, polled while the page is open."""
+class MonitorState(LocaleState):
+    """Live container memory table, polled while the page is open.
+
+    The language (``locale``, ``t``, ``lang_label``) comes from LocaleState,
+    so it is the same one the App Store page shows.
+    """
 
     rows: list[dict[str, str]] = []
     vm: dict[str, str] = {}
@@ -498,10 +505,7 @@ class MonitorState(rx.State):
     message: str = ""
     message_kind: str = "info"  # info | success | error
 
-    # The chosen language, kept in the browser so it survives a reload. New
-    # visitors start in English (i18n.DEFAULT).
-    locale: str = rx.LocalStorage(i18n.DEFAULT, name="appstore_monitor_locale")
-    show_langs: bool = False
+    show_langs: bool = False    # the language menu is open
 
     # Memory-limit editor (one row at a time).
     edit_name: str = ""
@@ -522,21 +526,9 @@ class MonitorState(rx.State):
     _hist: dict[str, list[int]] = {}
 
     @rx.var
-    def t(self) -> dict[str, str]:
-        """The string table the components read, e.g. ``MonitorState.t["refresh"]``."""
-        return dict(i18n.strings(self.locale))
-
-    @rx.var
     def subtitle(self) -> str:
         """Composed here because a Var cannot be ``.format()``-ed in a component."""
         return i18n.strings(self.locale)["subtitle"].format(seconds=int(POLL_SECONDS))
-
-    @rx.var
-    def lang_label(self) -> str:
-        return i18n.label(self.locale)
-
-    def _strings(self):
-        return i18n.strings(self.locale)
 
     async def _sample(self):
         rows, vm, cpu = await collect(
@@ -566,7 +558,7 @@ class MonitorState(rx.State):
         sampling, so they would otherwise keep the old language until the next
         tick.
         """
-        self.locale = code if code in i18n.CODES else i18n.DEFAULT
+        self._set_locale(code)
         self.show_langs = False
         self.message = ""
         if self.edit_name:
@@ -812,45 +804,6 @@ _LEVEL_BAR = {
     "tight": "bg-amber-500",
     "critical": "bg-red-500",
 }
-
-
-def language_picker() -> rx.Component:
-    """Switches language without a reload; the options come from i18n.LOCALES.
-
-    The list is built from a plain Python loop because the available languages
-    are fixed when the app compiles — only the *choice* is state.
-    """
-    return rx.el.div(
-        rx.el.button(
-            rx.icon("languages", class_name="h-4 w-4"),
-            rx.el.span(MonitorState.lang_label),
-            rx.icon("chevron-down", class_name="h-3.5 w-3.5 opacity-60"),
-            on_click=MonitorState.toggle_langs,
-            title=MonitorState.t["language"],
-            class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
-        ),
-        rx.cond(
-            MonitorState.show_langs,
-            rx.el.div(
-                *[
-                    rx.el.button(
-                        rx.el.span(loc["label"], class_name="flex-1 text-left"),
-                        rx.cond(
-                            MonitorState.locale == loc["code"],
-                            rx.icon("check", class_name="h-4 w-4 text-blue-600"),
-                            None,
-                        ),
-                        on_click=MonitorState.set_locale(loc["code"]),
-                        class_name="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg",
-                    )
-                    for loc in i18n.LOCALES
-                ],
-                class_name="absolute right-0 z-20 mt-2 w-44 p-1 bg-white border border-gray-200 rounded-xl shadow-lg",
-            ),
-            None,
-        ),
-        class_name="relative",
-    )
 
 
 def vm_card() -> rx.Component:
@@ -1369,7 +1322,7 @@ def monitor() -> rx.Component:
                         class_name="flex items-center gap-3",
                     ),
                     rx.el.div(
-                        language_picker(),
+                        language_picker(MonitorState),
                         rx.el.button(
                             rx.cond(
                                 MonitorState.auto,
@@ -1439,5 +1392,7 @@ def monitor() -> rx.Component:
             ),
             class_name="max-w-6xl mx-auto py-12 px-6",
         ),
+        # The page's language, so CJK text is drawn with the right glyphs.
+        lang=LocaleState.locale,
         class_name="min-h-screen bg-gray-50 font-['Inter']",
     )

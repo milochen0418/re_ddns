@@ -12,7 +12,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "多人協作編輯文件，以 Markdown 呈現。"},
+        "zh-Hans": {"description": "多人协作编辑文档，以 Markdown 呈现。"},
+        "ja": {"description": "Markdown で表示される文書を共同編集できます。"},
+        "es": {"description": "Edición colaborativa de documentos que se muestran en Markdown."}
+      }
     },
     {
       "id": "plantuml",
@@ -26,7 +32,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "用 PlantUML 撰寫、多人協作的圖表。"},
+        "zh-Hans": {"description": "用 PlantUML 编写、多人协作的图表。"},
+        "ja": {"description": "PlantUML で書く図を共同編集できます。"},
+        "es": {"description": "Diagramas colaborativos escritos con PlantUML."}
+      }
     },
     {
       "id": "vecdraw",
@@ -40,7 +52,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "多人協作的向量繪圖畫布。"},
+        "zh-Hans": {"description": "多人协作的矢量绘图画布。"},
+        "ja": {"description": "共同編集できるベクター描画キャンバス。"},
+        "es": {"description": "Lienzo colaborativo de dibujo vectorial."}
+      }
     },
     {
       "id": "dicom-data-explorer",
@@ -54,7 +72,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"]
+      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"],
+      "i18n": {
+        "zh-Hant": {"description": "瀏覽與檢視 DICOM 資料集。"},
+        "zh-Hans": {"description": "浏览和查看 DICOM 数据集。"},
+        "ja": {"description": "DICOM データセットを閲覧・調査します。"},
+        "es": {"description": "Explora e inspecciona conjuntos de datos DICOM."}
+      }
     },
     {
       "id": "dicom-viewer",
@@ -68,7 +92,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"]
+      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"],
+      "i18n": {
+        "zh-Hant": {"description": "顯示與檢視 DICOM 醫學影像。"},
+        "zh-Hans": {"description": "显示和查看 DICOM 医学影像。"},
+        "ja": {"description": "DICOM の医用画像を表示します。"},
+        "es": {"description": "Muestra y visualiza imágenes médicas DICOM."}
+      }
     },
     {
       "id": "video-segment-splitter",
@@ -82,7 +112,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "把影片切成多個片段。"},
+        "zh-Hans": {"description": "把视频切分成多个片段。"},
+        "ja": {"description": "動画を複数のセグメントに分割します。"},
+        "es": {"description": "Divide un vídeo en segmentos."}
+      }
     },
     {
       "id": "video-duration-adjuster",
@@ -96,7 +132,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "調整影片的播放長度。"},
+        "zh-Hans": {"description": "调整视频的播放时长。"},
+        "ja": {"description": "動画の再生時間を調整します。"},
+        "es": {"description": "Ajusta la duración de reproducción de un vídeo."}
+      }
     },
     {
       "id": "youtube-downloader",
@@ -110,7 +152,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "用 yt-dlp 抓取並下載 YouTube 影片、播放清單與字幕。"},
+        "zh-Hans": {"description": "用 yt-dlp 获取并下载 YouTube 视频、播放列表和字幕。"},
+        "ja": {"description": "yt-dlp で YouTube の動画、再生リスト、字幕を取得してダウンロードします。"},
+        "es": {"description": "Obtén y descarga vídeos, listas de reproducción y subtítulos de YouTube con yt-dlp."}
+      }
     },
     {
       "id": "youtube-to-mp3",
@@ -124,7 +172,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "把 YouTube 影片轉成 MP3 音訊檔。"},
+        "zh-Hans": {"description": "把 YouTube 视频转换成 MP3 音频文件。"},
+        "ja": {"description": "YouTube の動画を MP3 の音声ファイルに変換します。"},
+        "es": {"description": "Convierte vídeos de YouTube en archivos de audio MP3."}
+      }
     },
     {
       "id": "video-to-mp4",
@@ -138,7 +192,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "把各種格式的影片轉成 MP4。"},
+        "zh-Hans": {"description": "把各种格式的视频转换成 MP4。"},
+        "ja": {"description": "さまざまな形式の動画を MP4 に変換します。"},
+        "es": {"description": "Convierte vídeos de distintos formatos a MP4."}
+      }
     },
     {
       "id": "video-audio-mixer",
@@ -152,7 +212,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "在影片上疊加並混合多條音軌，再匯出。"},
+        "zh-Hans": {"description": "在视频上叠加并混合多条音轨，然后导出。"},
+        "ja": {"description": "動画に複数の音声トラックを重ねてミックスし、書き出します。"},
+        "es": {"description": "Superpón y mezcla varias pistas de audio sobre un vídeo y expórtalo."}
+      }
     },
     {
       "id": "pdf-signature",
@@ -166,7 +232,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "上傳 PDF、在頁面上手寫簽名，再匯出簽好的文件。"},
+        "zh-Hans": {"description": "上传 PDF、在页面上手写签名，然后导出签好的文档。"},
+        "ja": {"description": "PDF をアップロードしてページに署名を描き、署名済みの文書を書き出します。"},
+        "es": {"description": "Sube un PDF, dibuja una firma en la página y exporta el documento firmado."}
+      }
     },
     {
       "id": "relack",
@@ -185,7 +257,33 @@
         {"key": "GOOGLE_CLIENT_ID", "label": "Google OAuth Client ID", "placeholder": "xxxx.apps.googleusercontent.com", "secret": false, "required": true},
         {"key": "GOOGLE_CLIENT_SECRET", "label": "Google OAuth Client Secret", "placeholder": "", "secret": true, "required": true},
         {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (unlocks admin dashboard)", "placeholder": "choose a secret", "secret": true, "required": true}
-      ]
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "自架、重視隱私的團隊聊天（Slack 的替代方案）。需要 Google OAuth 設定。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（解鎖管理後台）", "placeholder": "自訂一組密碼"}
+          }
+        },
+        "zh-Hans": {
+          "description": "自托管、注重隐私的团队聊天（Slack 的替代品）。需要 Google OAuth 配置。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（解锁管理后台）", "placeholder": "自定义一个密码"}
+          }
+        },
+        "ja": {
+          "description": "セルフホストでプライバシー重視のチームチャット（Slack の代替）。Google OAuth の設定が必要です。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（管理ダッシュボードを開く）", "placeholder": "秘密の文字列を決める"}
+          }
+        },
+        "es": {
+          "description": "Chat de equipo autoalojado y centrado en la privacidad (una alternativa a Slack). Requiere configurar Google OAuth.",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Código de administrador (desbloquea el panel de administración)", "placeholder": "elige un secreto"}
+          }
+        }
+      }
     },
     {
       "id": "livekit-audio-chat",
@@ -205,7 +303,33 @@
         {"key": "LIVEKIT_API_KEY", "label": "LiveKit API Key", "placeholder": "APIxxxxxxxx", "secret": false, "required": true},
         {"key": "LIVEKIT_API_SECRET", "label": "LiveKit API Secret", "placeholder": "", "secret": true, "required": true},
         {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (unlocks /settings)", "placeholder": "choose a secret", "secret": true, "required": true}
-      ]
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "以 LiveKit 驅動的即時語音會議室。需要 LiveKit 設定。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（解鎖 /settings）", "placeholder": "自訂一組密碼"}
+          }
+        },
+        "zh-Hans": {
+          "description": "由 LiveKit 驱动的实时语音会议室。需要 LiveKit 配置。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（解锁 /settings）", "placeholder": "自定义一个密码"}
+          }
+        },
+        "ja": {
+          "description": "LiveKit によるリアルタイムの音声会議ルーム。LiveKit の設定が必要です。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（/settings を開く）", "placeholder": "秘密の文字列を決める"}
+          }
+        },
+        "es": {
+          "description": "Salas de audioconferencia en tiempo real con LiveKit. Requiere configurar LiveKit.",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Código de administrador (desbloquea /settings)", "placeholder": "elige un secreto"}
+          }
+        }
+      }
     },
     {
       "id": "ddns-livekit-audio-chat",
@@ -222,8 +346,34 @@
       "volumes": [],
       "ports": ["7881:7881", "7882:7882/udp"],
       "env_schema": [
-        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
-      ]
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (optional, unlocks /settings)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "The LiveKit server is built into this app's container; no LiveKit keys or account are needed.\nWith a passcode, /settings shows the API key/secret and lets you change the media IP, restart the server and read its log; left empty, /settings only shows the status."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "即時語音聊天室，使用內建在 app 自己容器裡的開源 LiveKit 伺服器。不需要 LiveKit Cloud 帳號或金鑰。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "实时语音聊天室，使用内置在 app 自己容器里的开源 LiveKit 服务器。不需要 LiveKit Cloud 账号或密钥。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（选填，解锁 /settings）", "placeholder": "可留空", "help": "LiveKit 服务器已内置在这个 app 的容器里，不需要任何 LiveKit 密钥或账号。\n设置密码后可在 /settings 查看 API Key/Secret、调整媒体 IP、重启服务器和查看 log；留空则 /settings 只能看状态。"}
+          }
+        },
+        "ja": {
+          "description": "アプリ自身のコンテナで動くオープンソースの LiveKit サーバーを内蔵した、リアルタイムの音声ルーム。LiveKit Cloud のアカウントやキーは不要です。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（任意、/settings を開く）", "placeholder": "空欄でも可", "help": "LiveKit サーバーはこのアプリのコンテナに内蔵されているので、LiveKit のキーやアカウントは不要です。\nパスコードを設定すると、/settings で API Key/Secret の確認、メディア IP の変更、サーバーの再起動、ログの閲覧ができます。空欄なら /settings では状態の確認だけです。"}
+          }
+        },
+        "es": {
+          "description": "Salas de audio en tiempo real sobre un servidor LiveKit de código abierto integrado, que corre dentro del propio contenedor de la app. No hace falta cuenta ni claves de LiveKit Cloud.",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Código de administrador (opcional, desbloquea /settings)", "placeholder": "puede quedar vacío", "help": "El servidor LiveKit viene integrado en el contenedor de esta app; no hacen falta claves ni cuenta de LiveKit.\nCon un código, /settings muestra la API Key/Secret y permite cambiar la IP de medios, reiniciar el servidor y ver su log; si lo dejas vacío, /settings solo muestra el estado."}
+          }
+        }
+      }
     },
     {
       "id": "ddns-livekit-video-chat",
@@ -240,8 +390,34 @@
       "volumes": [],
       "ports": ["7981:7981", "7982:7982/udp"],
       "env_schema": [
-        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7981/tcp + 7982/udp，可與語音聊天 app（7881/7882）同時安裝。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
-      ]
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (optional, unlocks /settings)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "The LiveKit server is built into this app's container; no LiveKit keys or account are needed. Its media ports are 7981/tcp + 7982/udp, so it can be installed next to the audio chat app (7881/7882).\nWith a passcode, /settings shows the API key/secret and lets you change the media IP, restart the server and read its log; left empty, /settings only shows the status."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "即時視訊聊天室（攝影機 + 麥克風），使用內建在 app 自己容器裡的開源 LiveKit 伺服器。不需要 LiveKit Cloud 帳號或金鑰。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7981/tcp + 7982/udp，可與語音聊天 app（7881/7882）同時安裝。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "实时视频聊天室（摄像头 + 麦克风），使用内置在 app 自己容器里的开源 LiveKit 服务器。不需要 LiveKit Cloud 账号或密钥。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（选填，解锁 /settings）", "placeholder": "可留空", "help": "LiveKit 服务器已内置在这个 app 的容器里，不需要任何 LiveKit 密钥或账号；媒体端口用 7981/tcp + 7982/udp，可与语音聊天 app（7881/7882）同时安装。\n设置密码后可在 /settings 查看 API Key/Secret、调整媒体 IP、重启服务器和查看 log；留空则 /settings 只能看状态。"}
+          }
+        },
+        "ja": {
+          "description": "アプリ自身のコンテナで動くオープンソースの LiveKit サーバーを内蔵した、リアルタイムのビデオルーム（カメラ + マイク）。LiveKit Cloud のアカウントやキーは不要です。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（任意、/settings を開く）", "placeholder": "空欄でも可", "help": "LiveKit サーバーはこのアプリのコンテナに内蔵されているので、LiveKit のキーやアカウントは不要です。メディアポートは 7981/tcp + 7982/udp なので、音声チャットアプリ（7881/7882）と同時にインストールできます。\nパスコードを設定すると、/settings で API Key/Secret の確認、メディア IP の変更、サーバーの再起動、ログの閲覧ができます。空欄なら /settings では状態の確認だけです。"}
+          }
+        },
+        "es": {
+          "description": "Salas de vídeo en tiempo real (cámara + micrófono) sobre un servidor LiveKit de código abierto integrado, que corre dentro del propio contenedor de la app. No hace falta cuenta ni claves de LiveKit Cloud.",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Código de administrador (opcional, desbloquea /settings)", "placeholder": "puede quedar vacío", "help": "El servidor LiveKit viene integrado en el contenedor de esta app; no hacen falta claves ni cuenta de LiveKit. Sus puertos de medios son 7981/tcp + 7982/udp, así que puede instalarse junto a la app de chat de audio (7881/7882).\nCon un código, /settings muestra la API Key/Secret y permite cambiar la IP de medios, reiniciar el servidor y ver su log; si lo dejas vacío, /settings solo muestra el estado."}
+          }
+        }
+      }
     },
     {
       "id": "ddns-livekit-avatar-chat",
@@ -258,8 +434,34 @@
       "volumes": [],
       "ports": ["7781:7781", "7782:7782/udp"],
       "env_schema": [
-        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7781/tcp + 7782/udp，可與語音（7881/7882）、視訊（7981/7982）聊天 app 同時安裝。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
-      ]
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (optional, unlocks /settings)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "The LiveKit server is built into this app's container; no LiveKit keys or account are needed. Its media ports are 7781/tcp + 7782/udp, so it can be installed next to the audio (7881/7882) and video (7981/7982) chat apps.\nWith a passcode, /settings shows the API key/secret and lets you change the media IP, restart the server and read its log; left empty, /settings only shows the status."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "用有表情的卡通頭像進行語音通話：臉部在你自己的裝置上追蹤，只傳送聲音和表情數值，絕不傳送影像。內建開源 LiveKit 伺服器，不需要金鑰。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7781/tcp + 7782/udp，可與語音（7881/7882）、視訊（7981/7982）聊天 app 同時安裝。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "用有表情的卡通头像进行语音通话：面部在你自己的设备上追踪，只发送声音和表情数值，绝不发送视频。内置开源 LiveKit 服务器，不需要密钥。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（选填，解锁 /settings）", "placeholder": "可留空", "help": "LiveKit 服务器已内置在这个 app 的容器里，不需要任何 LiveKit 密钥或账号；媒体端口用 7781/tcp + 7782/udp，可与语音（7881/7882）、视频（7981/7982）聊天 app 同时安装。\n设置密码后可在 /settings 查看 API Key/Secret、调整媒体 IP、重启服务器和查看 log；留空则 /settings 只能看状态。"}
+          }
+        },
+        "ja": {
+          "description": "表情豊かなカートゥーンのアバターで音声通話。顔の追跡は自分の端末で行い、送るのは声と表情の値だけで、映像は一切送りません。オープンソースの LiveKit サーバーを内蔵し、キーは不要です。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（任意、/settings を開く）", "placeholder": "空欄でも可", "help": "LiveKit サーバーはこのアプリのコンテナに内蔵されているので、LiveKit のキーやアカウントは不要です。メディアポートは 7781/tcp + 7782/udp なので、音声（7881/7882）とビデオ（7981/7982）のチャットアプリと同時にインストールできます。\nパスコードを設定すると、/settings で API Key/Secret の確認、メディア IP の変更、サーバーの再起動、ログの閲覧ができます。空欄なら /settings では状態の確認だけです。"}
+          }
+        },
+        "es": {
+          "description": "Llamadas de voz con avatares de dibujos animados expresivos: tu cara se sigue en tu propio dispositivo y solo se envían tu voz y los valores de expresión, nunca vídeo. Servidor LiveKit de código abierto integrado; no hacen falta claves.",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Código de administrador (opcional, desbloquea /settings)", "placeholder": "puede quedar vacío", "help": "El servidor LiveKit viene integrado en el contenedor de esta app; no hacen falta claves ni cuenta de LiveKit. Sus puertos de medios son 7781/tcp + 7782/udp, así que puede instalarse junto a las apps de chat de audio (7881/7882) y de vídeo (7981/7982).\nCon un código, /settings muestra la API Key/Secret y permite cambiar la IP de medios, reiniciar el servidor y ver su log; si lo dejas vacío, /settings solo muestra el estado."}
+          }
+        }
+      }
     },
     {
       "id": "ddns-livekit-english-chat",
@@ -276,10 +478,44 @@
       "volumes": ["smart-app-english-chat-data:/root/.local/share/reflex_ddns_livekit_english_chat"],
       "ports": ["7681:7681", "7682:7682/udp"],
       "env_schema": [
-        {"key": "OLLAMA_MODEL", "label": "翻譯用的 Ollama 模型（選填）", "placeholder": "qwen2.5:7b", "secret": false, "required": false, "help": "選取字幕文字後按右鍵翻譯，由 Docker 主機上的 Ollama（本地 LLM）完成。\n留空使用 qwen2.5:7b，請先在主機執行：ollama pull qwen2.5:7b；也可填任何已 pull 的聊天模型（ollama list）。"},
-        {"key": "OLLAMA_URL", "label": "Ollama 位址（選填）", "placeholder": "http://host.docker.internal:11434", "secret": false, "required": false, "help": "留空即使用 Docker 主機上的 Ollama（http://host.docker.internal:11434）；Ollama 在別台機器時再填它的位址。"},
-        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "secret": true, "required": false, "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7681/tcp + 7682/udp，可與語音（7881/7882）、視訊（7981/7982）、頭像（7781/7782）聊天 app 同時安裝。\n字幕用的 Whisper 語音模型（約 470 MB）會在第一次啟動時自動下載。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
-      ]
+        {"key": "OLLAMA_MODEL", "label": "Ollama model for translation (optional)", "placeholder": "qwen2.5:7b", "secret": false, "required": false, "help": "Select subtitle text and right-click to translate it; Ollama (a local LLM) on the Docker host does the work.\nLeft empty, qwen2.5:7b is used: run ollama pull qwen2.5:7b on the host first. Any chat model you have pulled also works (ollama list)."},
+        {"key": "OLLAMA_URL", "label": "Ollama address (optional)", "placeholder": "http://host.docker.internal:11434", "secret": false, "required": false, "help": "Left empty, the Ollama on the Docker host is used (http://host.docker.internal:11434). Fill this in only when Ollama runs on another machine."},
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (optional, unlocks /settings)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "The LiveKit server is built into this app's container; no LiveKit keys or account are needed. Its media ports are 7681/tcp + 7682/udp, so it can be installed next to the audio (7881/7882), video (7981/7982) and avatar (7781/7782) chat apps.\nThe Whisper speech model for the subtitles (about 470 MB) downloads by itself on the first start.\nWith a passcode, /settings shows the API key/secret and lets you change the media IP, restart the server and read its log; left empty, /settings only shows the status."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "以卡通頭像進行英文對話，附即時字幕（自架 Whisper），還能按右鍵把任何字詞翻譯成你的語言（透過 Ollama 的本地 LLM）。",
+          "env": {
+            "OLLAMA_MODEL": {"label": "翻譯用的 Ollama 模型（選填）", "help": "選取字幕文字後按右鍵翻譯，由 Docker 主機上的 Ollama（本地 LLM）完成。\n留空使用 qwen2.5:7b，請先在主機執行：ollama pull qwen2.5:7b；也可填任何已 pull 的聊天模型（ollama list）。"},
+            "OLLAMA_URL": {"label": "Ollama 位址（選填）", "help": "留空即使用 Docker 主機上的 Ollama（http://host.docker.internal:11434）；Ollama 在別台機器時再填它的位址。"},
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（選填，解鎖 /settings）", "placeholder": "可留空", "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7681/tcp + 7682/udp，可與語音（7881/7882）、視訊（7981/7982）、頭像（7781/7782）聊天 app 同時安裝。\n字幕用的 Whisper 語音模型（約 470 MB）會在第一次啟動時自動下載。\n設定密碼後可在 /settings 查看 API Key/Secret、調整媒體 IP、重啟伺服器與查看 log；留空則 /settings 只能看狀態。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "以卡通头像进行英语对话，带实时字幕（自托管 Whisper），还能右键把任何词语翻译成你的语言（通过 Ollama 的本地 LLM）。",
+          "env": {
+            "OLLAMA_MODEL": {"label": "翻译用的 Ollama 模型（选填）", "help": "选中字幕文字后按右键翻译，由 Docker 主机上的 Ollama（本地 LLM）完成。\n留空则使用 qwen2.5:7b，请先在主机执行：ollama pull qwen2.5:7b；也可以填任何已 pull 的聊天模型（ollama list）。"},
+            "OLLAMA_URL": {"label": "Ollama 地址（选填）", "help": "留空即使用 Docker 主机上的 Ollama（http://host.docker.internal:11434）；Ollama 在别的机器上时再填它的地址。"},
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（选填，解锁 /settings）", "placeholder": "可留空", "help": "LiveKit 服务器已内置在这个 app 的容器里，不需要任何 LiveKit 密钥或账号；媒体端口用 7681/tcp + 7682/udp，可与语音（7881/7882）、视频（7981/7982）、头像（7781/7782）聊天 app 同时安装。\n字幕用的 Whisper 语音模型（约 470 MB）会在第一次启动时自动下载。\n设置密码后可在 /settings 查看 API Key/Secret、调整媒体 IP、重启服务器和查看 log；留空则 /settings 只能看状态。"}
+          }
+        },
+        "ja": {
+          "description": "カートゥーンのアバターで英会話。ライブ字幕（セルフホストの Whisper）付きで、右クリックで好きな語句を自分の言語に翻訳できます（Ollama によるローカル LLM）。",
+          "env": {
+            "OLLAMA_MODEL": {"label": "翻訳に使う Ollama モデル（任意）", "help": "字幕の文字を選んで右クリックすると翻訳します。翻訳は Docker ホスト上の Ollama（ローカル LLM）が行います。\n空欄なら qwen2.5:7b を使います。先にホストで ollama pull qwen2.5:7b を実行してください。pull 済みのチャットモデル（ollama list）ならどれでも指定できます。"},
+            "OLLAMA_URL": {"label": "Ollama のアドレス（任意）", "help": "空欄なら Docker ホスト上の Ollama（http://host.docker.internal:11434）を使います。Ollama が別のマシンにあるときだけ、そのアドレスを入力してください。"},
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（任意、/settings を開く）", "placeholder": "空欄でも可", "help": "LiveKit サーバーはこのアプリのコンテナに内蔵されているので、LiveKit のキーやアカウントは不要です。メディアポートは 7681/tcp + 7682/udp なので、音声（7881/7882）、ビデオ（7981/7982）、アバター（7781/7782）のチャットアプリと同時にインストールできます。\n字幕用の Whisper 音声モデル（約 470 MB）は初回起動時に自動でダウンロードされます。\nパスコードを設定すると、/settings で API Key/Secret の確認、メディア IP の変更、サーバーの再起動、ログの閲覧ができます。空欄なら /settings では状態の確認だけです。"}
+          }
+        },
+        "es": {
+          "description": "Conversación en inglés con avatares de dibujos animados, subtítulos en directo (Whisper, autoalojado) y traducción con clic derecho de cualquier palabra a tu idioma (LLM local con Ollama).",
+          "env": {
+            "OLLAMA_MODEL": {"label": "Modelo de Ollama para traducir (opcional)", "help": "Selecciona texto de los subtítulos y haz clic derecho para traducirlo; lo hace Ollama (un LLM local) en el host de Docker.\nSi lo dejas vacío se usa qwen2.5:7b: ejecuta antes ollama pull qwen2.5:7b en el host. También sirve cualquier modelo de chat que hayas descargado (ollama list)."},
+            "OLLAMA_URL": {"label": "Dirección de Ollama (opcional)", "help": "Si lo dejas vacío se usa el Ollama del host de Docker (http://host.docker.internal:11434). Rellénalo solo si Ollama corre en otra máquina."},
+            "ADMIN_PASSCODE": {"label": "Código de administrador (opcional, desbloquea /settings)", "placeholder": "puede quedar vacío", "help": "El servidor LiveKit viene integrado en el contenedor de esta app; no hacen falta claves ni cuenta de LiveKit. Sus puertos de medios son 7681/tcp + 7682/udp, así que puede instalarse junto a las apps de chat de audio (7881/7882), vídeo (7981/7982) y avatares (7781/7782).\nEl modelo de voz Whisper de los subtítulos (unos 470 MB) se descarga solo en el primer arranque.\nCon un código, /settings muestra la API Key/Secret y permite cambiar la IP de medios, reiniciar el servidor y ver su log; si lo dejas vacío, /settings solo muestra el estado."}
+          }
+        }
+      }
     },
     {
       "id": "instagram-story-downloader",
@@ -295,10 +531,44 @@
       "env_file": "",
       "volumes": [],
       "env_schema": [
-        {"key": "IG_SESSIONID", "label": "Instagram sessionid cookie", "placeholder": "貼上 sessionid 的值", "secret": true, "required": true, "help": "這是你已登入 Instagram 帳號的 cookie（不是密碼）。取得方式：\n1. 電腦版 Chrome 登入 instagram.com\n2. 按 F12（或 ⌥⌘I）打開開發者工具 → Application 分頁\n3. 左側 Storage → Cookies → https://www.instagram.com\n4. 找到 sessionid，複製它的 Value 貼在這裡\n注意：登出 Instagram 會讓它失效，屆時需重新安裝並填新值。"},
-        {"key": "IG_DS_USER_ID", "label": "Instagram ds_user_id cookie（選填）", "placeholder": "可留空", "secret": false, "required": false, "help": "同一個 Cookies 清單裡的 ds_user_id 值；不填也可以。"},
-        {"key": "IG_CSRFTOKEN", "label": "Instagram csrftoken cookie（選填）", "placeholder": "可留空", "secret": false, "required": false, "help": "同一個 Cookies 清單裡的 csrftoken 值；不填也可以。"}
-      ]
+        {"key": "IG_SESSIONID", "label": "Instagram sessionid cookie", "placeholder": "paste the sessionid value", "secret": true, "required": true, "help": "This is a cookie of your logged-in Instagram account (not your password). To get it:\n1. Log in to instagram.com in desktop Chrome\n2. Press F12 (or ⌥⌘I) to open DevTools → Application tab\n3. On the left, Storage → Cookies → https://www.instagram.com\n4. Find sessionid, copy its Value and paste it here\nNote: logging out of Instagram invalidates it; then reinstall the app with the new value."},
+        {"key": "IG_DS_USER_ID", "label": "Instagram ds_user_id cookie (optional)", "placeholder": "may be left empty", "secret": false, "required": false, "help": "The ds_user_id value from the same Cookies list; it can be left empty."},
+        {"key": "IG_CSRFTOKEN", "label": "Instagram csrftoken cookie (optional)", "placeholder": "may be left empty", "secret": false, "required": false, "help": "The csrftoken value from the same Cookies list; it can be left empty."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "MiStories — 備份你的 Instagram 限時動態。使用無頭瀏覽器（Playwright）與 yt-dlp。",
+          "env": {
+            "IG_SESSIONID": {"placeholder": "貼上 sessionid 的值", "help": "這是你已登入 Instagram 帳號的 cookie（不是密碼）。取得方式：\n1. 電腦版 Chrome 登入 instagram.com\n2. 按 F12（或 ⌥⌘I）打開開發者工具 → Application 分頁\n3. 左側 Storage → Cookies → https://www.instagram.com\n4. 找到 sessionid，複製它的 Value 貼在這裡\n注意：登出 Instagram 會讓它失效，屆時需重新安裝並填新值。"},
+            "IG_DS_USER_ID": {"label": "Instagram ds_user_id cookie（選填）", "placeholder": "可留空", "help": "同一個 Cookies 清單裡的 ds_user_id 值；不填也可以。"},
+            "IG_CSRFTOKEN": {"label": "Instagram csrftoken cookie（選填）", "placeholder": "可留空", "help": "同一個 Cookies 清單裡的 csrftoken 值；不填也可以。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "MiStories — 备份你的 Instagram 快拍。使用无头浏览器（Playwright）和 yt-dlp。",
+          "env": {
+            "IG_SESSIONID": {"placeholder": "粘贴 sessionid 的值", "help": "这是你已登录 Instagram 账号的 cookie（不是密码）。获取方法：\n1. 用电脑版 Chrome 登录 instagram.com\n2. 按 F12（或 ⌥⌘I）打开开发者工具 → Application 标签页\n3. 左侧 Storage → Cookies → https://www.instagram.com\n4. 找到 sessionid，复制它的 Value 粘贴到这里\n注意：退出 Instagram 登录会让它失效，届时需要重新安装并填写新值。"},
+            "IG_DS_USER_ID": {"label": "Instagram ds_user_id cookie（选填）", "placeholder": "可留空", "help": "同一个 Cookies 列表里的 ds_user_id 值；不填也可以。"},
+            "IG_CSRFTOKEN": {"label": "Instagram csrftoken cookie（选填）", "placeholder": "可留空", "help": "同一个 Cookies 列表里的 csrftoken 值；不填也可以。"}
+          }
+        },
+        "ja": {
+          "description": "MiStories — Instagram のストーリーズをバックアップします。ヘッドレスブラウザ（Playwright）と yt-dlp を使います。",
+          "env": {
+            "IG_SESSIONID": {"placeholder": "sessionid の値を貼り付け", "help": "ログイン中の Instagram アカウントの cookie です（パスワードではありません）。取得方法:\n1. パソコンの Chrome で instagram.com にログイン\n2. F12（または ⌥⌘I）でデベロッパーツールを開き → Application タブ\n3. 左側の Storage → Cookies → https://www.instagram.com\n4. sessionid を探し、その Value をコピーしてここに貼り付け\n注意: Instagram からログアウトすると無効になります。そのときは新しい値で再インストールしてください。"},
+            "IG_DS_USER_ID": {"label": "Instagram ds_user_id cookie（任意）", "placeholder": "空欄でも可", "help": "同じ Cookies 一覧にある ds_user_id の値です。入力しなくてもかまいません。"},
+            "IG_CSRFTOKEN": {"label": "Instagram csrftoken cookie（任意）", "placeholder": "空欄でも可", "help": "同じ Cookies 一覧にある csrftoken の値です。入力しなくてもかまいません。"}
+          }
+        },
+        "es": {
+          "description": "MiStories: haz copia de seguridad de tus historias de Instagram. Usa un navegador sin interfaz (Playwright) y yt-dlp.",
+          "env": {
+            "IG_SESSIONID": {"placeholder": "pega el valor de sessionid", "help": "Es una cookie de tu cuenta de Instagram con la sesión iniciada (no es tu contraseña). Cómo obtenerla:\n1. Inicia sesión en instagram.com con Chrome de escritorio\n2. Pulsa F12 (o ⌥⌘I) para abrir las herramientas para desarrolladores → pestaña Application\n3. A la izquierda, Storage → Cookies → https://www.instagram.com\n4. Busca sessionid, copia su Value y pégalo aquí\nOjo: cerrar sesión en Instagram la invalida; entonces reinstala la app con el valor nuevo."},
+            "IG_DS_USER_ID": {"label": "Cookie ds_user_id de Instagram (opcional)", "placeholder": "puede quedar vacío", "help": "El valor de ds_user_id de la misma lista de Cookies; se puede dejar vacío."},
+            "IG_CSRFTOKEN": {"label": "Cookie csrftoken de Instagram (opcional)", "placeholder": "puede quedar vacío", "help": "El valor de csrftoken de la misma lista de Cookies; se puede dejar vacío."}
+          }
+        }
+      }
     },
     {
       "id": "reflex-grid",
@@ -312,7 +582,13 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": []
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "在瀏覽器裡使用、相容 Excel 的試算表：可開啟與儲存真正的 .xlsx 活頁簿，包含公式、樣式、表格與圖表。"},
+        "zh-Hans": {"description": "在浏览器里使用、兼容 Excel 的电子表格：可打开和保存真正的 .xlsx 工作簿，包括公式、样式、表格和图表。"},
+        "ja": {"description": "ブラウザで使える Excel 互換のスプレッドシート。数式、スタイル、テーブル、グラフを含む本物の .xlsx ブックを開いて保存できます。"},
+        "es": {"description": "Hoja de cálculo compatible con Excel en el navegador: abre y guarda libros .xlsx reales con fórmulas, estilos, tablas y gráficos."}
+      }
     }
   ]
 }
