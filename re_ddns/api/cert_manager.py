@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -131,6 +132,21 @@ def ensure_cert(domain: str) -> bool:
 
     # Default: local-ca (also covers legacy "self-signed" value)
     return _sign_with_local_ca(domain)
+
+
+def remove_cert(domain: str) -> bool:
+    """Delete the cert files of *domain* (on uninstall).  Never touches the CA.
+
+    Returns *True* if there was something to remove.
+    """
+    if not domain or "/" in domain or domain.startswith("_"):
+        return False
+    d = cert_dir(domain)
+    if not d.is_dir():
+        return False
+    shutil.rmtree(d, ignore_errors=True)
+    logger.info("Removed certificate directory %s", d)
+    return True
 
 
 # ---------------------------------------------------------------------------

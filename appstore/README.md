@@ -18,7 +18,7 @@ For every app declared in the catalog you can:
 | **Start**    | Starts the app's container (`smart-app-<subdomain>`).                     |
 | **Stop**     | Stops the app's container.                                                |
 | **Install**  | Installs the app **in-page** with a live progress bar — no host commands. |
-| **Uninstall**| Stops the container and removes its DNS + nginx records.                  |
+| **Uninstall**| Confirms, then removes the app **in-page with live progress**: container, registry, DNS, nginx, TLS cert. Data volumes are kept unless ticked. |
 
 > **Real, in-page install (no host shell needed):** every smart app is just the
 > generic `re-ddns/smart-launcher` image started with different environment
@@ -41,8 +41,17 @@ For every app declared in the catalog you can:
   `re-ddns/smart-launcher` image via the Docker Engine API. The App Store then
   polls `GET /api/appstore/status/<sub>`; each poll advances re-ddns's scan of
   the container logs and returns `{percent, phase, message, log}`.
-- **Uninstall** — `DELETE {RE_DDNS_API_URL}/api/service/<sub>` stops the
-  container and removes the registry + DNS + nginx records.
+- **Uninstall** — `POST {RE_DDNS_API_URL}/api/appstore/uninstall` with
+  `{subdomain, name, zone, remove_data}`. re-ddns runs it as a job that the
+  same `GET /api/appstore/status/<sub>` polls advance, one short step per
+  poll: stop the container (its StopSignal, SIGKILL after the grace period)
+  → remove it → drop the registry entry + DNS record → `nginx` sync → delete
+  the TLS cert → optionally delete the app's named volumes. Every step is
+  idempotent and recorded in `data/install_jobs.json`, so a backend reload
+  half-way through (the dev-mode hot reloader restarts re-ddns when the
+  registry file changes) cannot leave a container behind. The App Store
+  shows the steps in the same progress panel as Install; closing the panel
+  does not stop the job.
 - **Routing** — registers `aapps` with `re-ddns` on startup (`register_dns.py`);
   nginx terminates TLS and proxies `aapps.reflex-ddns.com` → `app-store:3000`.
 

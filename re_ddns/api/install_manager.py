@@ -21,10 +21,13 @@ Endpoints (mounted under ``/api/appstore``)
     POST /api/appstore/install            → start an install job
     GET  /api/appstore/status             → progress of every known job
     GET  /api/appstore/status/{subdomain} → progress of one job
+    POST /api/appstore/uninstall          → start an uninstall job (same
+                                            status endpoints follow it)
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import fcntl
 import io
@@ -34,6 +37,7 @@ import os
 import posixpath
 import re
 import tarfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -685,6 +689,269 @@ async def _advance(sub: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Uninstall: poll-driven state machine
+# ---------------------------------------------------------------------------
+# Built like the install flow above, and for the same reason: the dev-mode hot
+# reloader restarts this backend whenever something under /app changes, and an
+# uninstall changes /app/data/registry.json half-way through.  A FastAPI
+# background task dies with the worker (that is how containers were left
+# behind "Stopped" after an uninstall), so instead every step here is short,
+# idempotent and recorded in the shared job file.  A step is taken by whoever
+# calls ``_advance_uninstall``: the App Store's status polls, and a small
+# driver task started by the POST that keeps the job moving when nobody polls.
+# A short lease in the job keeps two workers from running the same step.
+#
+#   queued → stopping → removing_container → unregistering → nginx → cert
+#          → [data] → done
+
+class UninstallRequest(BaseModel):
+    subdomain: str
+    name: str = ""              # display name
+    zone: str = "reflex-ddns.com"
+    remove_data: bool = False   # also delete the app's named Docker volumes
+
+
+# Seconds a container gets to exit on its StopSignal before SIGKILL
+# (``docker stop -t``); the container's own StopTimeout wins when it has one.
+UNINSTALL_STOP_GRACE = int(os.environ.get("UNINSTALL_STOP_GRACE", "10"))
+UNINSTALL_STOP_HARD = 30    # still running after this → remove with force=true
+_LEASE_SECONDS = 20         # how long one worker owns a step
+
+_UNINSTALL_PHASE_LABEL = {
+    "queued": "排隊中",
+    "stopping": "停止容器",
+    "removing_container": "刪除容器",
+    "unregistering": "移除註冊與 DNS 記錄",
+    "nginx": "更新 nginx 設定",
+    "cert": "移除 TLS 憑證",
+    "data": "刪除資料 volume",
+    "done": "完成，已移除",
+    "error": "移除失敗",
+}
+
+
+def _take_lease(sub: str) -> dict[str, Any] | None:
+    """Claim the next uninstall step for this worker (None: not ours to take)."""
+    now = time.time()
+    with _locked_store(exclusive=True) as (fh, data):
+        job = data.get(sub)
+        if not job or job.get("status") != "uninstalling":
+            return None
+        if float(job.get("_lease", 0)) > now:
+            return None
+        job["_lease"] = now + _LEASE_SECONDS
+        _write_store(fh, data)
+        return dict(job)
+
+
+def _uninstall_phase(sub: str, display: str, phase: str, percent: int, **extra: Any) -> None:
+    _set_job(sub, phase=phase, percent=percent,
+             message=f"{display}：{_UNINSTALL_PHASE_LABEL.get(phase, phase)}", **extra)
+
+
+async def _request_stop(client: httpx.AsyncClient, name: str, grace: int) -> None:
+    """Ask Docker to stop a container without waiting for it.
+
+    ``POST /stop`` blocks until the container is down; a short client timeout
+    turns it into fire-and-forget.  The daemon finishes the stop on its own
+    (StopSignal now, SIGKILL after the grace period) and marks the container
+    as stopped on purpose, so its restart policy does not bring it back.  The
+    following polls watch the container state instead of waiting here.
+    """
+    try:
+        await client.post(f"/containers/{name}/stop?t={grace}", timeout=2.0)
+    except httpx.TimeoutException:
+        pass
+
+
+def _volume_names(info: dict[str, Any]) -> list[str]:
+    """Named Docker volumes a container mounts (bind mounts are not data)."""
+    return sorted({
+        m["Name"] for m in info.get("Mounts", [])
+        if m.get("Type") == "volume" and m.get("Name")
+    })
+
+
+async def _uninstall_step(sub: str, job: dict[str, Any]) -> None:
+    """Run one step of an uninstall and record the phase that follows."""
+    from re_ddns.api import cert_manager, dns_manager, nginx_manager, registry_api
+
+    phase = job.get("phase", "queued")
+    name = job.get("container") or _container_name(sub)
+    display = job.get("name") or sub
+    zone = job.get("zone") or "reflex-ddns.com"
+    fqdn = f"{sub}.{zone}"
+
+    if phase in ("queued", "stopping"):
+        async with _client() as client:
+            insp = await client.get(f"/containers/{name}/json")
+            if insp.status_code == 404:
+                _append_log(sub, f"[uninstall] Container {name} does not exist; nothing to stop.")
+                _uninstall_phase(sub, display, "unregistering", 55)
+                return
+            if insp.status_code != 200:
+                raise RuntimeError(f"inspect {name}: HTTP {insp.status_code} {_docker_error(insp)}")
+            info = insp.json()
+            state = info.get("State", {})
+            status = state.get("Status", "")
+            alive = status in ("running", "paused", "restarting")
+
+            if phase == "queued":
+                volumes = _volume_names(info)
+                if not alive:
+                    _append_log(sub, f"[uninstall] Container {name} is already {status}.")
+                    _uninstall_phase(sub, display, "removing_container", 35, _volumes=volumes)
+                    return
+                config = info.get("Config", {})
+                grace = int(config.get("StopTimeout") or UNINSTALL_STOP_GRACE)
+                signal = config.get("StopSignal") or "SIGTERM"
+                _append_log(sub, f"[uninstall] Stopping container {name} "
+                                 f"({signal}, SIGKILL after {grace}s)…")
+                _uninstall_phase(sub, display, "stopping", 10, _volumes=volumes,
+                                 _stop_started=time.time(), _stop_grace=grace)
+                await _request_stop(client, name, grace)
+                return
+
+            # phase == "stopping": wait for the container to go down.
+            if not alive:
+                _append_log(sub, f"[uninstall] Container exited (code {state.get('ExitCode', 0)}).")
+                _uninstall_phase(sub, display, "removing_container", 35)
+                return
+            waited = time.time() - float(job.get("_stop_started") or time.time())
+            if waited > UNINSTALL_STOP_HARD:
+                _append_log(sub, f"[uninstall] Still {status} after {int(waited)}s; removing by force.")
+                _uninstall_phase(sub, display, "removing_container", 35)
+                return
+            grace = int(job.get("_stop_grace") or UNINSTALL_STOP_GRACE)
+            if waited > grace + 3 and not job.get("_stop_resent"):
+                # The daemon should have escalated to SIGKILL by now; ask again
+                # in case the first request never reached it.
+                _append_log(sub, "[uninstall] Container still up; sending stop again.")
+                _set_job(sub, _stop_resent=True)
+                await _request_stop(client, name, 2)
+            _set_job(sub, percent=min(30, 10 + int(waited * 2)),
+                     message=f"{display}：等待容器結束…（{int(waited)} 秒）")
+            return
+
+    if phase == "removing_container":
+        anon = "true" if job.get("remove_data") else "false"
+        async with _client() as client:
+            r = await client.delete(f"/containers/{name}?force=true&v={anon}", timeout=60.0)
+        if r.status_code == 204:
+            _append_log(sub, f"[uninstall] Removed container {name}.")
+        elif r.status_code == 404:
+            _append_log(sub, f"[uninstall] Container {name} was already gone.")
+        else:
+            raise RuntimeError(f"remove {name}: HTTP {r.status_code} {_docker_error(r)}")
+        _uninstall_phase(sub, display, "unregistering", 55)
+        return
+
+    if phase == "unregistering":
+        svc = registry_api.get_service(sub)
+        if registry_api.delete_service(sub):
+            if svc and svc.get("zone"):
+                zone = svc["zone"]
+                fqdn = f"{sub}.{zone}"
+            _append_log(sub, f"[uninstall] Removed {sub} from the service registry.")
+        else:
+            _append_log(sub, f"[uninstall] {sub} was not in the service registry.")
+        ok, msg = await asyncio.to_thread(dns_manager.do_dns_delete, sub, zone)
+        if ok:
+            _append_log(sub, f"[uninstall] DNS record {fqdn} deleted.")
+        else:
+            _append_log(sub, f"[uninstall] WARNING: DNS delete failed: {msg}")
+        _uninstall_phase(sub, display, "nginx", 70, zone=zone)
+        return
+
+    if phase == "nginx":
+        try:
+            ok = await asyncio.to_thread(nginx_manager.sync)
+        except Exception:  # noqa: BLE001
+            logger.exception("nginx sync failed while uninstalling %s", sub)
+            ok = False
+        if ok:
+            _append_log(sub, f"[uninstall] nginx config for {fqdn} removed; nginx reloaded.")
+        else:
+            _append_log(sub, "[uninstall] WARNING: nginx reload failed (see the re-ddns log).")
+        _uninstall_phase(sub, display, "cert", 82)
+        return
+
+    if phase == "cert":
+        if await asyncio.to_thread(cert_manager.remove_cert, fqdn):
+            _append_log(sub, f"[uninstall] TLS certificate for {fqdn} removed.")
+        else:
+            _append_log(sub, f"[uninstall] No TLS certificate for {fqdn} to remove.")
+        volumes = list(job.get("_volumes") or [])
+        if volumes and job.get("remove_data"):
+            _uninstall_phase(sub, display, "data", 90)
+            return
+        if volumes:
+            _append_log(sub, "[uninstall] Kept data volume(s): " + ", ".join(volumes)
+                             + " (a reinstall uses them again).")
+        _finish_uninstall(sub, display)
+        return
+
+    if phase == "data":
+        async with _client() as client:
+            for vol in job.get("_volumes") or []:
+                r = await client.delete(f"/volumes/{vol}?force=true", timeout=60.0)
+                if r.status_code == 204:
+                    _append_log(sub, f"[uninstall] Removed volume {vol}.")
+                elif r.status_code == 404:
+                    _append_log(sub, f"[uninstall] Volume {vol} was already gone.")
+                else:
+                    _append_log(sub, f"[uninstall] WARNING: could not remove volume {vol}: "
+                                     f"HTTP {r.status_code} {_docker_error(r)}")
+        _finish_uninstall(sub, display)
+        return
+
+    # A phase this version does not know (job written by another version).
+    _finish_uninstall(sub, display)
+
+
+def _finish_uninstall(sub: str, display: str) -> None:
+    _append_log(sub, f"[uninstall] {display} removed.")
+    _set_job(sub, status="uninstalled", phase="done", percent=100,
+             message=f"{display} 已移除。")
+
+
+async def _advance_uninstall(sub: str) -> None:
+    """Take one uninstall step, if the job is in flight and nobody else is on it."""
+    job = _take_lease(sub)
+    if job is None:
+        return
+    try:
+        await _uninstall_step(sub, job)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Uninstall step failed for %s", sub)
+        _append_log(sub, f"[uninstall] ERROR: {exc}")
+        _set_job(sub, status="error", phase="error",
+                 message=f"{job.get('name') or sub} 移除失敗：{exc}")
+    finally:
+        _set_job(sub, _lease=0)
+
+
+_driver_tasks: set[asyncio.Task] = set()
+
+
+def _start_uninstall_driver(sub: str) -> None:
+    """Keep an uninstall moving even when nobody polls its status."""
+
+    async def drive() -> None:
+        deadline = time.time() + UNINSTALL_STOP_HARD + 90
+        while time.time() < deadline:
+            await asyncio.sleep(1.0)
+            job = get_job(sub)
+            if not job or job.get("status") != "uninstalling":
+                return
+            await _advance_uninstall(sub)
+
+    task = asyncio.get_running_loop().create_task(drive())
+    _driver_tasks.add(task)
+    task.add_done_callback(_driver_tasks.discard)
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
@@ -707,6 +974,7 @@ async def install_endpoint(req: InstallRequest):
         data[req.subdomain] = {
             "subdomain": req.subdomain,
             "name": req.name or req.subdomain,
+            "kind": "install",
             "status": "installing",
             "phase": "queued",
             "percent": 2,
@@ -733,11 +1001,13 @@ async def install_endpoint(req: InstallRequest):
 async def status_all():
     """Progress of every install job (advancing any in-flight ones)."""
     for job in get_all_jobs():
-        if job.get("status") == "installing":
-            try:
+        try:
+            if job.get("status") == "installing":
                 await _advance(job["subdomain"])
-            except Exception:  # noqa: BLE001
-                logger.exception("advance failed for %s", job.get("subdomain"))
+            elif job.get("status") == "uninstalling":
+                await _advance_uninstall(job["subdomain"])
+        except Exception:  # noqa: BLE001
+            logger.exception("advance failed for %s", job.get("subdomain"))
     return {"jobs": get_all_jobs()}
 
 
@@ -747,13 +1017,14 @@ async def status_one(subdomain: str):
     job = get_job(subdomain)
     if job is None:
         raise HTTPException(404, f"No install job for '{subdomain}'.")
-    if job.get("status") == "installing":
-        try:
+    try:
+        if job.get("status") == "installing":
             await _advance(subdomain)
-        except Exception:  # noqa: BLE001
-            logger.exception("advance failed for %s", subdomain)
-        job = get_job(subdomain) or job
-    return job
+        elif job.get("status") == "uninstalling":
+            await _advance_uninstall(subdomain)
+    except Exception:  # noqa: BLE001
+        logger.exception("advance failed for %s", subdomain)
+    return get_job(subdomain) or job
 
 
 @router.post("/dev-install", response_model=InstallStarted)
@@ -768,6 +1039,7 @@ async def dev_install_endpoint(req: DevInstallRequest):
         data[req.subdomain] = {
             "subdomain": req.subdomain,
             "name": req.name or req.subdomain,
+            "kind": "install",
             "status": "installing",
             "phase": "queued",
             "percent": 2,
@@ -789,3 +1061,42 @@ async def dev_install_endpoint(req: DevInstallRequest):
 
     logger.info("Dev install container started for %s (local_path=%s)", req.subdomain, req.local_path)
     return InstallStarted(ok=True, subdomain=req.subdomain, message="開發模式安裝已開始。")
+
+
+@router.post("/uninstall", response_model=InstallStarted)
+async def uninstall_endpoint(req: UninstallRequest):
+    """Remove an app: container, then registry + DNS + nginx + TLS records.
+
+    Returns at once; poll /status/{subdomain} to follow the steps.  A job
+    already in flight for the same app is left alone.
+    """
+    if not os.path.exists(DOCKER_SOCKET):
+        raise HTTPException(503, "Docker socket not available in re-ddns container.")
+    sub = req.subdomain.strip()
+    if not sub:
+        raise HTTPException(400, "subdomain is required.")
+
+    with _locked_store(exclusive=True) as (fh, data):
+        if (data.get(sub) or {}).get("status") == "uninstalling":
+            return InstallStarted(ok=True, subdomain=sub, message="移除已在進行中。")
+        data[sub] = {
+            "subdomain": sub,
+            "name": req.name or sub,
+            "kind": "uninstall",
+            "status": "uninstalling",
+            "phase": "queued",
+            "percent": 2,
+            "_max_percent": 2,
+            "message": "排隊中…",
+            "log": [],
+            "container": _container_name(sub),
+            "zone": req.zone or "reflex-ddns.com",
+            "remove_data": bool(req.remove_data),
+        }
+        _write_store(fh, data)
+
+    # First step right away, so the reply already reflects real progress.
+    await _advance_uninstall(sub)
+    _start_uninstall_driver(sub)
+    logger.info("Uninstall started for %s (remove_data=%s)", sub, req.remove_data)
+    return InstallStarted(ok=True, subdomain=sub, message="移除已開始。")

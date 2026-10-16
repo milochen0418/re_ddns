@@ -147,7 +147,7 @@ The App Store lives at `https://aapps.reflex-ddns.com` and lets you manage the e
 | **Open** | Opens `https://<subdomain>.reflex-ddns.com` in a new tab |
 | **Install** | In-page live progress bar: `clone → deps → init → register → running` (no shell needed) |
 | **Start / Stop** | Sends `POST /containers/<id>/start` or `/stop` to Docker via re-ddns |
-| **Uninstall** | Stops the container, removes DNS record, nginx config, and TLS cert |
+| **Uninstall** | After a confirmation, in-page live progress like Install: `stop container → remove container → registry + DNS → nginx → TLS cert`. The app's Docker volumes (its data) are kept unless you tick *also delete data*; a reinstall reuses them |
 
 ### How install works (no host shell needed)
 

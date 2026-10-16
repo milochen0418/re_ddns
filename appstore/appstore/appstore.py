@@ -11,8 +11,11 @@ app declared in the catalog (``data/appstore_catalog.json`` — the
     asks re-ddns (which owns the Docker socket and the install/progress
     manager) to create + start the app's container and then polls
     ``/api/appstore/status/<sub>`` to render progress.
-  • Uninstall — calls re-ddns ``DELETE /api/service/<sub>`` which stops the
-    container and removes the DNS + nginx records.
+  • Uninstall — after a confirmation, asks re-ddns (``POST
+    /api/appstore/uninstall``) to stop and delete the container, then drop
+    the registry entry, DNS record, nginx config and TLS certificate; the
+    same progress panel as Install follows each step. Named Docker volumes
+    (the app's data) are kept unless the user ticks the box.
 
 Status & control are done through the Docker Engine API over the Unix
 socket bind-mounted at ``/var/run/docker.sock``; installs are orchestrated
@@ -209,6 +212,28 @@ _STATUS_LABEL = {
 }
 
 
+def _catalog_rows() -> list[dict[str, str]]:
+    """The catalog merged with each app's live Docker status (the grid)."""
+    rows: list[dict[str, str]] = []
+    for app in _load_catalog():
+        status = _container_status(app)
+        rows.append(
+            {
+                "id": str(app.get("id", app["subdomain"])),
+                "name": str(app.get("name", app["subdomain"])),
+                "description": str(app.get("description", "")),
+                "icon": str(app.get("icon", "box")),
+                "subdomain": str(app["subdomain"]),
+                "url": f"https://{app['subdomain']}.{SERVICE_ZONE}",
+                "status": status,
+                "status_label": _STATUS_LABEL.get(status, "Unknown"),
+                "install_cmd": _build_install_cmd(app),
+                "uninstall_cmd": f"./smart_launch.sh --remove={app['subdomain']}",
+            }
+        )
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
@@ -230,6 +255,17 @@ class AppStoreState(rx.State):
     install_percent: int = 0
     install_message: str = ""
     install_log: list[str] = []
+    job_kind: str = "install"   # install | uninstall — what the panel shows
+    job_seq: int = 0            # bumped per job, so an old poller steps aside
+
+    # Uninstall confirmation.
+    show_uninstall_confirm: bool = False
+    uninstall_sub: str = ""
+    uninstall_name: str = ""
+    uninstall_container: str = ""
+    uninstall_running: bool = False
+    uninstall_volumes: list[str] = []
+    uninstall_remove_data: bool = False
 
     # Dynamic env-var config form (for apps that declare "env_schema").
     show_env_form: bool = False
@@ -262,7 +298,16 @@ class AppStoreState(rx.State):
 
     @rx.var
     def install_busy(self) -> bool:
-        return self.install_status == "installing"
+        return self.install_status in ("installing", "uninstalling")
+
+    @rx.var
+    def progress_title(self) -> str:
+        verb = "移除" if self.job_kind == "uninstall" else "安裝"
+        return f"{verb} {self.active_name}"
+
+    @rx.var
+    def uninstall_volume_list(self) -> str:
+        return "、".join(self.uninstall_volumes)
 
     def _lookup(self, subdomain: str) -> dict | None:
         for app in _load_catalog():
@@ -276,24 +321,7 @@ class AppStoreState(rx.State):
         self.loading = True
         self.message = ""
         yield
-        rows: list[dict[str, str]] = []
-        for app in _load_catalog():
-            status = _container_status(app)
-            rows.append(
-                {
-                    "id": str(app.get("id", app["subdomain"])),
-                    "name": str(app.get("name", app["subdomain"])),
-                    "description": str(app.get("description", "")),
-                    "icon": str(app.get("icon", "box")),
-                    "subdomain": str(app["subdomain"]),
-                    "url": f"https://{app['subdomain']}.{SERVICE_ZONE}",
-                    "status": status,
-                    "status_label": _STATUS_LABEL.get(status, "Unknown"),
-                    "install_cmd": _build_install_cmd(app),
-                    "uninstall_cmd": f"./smart_launch.sh --remove={app['subdomain']}",
-                }
-            )
-        self.apps = rows
+        self.apps = _catalog_rows()
         self.loading = False
 
     @rx.event
@@ -404,6 +432,8 @@ class AppStoreState(rx.State):
         display = app.get("name", subdomain)
         # Reset progress UI.
         self.show_progress = True
+        self.job_kind = "install"
+        self.job_seq += 1
         self.active_sub = subdomain
         self.active_name = display
         self.install_status = "installing"
@@ -444,9 +474,14 @@ class AppStoreState(rx.State):
 
     @rx.event(background=True)
     async def poll_progress(self):
-        """Poll re-ddns for install progress until it finishes or fails."""
+        """Poll re-ddns for the job's progress until it finishes or fails.
+
+        Closing the panel does not stop this: the job carries on in re-ddns,
+        the card keeps showing its progress, and the grid refreshes at the end.
+        """
         async with self:
             sub = self.active_sub
+            seq = self.job_seq
         if not sub:
             return
         while True:
@@ -460,8 +495,8 @@ class AppStoreState(rx.State):
                 data = {}
 
             async with self:
-                if self.active_sub != sub or not self.show_progress:
-                    return  # user moved on / closed
+                if self.active_sub != sub or self.job_seq != seq:
+                    return  # another job took over the panel
                 if data:
                     self.install_status = data.get("status", self.install_status)
                     self.install_phase = data.get("phase", self.install_phase)
@@ -472,40 +507,119 @@ class AppStoreState(rx.State):
                         self.install_log = [str(x) for x in log[-14:]]
                 status = self.install_status
 
-            if status in ("installed", "error"):
-                if status == "installed":
-                    async with self:
+            if status in ("installed", "uninstalled", "error"):
+                # Reload the grid here rather than through `refresh`, which
+                # would wipe the banner set below.
+                rows = await asyncio.to_thread(_catalog_rows)
+                async with self:
+                    if self.active_sub != sub or self.job_seq != seq:
+                        return
+                    self.apps = rows
+                    if status == "installed":
                         self.message = f"{self.active_name} 安裝完成！"
                         self.message_kind = "success"
-                # Refresh the catalog status grid.
-                yield AppStoreState.refresh
+                    elif status == "uninstalled":
+                        self.message = (
+                            f"{self.active_name} 已移除：容器、DNS 記錄、nginx 設定與 TLS 憑證都清掉了。"
+                        )
+                        self.message_kind = "success"
                 return
 
             await asyncio.sleep(1.5)
 
     @rx.event
-    def uninstall_app(self, subdomain: str):
-        """Stop the container and remove DNS + nginx records via re-ddns."""
+    def ask_uninstall(self, subdomain: str):
+        """Uninstall button: say what will go and ask for confirmation."""
         app = self._lookup(subdomain)
-        name = app.get("name", subdomain) if app else subdomain
+        if not app:
+            return
+        name = _container_name(app)
+        running, volumes = False, []
+        r = _docker_request("GET", f"/containers/{name}/json")
+        if r is not None and r.status_code == 200:
+            try:
+                info = r.json()
+                running = info.get("State", {}).get("Status") in ("running", "paused", "restarting")
+                volumes = sorted({
+                    m["Name"] for m in info.get("Mounts", [])
+                    if m.get("Type") == "volume" and m.get("Name")
+                })
+            except Exception:  # noqa: BLE001
+                pass
+        self.uninstall_sub = subdomain
+        self.uninstall_name = str(app.get("name", subdomain))
+        self.uninstall_container = name
+        self.uninstall_running = running
+        self.uninstall_volumes = volumes
+        self.uninstall_remove_data = False
+        self.show_uninstall_confirm = True
+
+    @rx.event
+    def cancel_uninstall(self):
+        self.show_uninstall_confirm = False
+        self.uninstall_sub = ""
+
+    @rx.event
+    def set_uninstall_remove_data(self, value: bool):
+        self.uninstall_remove_data = bool(value)
+
+    @rx.event
+    def confirm_uninstall(self):
+        sub, remove_data = self.uninstall_sub, self.uninstall_remove_data
+        self.show_uninstall_confirm = False
+        self.uninstall_sub = ""
+        if sub:
+            return AppStoreState.uninstall_app(sub, remove_data)
+
+    @rx.event
+    def uninstall_app(self, subdomain: str, remove_data: bool = False):
+        """Ask re-ddns to uninstall the app, then follow its progress in-page.
+
+        re-ddns stops and deletes the container, then drops the registry
+        entry, DNS record, nginx config and TLS certificate, one step per
+        status poll — the same panel as an install shows each step.
+        """
+        app = self._lookup(subdomain)
+        display = str(app.get("name", subdomain)) if app else subdomain
+        self.show_progress = True
+        self.job_kind = "uninstall"
+        self.job_seq += 1
+        self.active_sub = subdomain
+        self.active_name = display
+        self.install_status = "uninstalling"
+        self.install_phase = "queued"
+        self.install_percent = 2
+        self.install_message = "正在送出移除請求…"
+        self.install_log = []
+        self.message = ""
+
+        spec = {
+            "subdomain": subdomain,
+            "name": display,
+            "zone": SERVICE_ZONE,
+            "remove_data": bool(remove_data),
+        }
         try:
             with httpx.Client(timeout=30.0) as client:
-                r = client.delete(f"{RE_DDNS_API_URL}/api/service/{subdomain}")
-            if r.status_code == 200 and r.json().get("success"):
-                self.message = f"{name} 已移除（容器 + DNS + nginx）。"
-                self.message_kind = "success"
-            else:
-                self.message = f"{name} 移除完成（部分項目可能原本就不存在）。"
-                self.message_kind = "info"
+                r = client.post(f"{RE_DDNS_API_URL}/api/appstore/uninstall", json=spec)
+            if r.status_code != 200:
+                self.install_status = "error"
+                self.install_message = f"無法開始移除 (HTTP {r.status_code})：{r.text[:200]}"
+                return
         except Exception as exc:  # noqa: BLE001
-            self.message = f"移除失敗：{exc}"
-            self.message_kind = "error"
-        yield AppStoreState.refresh
+            self.install_status = "error"
+            self.install_message = f"無法連線 re-ddns：{exc}"
+            return
+        return AppStoreState.poll_progress
 
     @rx.event
     def close_progress(self):
+        """Hide the panel; a job still running carries on and the card shows it."""
         self.show_progress = False
-        self.active_sub = ""
+
+    @rx.event
+    def open_progress(self):
+        self.show_progress = True
 
     # ── Dev mode ──
 
@@ -676,6 +790,8 @@ class AppStoreState(rx.State):
             return
         display = app.get("name", subdomain)
         self.show_progress = True
+        self.job_kind = "install"
+        self.job_seq += 1
         self.active_sub = subdomain
         self.active_name = display
         self.install_status = "installing"
@@ -779,7 +895,35 @@ def _dev_btn(app: rx.Var[dict]) -> rx.Component:
     )
 
 
+def job_indicator() -> rx.Component:
+    """What a card shows while its app is being installed or removed."""
+    return rx.el.div(
+        rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
+        rx.el.span(
+            rx.cond(AppStoreState.job_kind == "uninstall", "移除中", "安裝中"),
+            " ",
+            AppStoreState.install_percent.to_string() + "%",
+            class_name="text-sm font-semibold",
+        ),
+        rx.el.button(
+            "查看進度",
+            on_click=AppStoreState.open_progress,
+            class_name="ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black",
+        ),
+        class_name=rx.cond(
+            AppStoreState.job_kind == "uninstall",
+            "flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 text-red-700",
+            "flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 text-blue-700",
+        ),
+    )
+
+
 def action_buttons(app: rx.Var[dict]) -> rx.Component:
+    busy_here = (app["subdomain"] == AppStoreState.active_sub) & AppStoreState.install_busy
+    return rx.cond(busy_here, job_indicator(), _action_buttons(app))
+
+
+def _action_buttons(app: rx.Var[dict]) -> rx.Component:
     return rx.match(
         app["status"],
         (
@@ -795,7 +939,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                 _btn(
                     "Uninstall",
                     "trash-2",
-                    lambda: AppStoreState.uninstall_app(app["subdomain"]),
+                    lambda: AppStoreState.ask_uninstall(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
                 ),
                 _dev_btn(app),
@@ -814,7 +958,7 @@ def action_buttons(app: rx.Var[dict]) -> rx.Component:
                 _btn(
                     "Uninstall",
                     "trash-2",
-                    lambda: AppStoreState.uninstall_app(app["subdomain"]),
+                    lambda: AppStoreState.ask_uninstall(app["subdomain"]),
                     "bg-red-50 text-red-600 hover:bg-red-100",
                 ),
                 _dev_btn(app),
@@ -1123,9 +1267,95 @@ def dev_form_panel() -> rx.Component:
     )
 
 
+def uninstall_confirm_panel() -> rx.Component:
+    """Asked by the Uninstall button: what goes, and whether the data goes too."""
+    return rx.cond(
+        AppStoreState.show_uninstall_confirm,
+        rx.el.div(
+            rx.el.div(
+                rx.el.div(
+                    rx.el.div(
+                        rx.icon("trash-2", class_name="h-6 w-6 text-red-600"),
+                        rx.el.h3(
+                            "移除 " + AppStoreState.uninstall_name,
+                            class_name="text-lg font-bold text-gray-900",
+                        ),
+                        class_name="flex items-center gap-3",
+                    ),
+                    rx.el.button(
+                        rx.icon("x", class_name="h-5 w-5"),
+                        on_click=AppStoreState.cancel_uninstall,
+                        class_name="p-1 text-gray-400 hover:text-gray-700 rounded-lg",
+                    ),
+                    class_name="flex items-center justify-between mb-2",
+                ),
+                rx.el.p(
+                    "會停止並刪除容器 ",
+                    rx.el.code(
+                        AppStoreState.uninstall_container,
+                        class_name="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded",
+                    ),
+                    "，再移除它的 DNS 記錄、nginx 設定與 TLS 憑證。移除後它不再佔用記憶體；之後隨時可以重新安裝。",
+                    class_name="text-sm text-gray-600 mb-3 leading-relaxed",
+                ),
+                rx.cond(
+                    AppStoreState.uninstall_running,
+                    rx.el.p(
+                        "這個應用程式目前正在執行，會先停止再移除。",
+                        class_name="p-3 mb-3 bg-amber-50 text-amber-800 rounded-xl text-sm border border-amber-100",
+                    ),
+                    rx.fragment(),
+                ),
+                rx.cond(
+                    AppStoreState.uninstall_volumes.length() > 0,
+                    rx.el.div(
+                        rx.checkbox(
+                            "同時刪除資料 volume",
+                            checked=AppStoreState.uninstall_remove_data,
+                            on_change=AppStoreState.set_uninstall_remove_data,
+                            color_scheme="red",
+                            class_name="text-sm font-semibold text-gray-800",
+                        ),
+                        rx.el.p(
+                            AppStoreState.uninstall_volume_list,
+                            class_name="text-xs font-mono text-gray-500 mt-1 ml-6",
+                        ),
+                        rx.el.p(
+                            "不勾選就保留，重新安裝會沿用這些資料。Dev 模式掛載的本機資料夾一律不會動。",
+                            class_name="text-xs text-gray-500 mt-1 ml-6",
+                        ),
+                        class_name="p-3 mb-3 rounded-xl border border-gray-200",
+                    ),
+                    rx.fragment(),
+                ),
+                rx.el.div(
+                    rx.el.button(
+                        "取消",
+                        type="button",
+                        on_click=AppStoreState.cancel_uninstall,
+                        class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
+                    ),
+                    rx.el.button(
+                        rx.icon("trash-2", class_name="h-4 w-4"),
+                        rx.el.span("移除"),
+                        type="button",
+                        on_click=AppStoreState.confirm_uninstall,
+                        class_name="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700",
+                    ),
+                    class_name="flex justify-end gap-2 mt-2",
+                ),
+                class_name="w-full max-w-lg bg-white rounded-3xl border border-gray-100 shadow-2xl p-6",
+            ),
+            class_name="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6",
+        ),
+        None,
+    )
+
+
 def progress_panel() -> rx.Component:
     return rx.cond(
-        AppStoreState.show_progress,        rx.el.div(
+        AppStoreState.show_progress,
+        rx.el.div(
             rx.el.div(
                 # Header
                 rx.el.div(
@@ -1134,13 +1364,20 @@ def progress_panel() -> rx.Component:
                             AppStoreState.install_status == "error",
                             rx.icon("circle-alert", class_name="h-6 w-6 text-red-600"),
                             rx.cond(
-                                AppStoreState.install_status == "installed",
+                                AppStoreState.install_busy,
+                                rx.icon(
+                                    "loader-circle",
+                                    class_name=rx.cond(
+                                        AppStoreState.job_kind == "uninstall",
+                                        "h-6 w-6 text-red-600 animate-spin",
+                                        "h-6 w-6 text-blue-600 animate-spin",
+                                    ),
+                                ),
                                 rx.icon("circle-check-big", class_name="h-6 w-6 text-green-600"),
-                                rx.icon("loader-circle", class_name="h-6 w-6 text-blue-600 animate-spin"),
                             ),
                         ),
                         rx.el.h3(
-                            "安裝 " + AppStoreState.active_name,
+                            AppStoreState.progress_title,
                             class_name="text-lg font-bold text-gray-900",
                         ),
                         class_name="flex items-center gap-3",
@@ -1158,7 +1395,11 @@ def progress_panel() -> rx.Component:
                         class_name=rx.cond(
                             AppStoreState.install_status == "error",
                             "h-full bg-red-500 transition-all duration-500",
-                            "h-full bg-blue-600 transition-all duration-500",
+                            rx.cond(
+                                AppStoreState.job_kind == "uninstall",
+                                "h-full bg-orange-500 transition-all duration-500",
+                                "h-full bg-blue-600 transition-all duration-500",
+                            ),
                         ),
                         style={"width": AppStoreState.progress_width},
                     ),
@@ -1188,7 +1429,11 @@ def progress_panel() -> rx.Component:
                     rx.cond(
                         AppStoreState.install_busy,
                         rx.el.button(
-                            "安裝進行中…（可關閉視窗，安裝會在背景繼續）",
+                            rx.cond(
+                                AppStoreState.job_kind == "uninstall",
+                                "移除進行中…（可關閉視窗，移除會在背景繼續）",
+                                "安裝進行中…（可關閉視窗，安裝會在背景繼續）",
+                            ),
                             on_click=AppStoreState.close_progress,
                             class_name="px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl hover:bg-gray-200",
                         ),
@@ -1242,6 +1487,7 @@ def message_banner() -> rx.Component:
 def index() -> rx.Component:
     return rx.el.main(
         progress_panel(),
+        uninstall_confirm_panel(),
         env_form_panel(),
         dev_form_panel(),
         rx.el.div(
