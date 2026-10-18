@@ -145,7 +145,7 @@ The App Store lives at `https://aapps.reflex-ddns.com` and lets you manage the e
 |--------|-----------|
 | **Status** | Live `Running` / `Stopped` / `Not installed` badge (polled from Docker Engine API) |
 | **Open** | Opens `https://<subdomain>.reflex-ddns.com` in a new tab |
-| **Install** | In-page live progress bar: `clone → deps → init → register → running` (no shell needed) |
+| **Install** | In-page live progress bar: `clone → deps → init → register → running` (no shell needed). Several apps can be installed at once, each card with its own bar |
 | **Start / Stop** | Sends `POST /containers/<id>/start` or `/stop` to Docker via re-ddns |
 | **Uninstall** | After a confirmation, in-page live progress like Install: `stop container → remove container → registry + DNS → nginx → TLS cert`. The app's Docker volumes (its data) are kept unless you tick *also delete data*; a reinstall reuses them |
 | **Language** | English, 繁體中文, 简体中文, Español, 日本語. The picker in the header switches the App Store and its Memory page together; the choice is kept in the browser and follows across open tabs |

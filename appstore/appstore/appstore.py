@@ -10,7 +10,10 @@ app declared in the catalog (``data/appstore_catalog.json`` — the
   • Install — done **in-page** with a live progress bar. The App Store
     asks re-ddns (which owns the Docker socket and the install/progress
     manager) to create + start the app's container and then polls
-    ``/api/appstore/status/<sub>`` to render progress.
+    ``/api/appstore/status/<sub>`` to render progress.  Several apps can be
+    installed (or removed) at the same time: each job has its own poller,
+    each card shows its own progress bar, and the progress panel switches
+    between the jobs in flight.
   • Uninstall — after a confirmation, asks re-ddns (``POST
     /api/appstore/uninstall``) to stop and delete the container, then drop
     the registry entry, DNS record, nginx config and TLS certificate; the
@@ -58,6 +61,8 @@ DEV_MODE_ENABLED = os.environ.get("APPSTORE_DEV_MODE", "0") == "1"
 HOST_HOME = os.environ.get("HOST_HOME", "").rstrip("/")
 HOST_FS_PREFIX = os.environ.get("HOST_FS_PREFIX", "/hostfs").rstrip("/")
 DEV_SUGGEST_LIMIT = 50
+# A job's status while it is still going.
+_BUSY = ("installing", "uninstalling")
 
 # Keys the Dev path input handles itself: stop Tab from moving focus, the
 # arrows from moving the caret, and Enter from submitting while a suggestion
@@ -229,6 +234,36 @@ def _fmt(t: Mapping[str, str], key: str, args: Mapping[str, object] | None = Non
         return text
 
 
+def _width(percent: int) -> str:
+    """A progress bar's CSS width for ``percent``."""
+    return f"{max(0, min(100, int(percent)))}%"
+
+
+def _job_fields_from(data: dict) -> dict:
+    """A job's fields from a re-ddns status reply: status, phase, percent, the
+    log tail, and its message — a ``msg`` key with ``msg_args``, plus the
+    ready-made ``message`` for a key the tables do not have."""
+    msg = str(data.get("msg") or "")
+    args = data.get("msg_args")
+    fields: dict = {
+        "key": f"job_{msg}" if msg else "",
+        "args": {str(k): str(v) for k, v in args.items()} if isinstance(args, dict) else {},
+        "text": str(data.get("message") or ""),
+    }
+    for k in ("status", "phase"):
+        if k in data:
+            fields[k] = str(data[k])
+    if "percent" in data:
+        try:
+            fields["percent"] = int(data["percent"])
+        except (TypeError, ValueError):
+            pass
+    log = data.get("log", [])
+    if isinstance(log, list):
+        fields["log"] = [str(x) for x in log[-14:]]
+    return fields
+
+
 def _localized(entry: Mapping, field: str, code: str) -> str:
     """A catalog text in language ``code``.
 
@@ -286,21 +321,24 @@ class AppStoreState(LocaleState):
     _msg_args: dict[str, str] = {}
     message_kind: str = "info"  # info | success | error
 
-    # Live install progress (driven by re-ddns /api/appstore/status).
+    # Live install / uninstall jobs, one per app (keyed by subdomain), each
+    # followed by its own poller of re-ddns /api/appstore/status/<sub>.
+    # Several apps can be installed or removed at the same time: every card
+    # shows its own job, and the panel shows the one in ``panel_sub`` (with
+    # tabs to switch when there are more).  A job stays listed until it is
+    # finished *and* has been looked at: one that finishes behind the panel
+    # is dropped (the banner carries the result), unless it failed — then
+    # its card says so until the panel for it is opened and closed.  Fields:
+    #   sub, name, kind (install | uninstall), status (installing |
+    #   uninstalling | installed | uninstalled | error), phase, percent,
+    #   log (the tail), seen (the panel showed it), seq (so an old poller of
+    #   the same app steps aside), and what the panel says — a string-table
+    #   key + args, or the text re-ddns sent when it has no known key
+    #   (rendered by `install_message`).
+    _jobs: dict[str, dict] = {}
+    _job_seq: int = 0
     show_progress: bool = False
-    active_sub: str = ""
-    active_name: str = ""
-    install_status: str = ""    # installing | installed | error
-    install_phase: str = ""
-    install_percent: int = 0
-    install_log: list[str] = []
-    # What the panel says, rendered by `install_message`: a string-table key
-    # and its arguments, or the text re-ddns sent when it has no known key.
-    _job_key: str = ""
-    _job_args: dict[str, str] = {}
-    _job_text: str = ""
-    job_kind: str = "install"   # install | uninstall — what the panel shows
-    job_seq: int = 0            # bumped per job, so an old poller steps aside
+    panel_sub: str = ""         # the job the panel shows
 
     # Uninstall confirmation.
     show_uninstall_confirm: bool = False
@@ -338,29 +376,75 @@ class AppStoreState(LocaleState):
     dev_path_status_kind: str = ""              # ok | info | warn | error
     dev_browse_root: str = ""
 
+    # The job the panel shows.  Each var reads self._jobs and self.panel_sub
+    # itself, so it is recomputed when either changes.
+
     @rx.var
-    def progress_width(self) -> str:
-        pct = max(0, min(100, self.install_percent))
-        return f"{pct}%"
+    def install_status(self) -> str:
+        return str((self._jobs.get(self.panel_sub) or {}).get("status", ""))
 
     @rx.var
     def install_busy(self) -> bool:
-        return self.install_status in ("installing", "uninstalling")
+        return (self._jobs.get(self.panel_sub) or {}).get("status") in _BUSY
+
+    @rx.var
+    def job_kind(self) -> str:
+        return str((self._jobs.get(self.panel_sub) or {}).get("kind", "install"))
+
+    @rx.var
+    def install_percent(self) -> int:
+        return int((self._jobs.get(self.panel_sub) or {}).get("percent", 0))
+
+    @rx.var
+    def progress_width(self) -> str:
+        return _width(int((self._jobs.get(self.panel_sub) or {}).get("percent", 0)))
+
+    @rx.var
+    def install_log(self) -> list[str]:
+        return [str(x) for x in (self._jobs.get(self.panel_sub) or {}).get("log", [])]
+
+    @rx.var
+    def job_tabs(self) -> list[dict[str, str]]:
+        """The jobs the panel can switch between (shown when there are two or more)."""
+        return [
+            {
+                "sub": sub,
+                "name": str(job.get("name", sub)),
+                "kind": str(job.get("kind", "install")),
+                "status": str(job.get("status", "")),
+                "percent": str(job.get("percent", 0)),
+                "busy": "1" if job.get("status") in _BUSY else "",
+                "active": "1" if sub == self.panel_sub else "",
+            }
+            for sub, job in self._jobs.items()
+        ]
 
     # Texts in the current language.  Each reads self.locale itself, so it is
     # recomputed when the language changes, on this page or the other one.
 
     @rx.var
     def apps(self) -> list[dict[str, str]]:
-        """The grid rows, each description in the current language."""
+        """The grid rows, each description in the current language, plus the
+        app's live job: ``job_busy`` "1" while it installs or uninstalls,
+        ``job_error`` "1" when that failed, and its kind and percent."""
         code = self.locale
-        return [
-            {
-                **{k: v for k, v in row.items() if k != "i18n"},
-                "description": _localized(row, "description", code),
-            }
-            for row in self._rows
-        ]
+        jobs = self._jobs
+        rows: list[dict[str, str]] = []
+        for row in self._rows:
+            job = jobs.get(row["subdomain"]) or {}
+            pct = int(job.get("percent", 0))
+            rows.append(
+                {
+                    **{k: v for k, v in row.items() if k != "i18n"},
+                    "description": _localized(row, "description", code),
+                    "job_busy": "1" if job.get("status") in _BUSY else "",
+                    "job_error": "1" if job.get("status") == "error" else "",
+                    "job_kind": str(job.get("kind", "install")),
+                    "job_percent": str(pct),
+                    "job_width": _width(pct),
+                }
+            )
+        return rows
 
     @rx.var
     def message(self) -> str:
@@ -368,18 +452,23 @@ class AppStoreState(LocaleState):
 
     @rx.var
     def install_message(self) -> str:
+        job = self._jobs.get(self.panel_sub) or {}
         t = i18n.strings(self.locale)
-        if self._job_key not in t:
-            return self._job_text
-        args = dict(self._job_args)
+        key = str(job.get("key", ""))
+        if key not in t:
+            return str(job.get("text", ""))
+        args = dict(job.get("args") or {})
         if "phase" in args:
             args["phase"] = t.get(f"phase_{args['phase']}", args["phase"])
-        return _fmt(t, self._job_key, args)
+        return _fmt(t, key, args)
 
     @rx.var
     def progress_title(self) -> str:
-        key = "job_title_uninstall" if self.job_kind == "uninstall" else "job_title_install"
-        return _fmt(i18n.strings(self.locale), key, {"name": self.active_name})
+        job = self._jobs.get(self.panel_sub) or {}
+        key = "job_title_uninstall" if job.get("kind") == "uninstall" else "job_title_install"
+        return _fmt(
+            i18n.strings(self.locale), key, {"name": job.get("name", self.panel_sub)}
+        )
 
     @rx.var
     def uninstall_title(self) -> str:
@@ -454,22 +543,52 @@ class AppStoreState(LocaleState):
         self._msg_args = {k: str(v) for k, v in args.items()}
         self.message_kind = kind
 
-    def _job_say(self, key: str, **args) -> None:
-        """Put ``t[key]`` (with ``args``) in the progress panel."""
-        self._job_key = key
-        self._job_args = {k: str(v) for k, v in args.items()}
-        self._job_text = ""
+    def _job_update(self, sub: str, **fields) -> None:
+        """Change a job's fields.  ``_jobs`` is reassigned (not mutated) so
+        that every var reading it is recomputed."""
+        job = self._jobs.get(sub)
+        if job is not None:
+            self._jobs = {**self._jobs, sub: {**job, **fields}}
 
-    def _job_from(self, data: dict) -> None:
-        """Take over a re-ddns job's message: its ``msg`` key and ``msg_args``,
-        with its ready-made ``message`` for a key the tables do not have."""
-        msg = str(data.get("msg") or "")
-        args = data.get("msg_args")
-        self._job_key = f"job_{msg}" if msg else ""
-        self._job_args = (
-            {str(k): str(v) for k, v in args.items()} if isinstance(args, dict) else {}
+    def _begin_job(self, sub: str, name: str, kind: str, key: str) -> int:
+        """Start following a new job for ``sub`` and show it in the panel;
+        ``t[key]`` is what the panel says until re-ddns answers.
+
+        Returns the job's sequence number.  A poller whose number the job no
+        longer carries (the same app was started again) steps aside.
+        """
+        self._job_seq += 1
+        self._jobs = {
+            **self._jobs,
+            sub: {
+                "sub": sub,
+                "name": name,
+                "kind": kind,
+                "status": "uninstalling" if kind == "uninstall" else "installing",
+                "phase": "queued",
+                "percent": 2,
+                "log": [],
+                "key": key,
+                "args": {},
+                "text": "",
+                "seen": True,
+                "seq": self._job_seq,
+            },
+        }
+        self.panel_sub = sub
+        self.show_progress = True
+        self._say("")
+        return self._job_seq
+
+    def _job_failed(self, sub: str, key: str, **args) -> None:
+        """The request itself failed: ``t[key]`` (with ``args``) is the error."""
+        self._job_update(
+            sub,
+            status="error",
+            key=key,
+            args={k: str(v) for k, v in args.items()},
+            text="",
         )
-        self._job_text = str(data.get("message") or "")
 
     # ── language menu ──
 
@@ -590,19 +709,8 @@ class AppStoreState(LocaleState):
         app = self._lookup(subdomain)
         if not app:
             return
-        display = app.get("name", subdomain)
-        # Reset progress UI.
-        self.show_progress = True
-        self.job_kind = "install"
-        self.job_seq += 1
-        self.active_sub = subdomain
-        self.active_name = display
-        self.install_status = "installing"
-        self.install_phase = "queued"
-        self.install_percent = 2
-        self._job_say("job_sending_install")
-        self.install_log = []
-        self._say("")
+        display = str(app.get("name", subdomain))
+        seq = self._begin_job(subdomain, display, "install", "job_sending_install")
 
         spec = {
             "subdomain": subdomain,
@@ -623,28 +731,25 @@ class AppStoreState(LocaleState):
             with httpx.Client(timeout=30.0) as client:
                 r = client.post(f"{RE_DDNS_API_URL}/api/appstore/install", json=spec)
             if r.status_code != 200:
-                self.install_status = "error"
-                self._job_say("job_install_refused", code=r.status_code, detail=r.text[:200])
+                self._job_failed(
+                    subdomain, "job_install_refused", code=r.status_code, detail=r.text[:200]
+                )
                 return
         except Exception as exc:  # noqa: BLE001
-            self.install_status = "error"
-            self._job_say("job_unreachable", error=exc)
+            self._job_failed(subdomain, "job_unreachable", error=exc)
             return
         # Kick off background polling.
-        return AppStoreState.poll_progress
+        return AppStoreState.poll_progress(subdomain, seq)
 
     @rx.event(background=True)
-    async def poll_progress(self):
-        """Poll re-ddns for the job's progress until it finishes or fails.
+    async def poll_progress(self, sub: str, seq: int):
+        """Poll re-ddns for one job's progress until it finishes or fails.
 
-        Closing the panel does not stop this: the job carries on in re-ddns,
-        the card keeps showing its progress, and the grid refreshes at the end.
+        Every job has its own poller, so several apps can be installed or
+        removed at the same time.  Closing the panel does not stop this: the
+        job carries on in re-ddns, the card keeps showing its progress, and
+        the grid refreshes at the end.
         """
-        async with self:
-            sub = self.active_sub
-            seq = self.job_seq
-        if not sub:
-            return
         while True:
             try:
                 async with httpx.AsyncClient(timeout=15.0) as client:
@@ -656,30 +761,36 @@ class AppStoreState(LocaleState):
                 data = {}
 
             async with self:
-                if self.active_sub != sub or self.job_seq != seq:
-                    return  # another job took over the panel
+                job = self._jobs.get(sub)
+                if not job or job.get("seq") != seq:
+                    return  # the app was started again; its new poller took over
                 if data:
-                    self.install_status = data.get("status", self.install_status)
-                    self.install_phase = data.get("phase", self.install_phase)
-                    self.install_percent = int(data.get("percent", self.install_percent))
-                    self._job_from(data)
-                    log = data.get("log", [])
-                    if isinstance(log, list):
-                        self.install_log = [str(x) for x in log[-14:]]
-                status = self.install_status
+                    self._job_update(sub, **_job_fields_from(data))
+                    job = self._jobs[sub]
+                status = str(job.get("status", ""))
+                name = str(job.get("name", sub))
 
             if status in ("installed", "uninstalled", "error"):
                 # Reload the grid here rather than through `refresh`, which
                 # would wipe the banner set below.
                 rows = await asyncio.to_thread(_catalog_rows)
                 async with self:
-                    if self.active_sub != sub or self.job_seq != seq:
+                    job = self._jobs.get(sub)
+                    if not job or job.get("seq") != seq:
                         return
                     self._rows = rows
                     if status == "installed":
-                        self._say("store_installed", "success", name=self.active_name)
+                        self._say("store_installed", "success", name=name)
                     elif status == "uninstalled":
-                        self._say("store_uninstalled", "success", name=self.active_name)
+                        self._say("store_uninstalled", "success", name=name)
+                    if not (self.show_progress and self.panel_sub == sub):
+                        # Finished behind the panel: a success is told by the
+                        # banner and forgotten; a failure stays on its card
+                        # until it has been looked at.
+                        if status == "error":
+                            self._job_update(sub, seen=False)
+                        else:
+                            self._jobs = {k: v for k, v in self._jobs.items() if k != sub}
                 return
 
             await asyncio.sleep(1.5)
@@ -738,17 +849,7 @@ class AppStoreState(LocaleState):
         """
         app = self._lookup(subdomain)
         display = str(app.get("name", subdomain)) if app else subdomain
-        self.show_progress = True
-        self.job_kind = "uninstall"
-        self.job_seq += 1
-        self.active_sub = subdomain
-        self.active_name = display
-        self.install_status = "uninstalling"
-        self.install_phase = "queued"
-        self.install_percent = 2
-        self._job_say("job_sending_uninstall")
-        self.install_log = []
-        self._say("")
+        seq = self._begin_job(subdomain, display, "uninstall", "job_sending_uninstall")
 
         spec = {
             "subdomain": subdomain,
@@ -760,23 +861,36 @@ class AppStoreState(LocaleState):
             with httpx.Client(timeout=30.0) as client:
                 r = client.post(f"{RE_DDNS_API_URL}/api/appstore/uninstall", json=spec)
             if r.status_code != 200:
-                self.install_status = "error"
-                self._job_say("job_uninstall_refused", code=r.status_code, detail=r.text[:200])
+                self._job_failed(
+                    subdomain, "job_uninstall_refused", code=r.status_code, detail=r.text[:200]
+                )
                 return
         except Exception as exc:  # noqa: BLE001
-            self.install_status = "error"
-            self._job_say("job_unreachable", error=exc)
+            self._job_failed(subdomain, "job_unreachable", error=exc)
             return
-        return AppStoreState.poll_progress
+        return AppStoreState.poll_progress(subdomain, seq)
 
     @rx.event
     def close_progress(self):
-        """Hide the panel; a job still running carries on and the card shows it."""
+        """Hide the panel.  A job still running carries on and its card shows
+        it.  Finished jobs that have been looked at are forgotten; a failure
+        nobody has opened yet stays on its card."""
         self.show_progress = False
+        self._jobs = {
+            sub: job
+            for sub, job in self._jobs.items()
+            if job.get("status") in _BUSY
+            or (job.get("status") == "error" and not job.get("seen"))
+        }
 
     @rx.event
-    def open_progress(self):
-        self.show_progress = True
+    def open_progress(self, sub: str):
+        """Show one app's job in the panel: a card's "View progress" button,
+        or a tab in the panel."""
+        if sub in self._jobs:
+            self._job_update(sub, seen=True)
+            self.panel_sub = sub
+            self.show_progress = True
 
     # ── Dev mode ──
 
@@ -947,18 +1061,8 @@ class AppStoreState(LocaleState):
         app = self._lookup(subdomain)
         if not app:
             return
-        display = app.get("name", subdomain)
-        self.show_progress = True
-        self.job_kind = "install"
-        self.job_seq += 1
-        self.active_sub = subdomain
-        self.active_name = display
-        self.install_status = "installing"
-        self.install_phase = "queued"
-        self.install_percent = 2
-        self._job_say("job_sending_dev_install")
-        self.install_log = []
-        self._say("")
+        display = str(app.get("name", subdomain))
+        seq = self._begin_job(subdomain, display, "install", "job_sending_dev_install")
 
         spec = {
             "subdomain": subdomain,
@@ -977,14 +1081,14 @@ class AppStoreState(LocaleState):
             with httpx.Client(timeout=30.0) as client:
                 r = client.post(f"{RE_DDNS_API_URL}/api/appstore/dev-install", json=spec)
             if r.status_code != 200:
-                self.install_status = "error"
-                self._job_say("job_dev_install_refused", code=r.status_code, detail=r.text[:200])
+                self._job_failed(
+                    subdomain, "job_dev_install_refused", code=r.status_code, detail=r.text[:200]
+                )
                 return
         except Exception as exc:  # noqa: BLE001
-            self.install_status = "error"
-            self._job_say("job_unreachable", error=exc)
+            self._job_failed(subdomain, "job_unreachable", error=exc)
             return
-        return AppStoreState.poll_progress
+        return AppStoreState.poll_progress(subdomain, seq)
 
 
 # ---------------------------------------------------------------------------
@@ -1065,36 +1169,73 @@ def _dev_btn(app: rx.Var[dict]) -> rx.Component:
     )
 
 
-def job_indicator() -> rx.Component:
-    """What a card shows while its app is being installed or removed."""
+def job_indicator(app: rx.Var[dict]) -> rx.Component:
+    """What a card shows while its app is being installed or removed — its
+    own progress bar, so several cards can run side by side — or after that
+    failed (until the panel for it has been opened and closed)."""
+    is_uninstall = app["job_kind"] == "uninstall"
+    failed = app["job_error"] == "1"
     return rx.el.div(
-        rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
-        rx.el.span(
+        rx.el.div(
             rx.cond(
-                AppStoreState.job_kind == "uninstall",
-                AppStoreState.t["store_uninstalling"],
-                AppStoreState.t["store_installing"],
+                failed,
+                rx.icon("circle-alert", class_name="h-4 w-4"),
+                rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
             ),
-            " ",
-            AppStoreState.install_percent.to_string() + "%",
-            class_name="text-sm font-semibold",
+            rx.el.span(
+                rx.cond(
+                    failed,
+                    rx.cond(
+                        is_uninstall,
+                        AppStoreState.t["store_uninstall_failed"],
+                        AppStoreState.t["store_install_failed"],
+                    ),
+                    rx.fragment(
+                        rx.cond(
+                            is_uninstall,
+                            AppStoreState.t["store_uninstalling"],
+                            AppStoreState.t["store_installing"],
+                        ),
+                        " ",
+                        app["job_percent"],
+                        "%",
+                    ),
+                ),
+                class_name="text-sm font-semibold",
+            ),
+            rx.el.button(
+                AppStoreState.t["store_view_progress"],
+                on_click=lambda: AppStoreState.open_progress(app["subdomain"]),
+                class_name="ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black",
+            ),
+            class_name="flex items-center gap-2",
         ),
-        rx.el.button(
-            AppStoreState.t["store_view_progress"],
-            on_click=AppStoreState.open_progress,
-            class_name="ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white hover:bg-black",
+        rx.el.div(
+            rx.el.div(
+                class_name=rx.cond(
+                    failed,
+                    "h-full bg-red-500 transition-all duration-500",
+                    rx.cond(
+                        is_uninstall,
+                        "h-full bg-orange-500 transition-all duration-500",
+                        "h-full bg-blue-600 transition-all duration-500",
+                    ),
+                ),
+                style={"width": app["job_width"]},
+            ),
+            class_name="w-full h-1.5 bg-white/80 rounded-full overflow-hidden mt-2",
         ),
         class_name=rx.cond(
-            AppStoreState.job_kind == "uninstall",
-            "flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50 text-red-700",
-            "flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 text-blue-700",
+            failed | is_uninstall,
+            "px-3 py-2 rounded-xl bg-red-50 text-red-700",
+            "px-3 py-2 rounded-xl bg-blue-50 text-blue-700",
         ),
     )
 
 
 def action_buttons(app: rx.Var[dict]) -> rx.Component:
-    busy_here = (app["subdomain"] == AppStoreState.active_sub) & AppStoreState.install_busy
-    return rx.cond(busy_here, job_indicator(), _action_buttons(app))
+    has_job = (app["job_busy"] == "1") | (app["job_error"] == "1")
+    return rx.cond(has_job, job_indicator(app), _action_buttons(app))
 
 
 def _action_buttons(app: rx.Var[dict]) -> rx.Component:
@@ -1526,6 +1667,29 @@ def uninstall_confirm_panel() -> rx.Component:
     )
 
 
+def job_tab(job: rx.Var[dict]) -> rx.Component:
+    """One job in the panel's switcher: its name and percent; click shows it."""
+    return rx.el.button(
+        rx.cond(
+            job["busy"] == "1",
+            rx.icon("loader-circle", class_name="h-3.5 w-3.5 animate-spin"),
+            rx.cond(
+                job["status"] == "error",
+                rx.icon("circle-alert", class_name="h-3.5 w-3.5"),
+                rx.icon("check", class_name="h-3.5 w-3.5"),
+            ),
+        ),
+        rx.el.span(job["name"]),
+        rx.el.span(job["percent"], "%", class_name="opacity-70"),
+        on_click=lambda: AppStoreState.open_progress(job["sub"]),
+        class_name=rx.cond(
+            job["active"] == "1",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-900 text-white",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200",
+        ),
+    )
+
+
 def progress_panel() -> rx.Component:
     return rx.cond(
         AppStoreState.show_progress,
@@ -1562,6 +1726,15 @@ def progress_panel() -> rx.Component:
                         class_name="p-1 text-gray-400 hover:text-gray-700 rounded-lg",
                     ),
                     class_name="flex items-center justify-between mb-4",
+                ),
+                # The other jobs in flight (when there are several)
+                rx.cond(
+                    AppStoreState.job_tabs.length() > 1,
+                    rx.el.div(
+                        rx.foreach(AppStoreState.job_tabs, job_tab),
+                        class_name="flex flex-wrap gap-2 mb-4",
+                    ),
+                    None,
                 ),
                 # Progress bar
                 rx.el.div(

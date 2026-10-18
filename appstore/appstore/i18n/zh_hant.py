@@ -119,6 +119,8 @@ STRINGS: dict[str, str] = {
     "store_installing": "安裝中",
     "store_uninstalling": "移除中",
     "store_view_progress": "查看進度",
+    "store_install_failed": "安裝失敗",
+    "store_uninstall_failed": "移除失敗",
 
     # ── 訊息 ──
     "store_started": "已啟動 {name}。",

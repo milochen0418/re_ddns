@@ -17,7 +17,7 @@ For every app declared in the catalog you can:
 | **Open**     | Opens `https://<subdomain>.reflex-ddns.com` in a new tab.                 |
 | **Start**    | Starts the app's container (`smart-app-<subdomain>`).                     |
 | **Stop**     | Stops the app's container.                                                |
-| **Install**  | Installs the app **in-page** with a live progress bar — no host commands. |
+| **Install**  | Installs the app **in-page** with a live progress bar — no host commands. Several apps can be installed (or removed) at once; each card shows its own bar. |
 | **Uninstall**| Confirms, then removes the app **in-page with live progress**: container, registry, DNS, nginx, TLS cert. Data volumes are kept unless ticked. |
 | **Language** | English, 繁體中文, 简体中文, Español, 日本語 — one choice for this page and `/monitor` (kept in the browser, synced across tabs). |
 
@@ -53,6 +53,13 @@ For every app declared in the catalog you can:
   registry file changes) cannot leave a container behind. The App Store
   shows the steps in the same progress panel as Install; closing the panel
   does not stop the job.
+- **Several at once** — every install / uninstall is its own job in re-ddns
+  (`install_jobs.json` is keyed by subdomain) and gets its own poller in the
+  App Store, so two apps can be installed, or one installed while another is
+  removed, at the same time. Each card shows its own progress bar; the panel
+  shows one job and grows tabs to switch between them when several are in
+  flight. A job that fails while the panel shows another one stays marked on
+  its card until its own panel has been opened.
 - **Routing** — registers `aapps` with `re-ddns` on startup (`register_dns.py`);
   nginx terminates TLS and proxies `aapps.reflex-ddns.com` → `app-store:3000`.
 

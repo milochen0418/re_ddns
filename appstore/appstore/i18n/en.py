@@ -129,6 +129,8 @@ STRINGS: dict[str, str] = {
     "store_installing": "Installing",
     "store_uninstalling": "Uninstalling",
     "store_view_progress": "View progress",
+    "store_install_failed": "Install failed",
+    "store_uninstall_failed": "Uninstall failed",
 
     # ── banner ({name} is the container in started/stopped/not_installed_yet,
     #    the app in installed/uninstalled) ──

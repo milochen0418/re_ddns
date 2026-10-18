@@ -124,6 +124,8 @@ STRINGS: dict[str, str] = {
     "store_installing": "Instalando",
     "store_uninstalling": "Desinstalando",
     "store_view_progress": "Ver progreso",
+    "store_install_failed": "La instalación falló",
+    "store_uninstall_failed": "La desinstalación falló",
 
     # ── mensajes ──
     "store_started": "{name} iniciado.",

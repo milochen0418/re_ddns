@@ -124,6 +124,8 @@ STRINGS: dict[str, str] = {
     "store_installing": "インストール中",
     "store_uninstalling": "アンインストール中",
     "store_view_progress": "進捗を見る",
+    "store_install_failed": "インストール失敗",
+    "store_uninstall_failed": "アンインストール失敗",
 
     # ── メッセージ ──
     "store_started": "{name} を起動しました。",
