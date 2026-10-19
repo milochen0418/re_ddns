@@ -11,7 +11,7 @@ Three rules make it safe without any API on the data path:
 |---|---|
 | **write mine** | An app writes only inside its own *contribution*, `by-app/<app>/`. The kernel enforces it: the collection is mounted read-only, the app's folder read-write. |
 | **read all** | Every app with access reads the union of all contributions. Isolation is per collection: need separation, use another collection. |
-| **publish whole** | An *item* (one directory with a `manifest.json`) appears only when complete. Files are written as `.part` and renamed; the item lives in `.tmp/` until its manifest is written last and the directory is renamed into place. |
+| **publish whole** | An *item* (one directory of files, with its bookkeeping hidden in `.item/`) appears only when complete. Files are written as `.part` and renamed; the item lives in `.tmp/` until `.item/manifest.json` is written last and the directory is renamed into place. |
 
 ```
 <root>/<collection>/                     e.g. /Users/Shared/re-ddns/collections/dicom
@@ -19,10 +19,15 @@ Three rules make it safe without any API on the data path:
   by-app/
     <app>/                               owner = the app's subdomain
       .tmp/                              publishes in progress (readers ignore it)
-      <item-id>/manifest.json            a published item
-      <item-id>/<files...>
-      <item-id>/.replica                 present only on a copy fetched from another host
+      <item-id>/<files...>               a published item: the payload, nothing else
+      <item-id>/.item/manifest.json      its bookkeeping, hidden like .git/ (written last)
+      <item-id>/.item/replica.json       present only on a copy fetched from another host
 ```
+
+An app that opens an item directory as "a folder of files" sees only the
+payload: a directory listing that keeps files (`is_file()`), a shell `*`
+or Python's `glob` all skip the hidden `.item/`. Payload paths may not
+start with `.item/`.
 
 An item's identity is its **ref**, `<collection>:<owner>/<item-id>`, which
 never contains a path. Apps hand refs to each other (DDNS Intent) and
@@ -99,7 +104,7 @@ Peers can also be set at runtime: `PUT /api/collections/_peers {"peers": {...}}`
 | `GET /api/collections/<c>/items?scope=all\|local\|remote&kind=` | the index; `remote` items carry their `home` |
 | `POST /api/collections/<c>/fetch {"ref"}` | copy an item from its home host into the local tree (a replica); idempotent |
 | `GET /api/collections/<c>/fetch-status?ref=` | bytes done / total while a fetch runs |
-| `GET /api/collections/<c>/by-app/<app>/<item>/manifest.json`, `.../files/<path>` | what a home host serves to peers (token required; replicas are never served on) |
+| `GET /api/collections/<c>/by-app/<app>/<item>/manifest.json`, `.../files/<path>` | what a home host serves to peers (token required; replicas are never served on); the manifest is read from the item's `.item/` |
 | `GET/DELETE /api/collections/_contributions/<app>` | an app's folders, for uninstall ("also delete data") |
 | `POST /api/collections/_gc` | drop replicas their home no longer publishes, then enforce the cap |
 
@@ -112,20 +117,32 @@ Speeds, by construction:
 | that host opens it again | local disk |
 | any app writes | local disk |
 
-## Moving existing data
+## What joining a collection costs an app
 
-`/Users/Shared/DICOM` keeps working: the two DICOM catalog entries still
-mount it, and the explorer's new downloads go to its contribution in the
-`dicom` collection. To bring old series in:
+The two DICOM apps show the real size of the change:
 
-```bash
-mkdir -p /Users/Shared/re-ddns/collections/dicom/by-app/dicom-data-explorer
-mv /Users/Shared/DICOM/* /Users/Shared/re-ddns/collections/dicom/by-app/dicom-data-explorer/
-```
+- **A reader (DICOM Viewer): no code.** The catalog entry declares
+  `{"collection": "dicom", "access": "read", "env": "PUBLIC_DICOM_DIR"}`; the
+  app gets the collection mounted read-only at `/data/collections/dicom` and
+  its existing folder browser starts there. Items are plain folders:
+  `by-app/dicom-data-explorer/<SeriesInstanceUID>/*.dcm`; the viewer's scan
+  never meets the bookkeeping because it lives in the hidden `.item/`.
+- **A writer (DICOM Data Explorer): one dependency and one block.**
+  `reflex-ddns-auth = {path = "../reflex_ddns_auth", develop = true}` in
+  `pyproject.toml`, and the download loop writes into
+  `with Collection("dicom").publish(uid, kind="dicom.series", ...) as series:`
+  (`series.path` instead of a hand-made directory, `dicom.has(uid)` to skip a
+  series already there, `dicom.ref(uid)` kept in the history). About thirty
+  lines changed in one file. In return the series is invisible to other apps
+  until every file is in place, and it can be found on other hosts by its ref.
 
-They become items once the explorer writes manifests for them (or a
-`manifest.json` is added by hand); until then the viewer still browses them
-as plain folders.
+Everything beyond that (a list of the collection's items in the viewer, a
+"Open in Viewer" button through DDNS Intent, fetching from another host with
+a progress bar) is optional product work on top, not part of joining.
+
+Downloads made before the collection existed (`/Users/Shared/DICOM`) are not
+items; download them again with the explorer, or publish them with the
+library under the explorer's owner.
 
 ## Limits worth knowing
 

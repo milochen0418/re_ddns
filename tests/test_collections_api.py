@@ -152,11 +152,13 @@ def test_fetch_creates_replica_then_gc(cluster):
     assert node_b.authoritative_items("video") == []      # a third host never pulls from a replica
     rep = node_b.root / "video" / "by-app" / "downloader" / "clip"
     src = cluster.nodes["a"].root / "video" / "by-app" / "downloader" / "clip"
-    assert json.loads((rep / ca.REPLICA_NAME).read_text())["home"] == "a"
+    meta = rep / ca.META_DIR
+    assert json.loads((meta / ca.REPLICA_NAME).read_text())["home"] == "a"
     for i in range(3):
         assert (rep / f"f{i}.bin").read_bytes() == (src / f"f{i}.bin").read_bytes()
-    assert json.loads((rep / "manifest.json").read_text()) == json.loads((src / "manifest.json").read_text())
-    assert not (rep / ca.FETCH_INFO_NAME).exists()
+    assert json.loads((meta / ca.MANIFEST_NAME).read_text()) == json.loads((src / ca.META_DIR / ca.MANIFEST_NAME).read_text())
+    assert not (meta / ca.FETCH_INFO_NAME).exists()
+    assert sorted(p.name for p in rep.iterdir() if p.is_file()) == ["f0.bin", "f1.bin", "f2.bin"]   # payload only
     assert list((rep.parent / ca.TMP_DIR).iterdir()) == []
 
     # the app-side library on host b sees a local replica
@@ -166,10 +168,10 @@ def test_fetch_creates_replica_then_gc(cluster):
     # gc: the home deletes the item -> orphan replica removed; unknown home -> kept
     assert col_a.remove("clip")
     ghost = node_b.root / "video" / "by-app" / "ghost" / "it"
-    ghost.mkdir(parents=True)
+    (ghost / ca.META_DIR).mkdir(parents=True)
     (ghost / "f").write_bytes(b"1")
-    (ghost / "manifest.json").write_text(json.dumps({"kind": "video.file", "bytes": 1, "files": [{"path": "f", "bytes": 1}]}))
-    (ghost / ca.REPLICA_NAME).write_text(json.dumps({"home": "nowhere"}))
+    (ghost / ca.META_DIR / ca.MANIFEST_NAME).write_text(json.dumps({"kind": "video.file", "bytes": 1, "files": [{"path": "f", "bytes": 1}]}))
+    (ghost / ca.META_DIR / ca.REPLICA_NAME).write_text(json.dumps({"home": "nowhere"}))
 
     async def gc():
         async with cluster.client("b") as b:
@@ -194,7 +196,7 @@ def test_gc_keeps_replicas_when_home_is_unreachable(cluster):
 
     res = run(go())
     assert res["kept"] == [ref] and res["removed"] == []
-    assert (node_b.root / "video" / "by-app" / "downloader" / "clip" / "manifest.json").exists()
+    assert (node_b.root / "video" / "by-app" / "downloader" / "clip" / ca.META_DIR / ca.MANIFEST_NAME).exists()
 
 
 def test_replica_cap_evicts_oldest(cluster):
@@ -207,7 +209,7 @@ def test_replica_cap_evicts_oldest(cluster):
     async def go():
         async with cluster.client("b") as b:
             assert (await b.post("/api/collections/video/fetch", json={"ref": r1})).status_code == 200
-            old_marker = node_b.root / "video" / "by-app" / "downloader" / "old" / ca.REPLICA_NAME
+            old_marker = node_b.root / "video" / "by-app" / "downloader" / "old" / ca.META_DIR / ca.REPLICA_NAME
             data = json.loads(old_marker.read_text())
             data["fetched_at"] = "2000-01-01T00:00:00+00:00"
             old_marker.write_text(json.dumps(data))
@@ -232,8 +234,8 @@ def test_fetch_errors(cluster):
 def test_fetch_status_while_fetching(cluster):
     node_b = cluster.nodes["b"]
     tmp = node_b.root / "video" / "by-app" / "o" / ca.TMP_DIR / "it.replica.ab12"
-    tmp.mkdir(parents=True)
-    (tmp / ca.FETCH_INFO_NAME).write_text(json.dumps({"bytes_total": 100, "home": "a"}))
+    (tmp / ca.META_DIR).mkdir(parents=True)
+    (tmp / ca.META_DIR / ca.FETCH_INFO_NAME).write_text(json.dumps({"bytes_total": 100, "home": "a"}))
     (tmp / "f.bin.part").write_bytes(b"x" * 40)
     st = node_b.fetch_status("video:o/it")
     assert st["state"] == "fetching" and st["bytes_total"] == 100 and st["home"] == "a"
@@ -251,7 +253,7 @@ def test_peer_endpoints_need_token_and_reject_traversal(cluster):
             assert (await anon.get(f"{base}/files/f0.bin")).status_code == 401
             assert (await peer.get(f"{base}/manifest.json")).json()["kind"] == "video.file"
             assert (await peer.get(f"{base}/files/f0.bin")).content == b"bytes0"
-            assert (await peer.get(f"{base}/files/manifest.json")).status_code == 404
+            assert (await peer.get(f"{base}/files/.item/manifest.json")).status_code in (400, 404)
             assert (await peer.get(f"{base}/files/..%2Fmanifest.json")).status_code in (400, 404)
             assert (await peer.get("/api/collections/video/by-app/downloader/.tmp/manifest.json")).status_code == 400
             assert (await peer.get("/api/collections/video/by-app/..%2Fx/t/manifest.json")).status_code in (400, 404)

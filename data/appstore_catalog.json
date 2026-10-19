@@ -72,9 +72,9 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"],
+      "volumes": [],
       "storage": [
-        {"collection": "dicom", "access": "contribute", "env": "PUBLIC_DICOM_DIR", "env_target": "own"}
+        {"collection": "dicom", "access": "contribute"}
       ],
       "i18n": {
         "zh-Hant": {"description": "瀏覽與檢視 DICOM 資料集。"},
@@ -95,7 +95,7 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"],
+      "volumes": [],
       "storage": [
         {"collection": "dicom", "access": "read", "env": "PUBLIC_DICOM_DIR"}
       ],

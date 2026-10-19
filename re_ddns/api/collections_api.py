@@ -3,8 +3,10 @@
 A *collection* (``dicom``, ``video``, ...) is one directory tree that every
 app with access sees at ``/data/collections/<collection>`` (read-only) plus
 its own writable *contribution* ``by-app/<app>/``.  An *item* is a directory
-with a ``manifest.json``; the manifest is written last, so an item is either
-complete or invisible.  Apps use ``reflex_ddns_auth.collections``; this
+of payload files plus a hidden ``.item/`` directory holding its bookkeeping
+(``manifest.json``, ``replica.json``); the manifest is written last, so an
+item is either complete or invisible, and an app that treats the directory
+as a plain folder of files never sees the bookkeeping.  Apps use ``reflex_ddns_auth.collections``; this
 module is the platform side:
 
     mounts      ``storage_binds()`` turns a catalog ``storage`` declaration into
@@ -12,7 +14,7 @@ module is the platform side:
     index       ``GET /api/collections/<c>/items`` lists local items and, through
                 the peers, items that live on other hosts.
     transfer    ``POST /api/collections/<c>/fetch {ref}`` copies an item from its
-                home host into the local tree (a *replica*, marked ``.replica``);
+                home host into the local tree (a *replica*, marked ``.item/replica.json``);
                 the home host serves it with the ``manifest.json`` / ``files/``
                 endpoints.  Writes never cross hosts: every app writes on its own
                 host, readers pull once and then read from local disk.
@@ -58,9 +60,10 @@ logger = logging.getLogger("re-ddns.collections")
 # node must not depend on the app-side library)
 # ---------------------------------------------------------------------------
 
+META_DIR = ".item"                      # bookkeeping, hidden inside the item like .git/
 MANIFEST_NAME = "manifest.json"
-REPLICA_NAME = ".replica"
-FETCH_INFO_NAME = ".fetch.json"
+REPLICA_NAME = "replica.json"
+FETCH_INFO_NAME = "fetch.json"
 TMP_DIR = ".tmp"
 BY_APP = "by-app"
 PART_SUFFIX = ".part"
@@ -95,7 +98,21 @@ def safe_relpath(rel: str) -> str:
     parts = rel.split("/")
     if any(p in ("", ".", "..") for p in parts):
         raise ValueError(f"bad file path {rel!r}")
+    if parts[0] == META_DIR:
+        raise ValueError(f"{META_DIR}/ is reserved for the item's bookkeeping")
     return "/".join(parts)
+
+
+def _manifest(item_dir: Path) -> Path:
+    return item_dir / META_DIR / MANIFEST_NAME
+
+
+def _replica(item_dir: Path) -> Path:
+    return item_dir / META_DIR / REPLICA_NAME
+
+
+def _fetch_info(item_dir: Path) -> Path:
+    return item_dir / META_DIR / FETCH_INFO_NAME
 
 
 def parse_ref(text: str) -> tuple[str, str, str]:
@@ -331,10 +348,10 @@ class Node:
             return []
 
     def _entry(self, collection: str, owner: str, item_dir: Path) -> dict | None:
-        manifest = _read_json(item_dir / MANIFEST_NAME)
+        manifest = _read_json(_manifest(item_dir))
         if manifest is None:
             return None
-        replica = _read_json(item_dir / REPLICA_NAME) if (item_dir / REPLICA_NAME).exists() else None
+        replica = _read_json(_replica(item_dir)) if _replica(item_dir).exists() else None
         producer = manifest.get("producer") if isinstance(manifest.get("producer"), dict) else {}
         home = str((replica or {}).get("home") or producer.get("host") or self.name)
         return {
@@ -450,8 +467,8 @@ class Node:
         return None
 
     def _done(self, final: Path, fetched: bool) -> dict:
-        manifest = _read_json(final / MANIFEST_NAME) or {}
-        replica = _read_json(final / REPLICA_NAME)
+        manifest = _read_json(_manifest(final)) or {}
+        replica = _read_json(_replica(final))
         return {
             "ok": True, "local": True, "fetched": fetched, "replica": replica is not None,
             "home": str((replica or {}).get("home") or self.name), "bytes": int(manifest.get("bytes") or 0),
@@ -465,11 +482,11 @@ class Node:
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         final = self.item_dir(collection, owner, item)
-        if (final / MANIFEST_NAME).exists():
+        if _manifest(final).exists():
             return self._done(final, fetched=False)
         lock = self._locks.setdefault(ref, asyncio.Lock())
         async with lock:
-            if (final / MANIFEST_NAME).exists():
+            if _manifest(final).exists():
                 return self._done(final, fetched=False)
             located = await self._locate(ref)
             if located is None:
@@ -489,7 +506,8 @@ class Node:
                     manifest = r.json()
                     files = [f for f in manifest.get("files", []) if isinstance(f, dict)]
                     total = sum(int(f.get("bytes") or 0) for f in files)
-                    _write_json_atomic(tmp / FETCH_INFO_NAME, {
+                    (tmp / META_DIR).mkdir(exist_ok=True)
+                    _write_json_atomic(_fetch_info(tmp), {
                         "ref": ref, "home": peer, "bytes_total": total, "started_at": _utcnow(),
                     })
                     for f in files:
@@ -506,14 +524,14 @@ class Node:
                         if part.stat().st_size != int(f.get("bytes") or 0):
                             raise HTTPException(502, f"size mismatch for {rel} from {peer}")
                         os.replace(part, dest)
-                (tmp / FETCH_INFO_NAME).unlink(missing_ok=True)
-                _write_json_atomic(tmp / REPLICA_NAME, {"home": peer, "fetched_at": _utcnow(), "bytes": total})
-                _write_json_atomic(tmp / MANIFEST_NAME, manifest)
+                _fetch_info(tmp).unlink(missing_ok=True)
+                _write_json_atomic(_replica(tmp), {"home": peer, "fetched_at": _utcnow(), "bytes": total})
+                _write_json_atomic(_manifest(tmp), manifest)
                 self._chown_tree(tmp)
                 try:
                     os.rename(tmp, final)
                 except OSError:
-                    if (final / MANIFEST_NAME).exists():
+                    if _manifest(final).exists():
                         shutil.rmtree(tmp, ignore_errors=True)
                     else:
                         raise
@@ -532,7 +550,7 @@ class Node:
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         final = self.item_dir(collection, owner, item)
-        manifest = _read_json(final / MANIFEST_NAME)
+        manifest = _read_json(_manifest(final))
         if manifest is not None:
             size = int(manifest.get("bytes") or 0)
             return {"ref": ref, "state": "done", "bytes_done": size, "bytes_total": size}
@@ -544,7 +562,7 @@ class Node:
         if not tmps:
             return {"ref": ref, "state": "none", "bytes_done": 0, "bytes_total": 0}
         tmp = tmps[-1]
-        info = _read_json(tmp / FETCH_INFO_NAME) or {}
+        info = _read_json(_fetch_info(tmp)) or {}
         return {
             "ref": ref, "state": "fetching", "home": info.get("home", ""),
             "bytes_done": _tree_bytes(tmp), "bytes_total": int(info.get("bytes_total") or 0),
@@ -774,8 +792,8 @@ def build_router(node: Node) -> APIRouter:
     async def manifest(request: Request, collection: str, owner: str, item: str):
         node.check_peer_token(request)
         d = node.item_dir(collection, owner, item)
-        data = _read_json(d / MANIFEST_NAME)
-        if data is None or (d / REPLICA_NAME).exists():
+        data = _read_json(_manifest(d))
+        if data is None or _replica(d).exists():
             raise HTTPException(404, "no such item on this host")
         return data
 
@@ -783,8 +801,8 @@ def build_router(node: Node) -> APIRouter:
     async def file(request: Request, collection: str, owner: str, item: str, path: str):
         node.check_peer_token(request)
         d = node.item_dir(collection, owner, item)
-        data = _read_json(d / MANIFEST_NAME)
-        if data is None or (d / REPLICA_NAME).exists():
+        data = _read_json(_manifest(d))
+        if data is None or _replica(d).exists():
             raise HTTPException(404, "no such item on this host")
         try:
             rel = safe_relpath(path)
