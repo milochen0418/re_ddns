@@ -120,6 +120,22 @@ done
 # ──────────────────────────────────────────────
 # 2. Start re-ddns first, wait for API
 # ──────────────────────────────────────────────
+# Owned Collections (docs/collections.md): the shared-storage tree lives on the
+# host so Finder, local `poetry run` apps and every container see one folder.
+# Create it as the current user before Docker can create it as root.
+if [[ -z "${COLLECTIONS_ROOT:-}" ]]; then
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        export COLLECTIONS_ROOT="/Users/Shared/re-ddns/collections"
+    else
+        export COLLECTIONS_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/re-ddns/collections"
+    fi
+fi
+mkdir -p "$COLLECTIONS_ROOT"
+export RE_DDNS_NODE_NAME="${RE_DDNS_NODE_NAME:-$(hostname -s 2>/dev/null || hostname)}"
+export HOST_UID="${HOST_UID:-$(id -u)}"
+export HOST_GID="${HOST_GID:-$(id -g)}"
+log "Collections root: $COLLECTIONS_ROOT (node name: $RE_DDNS_NODE_NAME)"
+
 log "Starting re-ddns ..."
 docker compose -f "$COMPOSE_FILE" up -d --build re-ddns
 

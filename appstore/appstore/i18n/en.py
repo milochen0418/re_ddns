@@ -186,7 +186,7 @@ STRINGS: dict[str, str] = {
         "you can install it again at any time."
     ),
     "un_running": "This app is running now; it is stopped first, then removed.",
-    "un_remove_data": "Also delete its data volumes",
+    "un_remove_data": "Also delete its data (volumes and shared-collection folders)",
     "un_keep_hint": (
         "Left unticked, they are kept and a reinstall uses the data again. Local "
         "folders mounted in Dev mode are never touched."
@@ -228,6 +228,7 @@ STRINGS: dict[str, str] = {
     "job_container_exited": "The {name} container exited (exit code {code}).",
     "job_install_start_failed": "The install could not start: {error}",
     "job_dev_install_start_failed": "The dev-mode install could not start: {error}",
+    "job_storage_invalid": "Invalid shared-storage declaration: {error}",
     "job_stop_waiting": "{name}: waiting for the container to exit… ({seconds} s)",
     "job_uninstalled": "{name} was removed.",
     "job_uninstall_failed": "Removing {name} failed: {error}",

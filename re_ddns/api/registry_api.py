@@ -70,6 +70,8 @@ _DNS_RECORD_IP = os.environ.get("EXTERNAL_IP", "127.0.0.1")
 
 _DATA_DIR = Path(os.environ.get("DATA_DIR", Path(__file__).parent.parent.parent / "data"))
 _DEFAULT_PATH = _DATA_DIR / "registry.json"
+# This machine's name among re-ddns nodes (multi-host collections).
+NODE_NAME = os.environ.get("RE_DDNS_NODE_NAME") or socket.gethostname()
 _lock = Lock()
 
 # Module-level path — can be overridden via ``init()``.
@@ -144,8 +146,13 @@ def put_service(
     ttl: int = 1,
     backend_paths: list[str] | None = None,
     apt_packages: list[str] | None = None,
+    host: str | None = None,
 ) -> dict[str, Any]:
-    """Insert or update a service.  Returns the entry written."""
+    """Insert or update a service.  Returns the entry written.
+
+    ``host`` is the re-ddns node the app runs on (``RE_DDNS_NODE_NAME``); it
+    is what the shared collections use as an item's home.
+    """
     entry = {
         "subdomain": subdomain,
         "zone": zone,
@@ -155,6 +162,7 @@ def put_service(
         "ip_address": ip_address,
         "ttl": ttl,
         "registered_at": datetime.now(timezone.utc).isoformat(),
+        "host": host or NODE_NAME,
     }
     if backend_paths:
         entry["backend_paths"] = backend_paths

@@ -180,7 +180,7 @@ STRINGS: dict[str, str] = {
         "puedes volver a instalarla cuando quieras."
     ),
     "un_running": "Esta app está en ejecución; primero se detiene y después se desinstala.",
-    "un_remove_data": "Borrar también sus volúmenes de datos",
+    "un_remove_data": "Borrar también sus datos (volúmenes y carpetas de colecciones compartidas)",
     "un_keep_hint": (
         "Si no lo marcas, se conservan y al reinstalar se vuelven a usar esos datos. "
         "Las carpetas locales montadas en modo Dev nunca se tocan."
@@ -219,6 +219,7 @@ STRINGS: dict[str, str] = {
     "job_container_exited": "El contenedor de {name} terminó (exit code {code}).",
     "job_install_start_failed": "No se pudo iniciar la instalación: {error}",
     "job_dev_install_start_failed": "No se pudo iniciar la instalación en modo Dev: {error}",
+    "job_storage_invalid": "Declaración de almacenamiento compartido no válida: {error}",
     "job_stop_waiting": "{name}: esperando a que termine el contenedor… ({seconds} s)",
     "job_uninstalled": "Se desinstaló {name}.",
     "job_uninstall_failed": "No se pudo desinstalar {name}: {error}",

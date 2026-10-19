@@ -73,6 +73,9 @@
       "subdir": "",
       "env_file": "",
       "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"],
+      "storage": [
+        {"collection": "dicom", "access": "contribute", "env": "PUBLIC_DICOM_DIR", "env_target": "own"}
+      ],
       "i18n": {
         "zh-Hant": {"description": "瀏覽與檢視 DICOM 資料集。"},
         "zh-Hans": {"description": "浏览和查看 DICOM 数据集。"},
@@ -93,6 +96,9 @@
       "subdir": "",
       "env_file": "",
       "volumes": ["/Users/Shared/DICOM:/Users/Shared/DICOM"],
+      "storage": [
+        {"collection": "dicom", "access": "read", "env": "PUBLIC_DICOM_DIR"}
+      ],
       "i18n": {
         "zh-Hant": {"description": "顯示與檢視 DICOM 醫學影像。"},
         "zh-Hans": {"description": "显示和查看 DICOM 医学影像。"},

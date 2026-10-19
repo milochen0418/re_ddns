@@ -170,7 +170,7 @@ STRINGS: dict[str, str] = {
         "移除後它不再佔用記憶體；之後隨時可以重新安裝。"
     ),
     "un_running": "這個應用程式目前正在執行，會先停止再移除。",
-    "un_remove_data": "同時刪除資料 volume",
+    "un_remove_data": "同時刪除資料（volume 與共享 collection 資料夾）",
     "un_keep_hint": "不勾選就保留，重新安裝會沿用這些資料。Dev 模式掛載的本機資料夾一律不會動。",
     "un_confirm": "移除",
 
@@ -206,6 +206,7 @@ STRINGS: dict[str, str] = {
     "job_container_exited": "{name} 容器已結束（exit code {code}）。",
     "job_install_start_failed": "安裝啟動失敗：{error}",
     "job_dev_install_start_failed": "開發模式安裝啟動失敗：{error}",
+    "job_storage_invalid": "共享儲存宣告有誤：{error}",
     "job_stop_waiting": "{name}：等待容器結束…（{seconds} 秒）",
     "job_uninstalled": "{name} 已移除。",
     "job_uninstall_failed": "{name} 移除失敗：{error}",

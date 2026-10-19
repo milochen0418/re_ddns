@@ -179,7 +179,7 @@ STRINGS: dict[str, str] = {
         "削除します。削除後はメモリを使いません。いつでも再インストールできます。"
     ),
     "un_running": "このアプリは実行中です。停止してから削除します。",
-    "un_remove_data": "データのボリュームも削除する",
+    "un_remove_data": "データも削除する（ボリュームと共有コレクションのフォルダ）",
     "un_keep_hint": (
         "チェックしなければ残り、再インストール時にそのデータを使います。"
         "Dev モードでマウントしたローカルのフォルダには一切触れません。"
@@ -218,6 +218,7 @@ STRINGS: dict[str, str] = {
     "job_container_exited": "{name} のコンテナが終了しました（exit code {code}）。",
     "job_install_start_failed": "インストールを開始できませんでした: {error}",
     "job_dev_install_start_failed": "Dev モードのインストールを開始できませんでした: {error}",
+    "job_storage_invalid": "共有ストレージの宣言が不正です: {error}",
     "job_stop_waiting": "{name}: コンテナの終了を待っています…（{seconds} 秒）",
     "job_uninstalled": "{name} を削除しました。",
     "job_uninstall_failed": "{name} の削除に失敗しました: {error}",

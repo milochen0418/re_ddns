@@ -67,6 +67,8 @@ services:
       - ./docker/generate_tsig_key.sh:/usr/local/bin/generate_tsig_key.sh
       - bind-data:/var/cache/bind
       - bind-log:/var/log/bind
+      # Owned Collections: the shared-storage tree apps mount (docs/collections.md)
+      - ${COLLECTIONS_ROOT:-/Users/Shared/re-ddns/collections}:/collections
       - registry-data:/app/data
       - reflex-db:/app
       # Docker socket — lets re-ddns orchestrate App Store installs by
@@ -81,6 +83,16 @@ services:
       - EXTERNAL_IP=${EXTERNAL_IP:-127.0.0.1}
       - REFLEX_FRONTEND_HOST=0.0.0.0
       - REFLEX_BACKEND_HOST=0.0.0.0
+      # Owned Collections node (docs/collections.md): where the tree is, who we
+      # are among re-ddns hosts, and how to reach the other hosts.
+      - COLLECTIONS_ROOT=/collections
+      - COLLECTIONS_HOST_ROOT=${COLLECTIONS_ROOT:-/Users/Shared/re-ddns/collections}
+      - RE_DDNS_NODE_NAME=${RE_DDNS_NODE_NAME:-}
+      - RE_DDNS_PEERS=${RE_DDNS_PEERS:-}
+      - RE_DDNS_NODE_TOKEN=${RE_DDNS_NODE_TOKEN:-}
+      - COLLECTIONS_REPLICA_MAX_BYTES=${COLLECTIONS_REPLICA_MAX_BYTES:-0}
+      - HOST_UID=${HOST_UID:-}
+      - HOST_GID=${HOST_GID:-}
       # Tell Reflex frontend to connect to backend via nginx (port 80)
       # instead of directly to port 8000 (not exposed to host).
       - API_URL=http://home.reflex-ddns.com

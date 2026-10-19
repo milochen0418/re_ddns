@@ -170,7 +170,7 @@ STRINGS: dict[str, str] = {
         "卸载后它不再占用内存；之后随时可以重新安装。"
     ),
     "un_running": "这个应用正在运行，会先停止再卸载。",
-    "un_remove_data": "同时删除数据 volume",
+    "un_remove_data": "同时删除数据（volume 与共享 collection 文件夹）",
     "un_keep_hint": "不勾选就保留，重新安装会沿用这些数据。Dev 模式挂载的本地文件夹一律不会动。",
     "un_confirm": "卸载",
 
@@ -206,6 +206,7 @@ STRINGS: dict[str, str] = {
     "job_container_exited": "{name} 容器已退出（exit code {code}）。",
     "job_install_start_failed": "安装启动失败：{error}",
     "job_dev_install_start_failed": "开发模式安装启动失败：{error}",
+    "job_storage_invalid": "共享存储声明有误：{error}",
     "job_stop_waiting": "{name}：等待容器退出…（{seconds} 秒）",
     "job_uninstalled": "{name} 已卸载。",
     "job_uninstall_failed": "{name} 卸载失败：{error}",

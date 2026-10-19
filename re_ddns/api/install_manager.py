@@ -45,6 +45,9 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from re_ddns.api import collections_api
+from re_ddns.api.collections_api import StorageSpec
+
 logger = logging.getLogger("re-ddns.install")
 
 router = APIRouter(prefix="/api/appstore", tags=["appstore", "install"])
@@ -220,6 +223,7 @@ _MESSAGES: dict[str, str] = {
     "container_exited": "{name} 容器已結束 (exit code {code})。",
     "install_start_failed": "安裝啟動失敗：{error}",
     "dev_install_start_failed": "開發模式安裝啟動失敗：{error}",
+    "storage_invalid": "共享儲存宣告有誤：{error}",
     "stop_waiting": "{name}：等待容器結束…（{seconds} 秒）",
     "uninstalled": "{name} 已移除。",
     "uninstall_failed": "{name} 移除失敗：{error}",
@@ -388,6 +392,7 @@ class InstallRequest(BaseModel):
     env: dict[str, str] = {}    # user-supplied app settings (e.g. API keys)
     extra_repos: list[str] = [] # ["repo_url:relative_path", ...] for path deps
     ports: list[str] = []       # ["host:container[/udp]", ...] published on the host
+    storage: list[StorageSpec] = []  # shared collections (docs/collections.md)
 
 
 class DevInstallRequest(BaseModel):
@@ -403,6 +408,7 @@ class DevInstallRequest(BaseModel):
     env: dict[str, str] = {}
     extra_repos: list[str] = []
     ports: list[str] = []
+    storage: list[StorageSpec] = []
     # Host path of the reflex_ddns_auth checkout to use instead of GitHub
     # (default: sibling of local_path, i.e. <parent>/reflex_ddns_auth).
     auth_lib_path: str = ""
@@ -530,13 +536,20 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
 
     if not await _ensure_image(sub):
         return
+    try:
+        storage_binds, storage_env = collections_api.storage_binds(collections_api.node, sub, req.storage)
+    except ValueError as exc:
+        _set_job(sub, status="error", phase="error", **_msg("storage_invalid", error=exc))
+        return
 
     network = await _docker_network_name()
     async with _client() as client:
         _set_job(sub, phase="creating", percent=22, **_msg("creating_dev", name=display))
         await _remove_existing_container(client, name)
 
-        binds: list[str] = list(req.volumes or [])
+        # Shared collections first: the read-only collection mount must exist
+        # before the app's own read-write contribution is mounted inside it.
+        binds: list[str] = storage_binds + list(req.volumes or [])
         binds.append(f"{req.local_path}:/app/dev_src:rw")
         # The container's own runtime data (SQLite DBs) — kept apart from the
         # host copy, which SQLite cannot safely share across the VM boundary.
@@ -548,7 +561,7 @@ async def _create_and_start_dev(req: DevInstallRequest) -> None:
             "Image": LAUNCHER_IMAGE,
             "Hostname": name,
             "Tty": True,
-            "Env": _build_dev_env(req),
+            "Env": _build_dev_env(req) + storage_env,
             "HostConfig": {
                 "NetworkMode": network,
                 "RestartPolicy": {"Name": "unless-stopped"},
@@ -615,13 +628,18 @@ async def _create_and_start(req: InstallRequest) -> None:
 
     if not await _ensure_image(sub):
         return  # error state already set
+    try:
+        storage_binds, storage_env = collections_api.storage_binds(collections_api.node, sub, req.storage)
+    except ValueError as exc:
+        _set_job(sub, status="error", phase="error", **_msg("storage_invalid", error=exc))
+        return
 
     network = await _docker_network_name()
     async with _client() as client:
         _set_job(sub, phase="creating", percent=22, **_msg("creating", name=display))
         await _remove_existing_container(client, name)
 
-        binds: list[str] = list(req.volumes or [])
+        binds: list[str] = storage_binds + list(req.volumes or [])
         if req.env_file and os.path.exists(req.env_file):
             binds.append(f"{req.env_file}:/app/injected.env:ro")
 
@@ -629,7 +647,7 @@ async def _create_and_start(req: InstallRequest) -> None:
             "Image": LAUNCHER_IMAGE,
             "Hostname": name,
             "Tty": True,  # merge stdout/stderr → easy raw log parsing
-            "Env": _build_env(req),
+            "Env": _build_env(req) + storage_env,
             "HostConfig": {
                 "NetworkMode": network,
                 "RestartPolicy": {"Name": "unless-stopped"},
@@ -822,6 +840,11 @@ async def _uninstall_step(sub: str, job: dict[str, Any]) -> None:
     zone = job.get("zone") or "reflex-ddns.com"
     fqdn = f"{sub}.{zone}"
 
+    if phase == "queued":
+        contributions = [c["path"] for c in collections_api.node.contributions_of(sub)]
+        if contributions:
+            _set_job(sub, _contributions=contributions)
+
     if phase in ("queued", "stopping"):
         async with _client() as client:
             insp = await client.get(f"/containers/{name}/json")
@@ -922,11 +945,15 @@ async def _uninstall_step(sub: str, job: dict[str, Any]) -> None:
         else:
             _append_log(sub, f"[uninstall] No TLS certificate for {fqdn} to remove.")
         volumes = list(job.get("_volumes") or [])
-        if volumes and job.get("remove_data"):
+        contributions = list(job.get("_contributions") or [])
+        if (volumes or contributions) and job.get("remove_data"):
             _uninstall_phase(sub, display, "data", 90)
             return
         if volumes:
             _append_log(sub, "[uninstall] Kept data volume(s): " + ", ".join(volumes)
+                             + " (a reinstall uses them again).")
+        if contributions:
+            _append_log(sub, "[uninstall] Kept shared-collection folder(s): " + ", ".join(contributions)
                              + " (a reinstall uses them again).")
         _finish_uninstall(sub, display)
         return
@@ -942,6 +969,15 @@ async def _uninstall_step(sub: str, job: dict[str, Any]) -> None:
                 else:
                     _append_log(sub, f"[uninstall] WARNING: could not remove volume {vol}: "
                                      f"HTTP {r.status_code} {_docker_error(r)}")
+        for path in job.get("_contributions") or []:
+            collection = str(path).split("/", 1)[0]
+            try:
+                removed = collections_api.node.remove_contribution(collection, sub)
+            except Exception as exc:  # noqa: BLE001
+                _append_log(sub, f"[uninstall] WARNING: could not remove {path}: {exc}")
+                continue
+            if removed:
+                _append_log(sub, f"[uninstall] Removed shared-collection folder {path}.")
         _finish_uninstall(sub, display)
         return
 

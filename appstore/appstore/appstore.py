@@ -726,6 +726,7 @@ class AppStoreState(LocaleState):
             "env": env or {},
             "extra_repos": app.get("extra_repos") or [],
             "ports": app.get("ports") or [],
+            "storage": app.get("storage") or [],
         }
         try:
             with httpx.Client(timeout=30.0) as client:
@@ -814,6 +815,16 @@ class AppStoreState(LocaleState):
                 })
             except Exception:  # noqa: BLE001
                 pass
+        # Shared-collection folders this app owns (kept unless "also delete data").
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                r2 = client.get(f"{RE_DDNS_API_URL}/api/collections/_contributions/{subdomain}")
+            if r2.status_code == 200:
+                volumes = list(volumes) + [
+                    f"collections/{c['path']}" for c in r2.json().get("contributions", []) if c.get("path")
+                ]
+        except Exception:  # noqa: BLE001
+            pass
         self.uninstall_sub = subdomain
         self.uninstall_name = str(app.get("name", subdomain))
         self.uninstall_container = name
@@ -1076,6 +1087,7 @@ class AppStoreState(LocaleState):
             "env": {},
             "extra_repos": app.get("extra_repos") or [],
             "ports": app.get("ports") or [],
+            "storage": app.get("storage") or [],
         }
         try:
             with httpx.Client(timeout=30.0) as client:

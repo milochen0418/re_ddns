@@ -220,6 +220,7 @@ Optional fields:
 
 - `env_schema` — settings the App Store asks for before installing (passed to the app as env vars).
 - `ports` — container ports published on the host, for traffic nginx cannot proxy, such as WebRTC media: `"ports": ["7881:7881", "7882:7882/udp"]`. Every app also receives `EXTERNAL_IP` (the host's LAN IP), so a media server can advertise an address that LAN clients can reach.
+- `storage` — shared collections the app takes part in (one app downloads, another one uses): `"storage": [{"collection": "dicom", "access": "contribute"}]`. The collection is mounted read-only at `/data/collections/<name>` and the app's own folder `by-app/<subdomain>/` read-write; apps use `reflex_ddns_auth.collections`. Works across several re-ddns hosts. See [docs/collections.md](docs/collections.md).
 - `i18n` — the description and settings texts in other languages, keyed by language code (`zh-Hant`, `zh-Hans`, `ja`, `es`); the base fields are the English fallback for anything not listed: `"i18n": {"ja": {"description": "…", "env": {"API_KEY": {"label": "…", "help": "…"}}}}`.
 
 ### Intent registry
