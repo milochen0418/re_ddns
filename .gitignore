@@ -36,3 +36,8 @@ data/manual_dns.json
 # Playwright / Test Artifacts
 testcases/**/output/
 .playwright-mcp/
+
+# Documentation videos and related files
+docs/videos/AgenticAppStore-Collections-promo.mp4
+docs/videos/AgenticAppStore-Collections-promo.srt
+docs/videos/collections-promo.src/
