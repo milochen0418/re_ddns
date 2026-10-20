@@ -15,10 +15,13 @@ import pytest
 from fastapi import FastAPI
 
 from re_ddns.api import collections_api as ca
+from re_ddns.api.admin_auth import ADMIN_HEADER
 from re_ddns.api.collections_api import Node, StorageSpec, build_router, storage_binds
 
 pytest.importorskip("reflex_ddns_auth.collections")
 from reflex_ddns_auth.collections import Collection  # noqa: E402
+
+from conftest import ADMIN_TOKEN  # noqa: E402
 
 TOKEN = "s3cret"
 
@@ -48,11 +51,17 @@ class Cluster:
         for name in names:
             self.nodes[name].set_peers({n: f"http://{n}" for n in names if n != name})
 
-    def client(self, name: str, token: str | None = None) -> httpx.AsyncClient:
+    def client(self, name: str, token: str | None = None, admin: bool = False) -> httpx.AsyncClient:
         headers = {ca.TOKEN_HEADER: token} if token else {}
+        if admin:
+            headers[ADMIN_HEADER] = ADMIN_TOKEN
         return httpx.AsyncClient(
             transport=httpx.ASGITransport(app=self.apps[f"http://{name}"]), base_url=f"http://{name}", headers=headers
         )
+
+    def admin(self, name: str) -> httpx.AsyncClient:
+        """What the App Store holds: the admin token (no node token)."""
+        return self.client(name, admin=True)
 
     def collection(self, name: str, owner: str, cname: str = "video") -> Collection:
         return Collection(cname, app_id=owner, root=self.nodes[name].root)
@@ -106,12 +115,16 @@ def test_overview_and_peers(cluster):
     publish(cluster.collection("a", "downloader"), "one")
 
     async def go():
-        async with cluster.client("b") as b:
+        async with cluster.client("b") as anon:
+            # an app (no admin token) may look, but not change the peers
+            assert (await anon.put("/api/collections/_peers", json={"peers": {}})).status_code == 401
+        async with cluster.admin("b") as b:
             ov = (await b.get("/api/collections")).json()
             assert ov["node"] == "b" and ov["container_root"] == "/data/collections"
             assert ov["peers"] == {"a": {"url": "http://a", "reachable": True, "node": "a", "name_matches": True}}
             assert ov["collections"] == []
-            assert (await b.get("/api/collections/_peers")).json() == {"node": "b", "peers": {"a": "http://a"}}
+            assert (await b.get("/api/collections/_peers")).json() == {
+                "node": "b", "peers": {"a": "http://a"}, "from_env": []}
             r = await b.put("/api/collections/_peers", json={"peers": {"a": "http://a", "nas": "https://nas"}})
             assert r.json()["peers"] == {"a": "http://a", "nas": "https://nas"}
             assert (await b.put("/api/collections/_peers", json={"peers": {"bad name": "http://x"}})).status_code == 400
@@ -174,7 +187,9 @@ def test_fetch_creates_replica_then_gc(cluster):
     (ghost / ca.META_DIR / ca.REPLICA_NAME).write_text(json.dumps({"home": "nowhere"}))
 
     async def gc():
-        async with cluster.client("b") as b:
+        async with cluster.client("b") as anon:
+            assert (await anon.post("/api/collections/_gc")).status_code == 401
+        async with cluster.admin("b") as b:
             return (await b.post("/api/collections/_gc")).json()
 
     res = run(gc())
@@ -191,7 +206,7 @@ def test_gc_keeps_replicas_when_home_is_unreachable(cluster):
             assert (await b.post("/api/collections/video/fetch", json={"ref": ref})).status_code == 200
         node_b.set_peers({"a": "http://unreachable"})
         cluster.apps["http://unreachable"] = FastAPI()      # answers 404 to everything
-        async with cluster.client("b") as b:
+        async with cluster.admin("b") as b:
             return (await b.post("/api/collections/_gc")).json()
 
     res = run(go())
@@ -294,7 +309,13 @@ def test_contributions_and_remove(cluster):
     assert contribs[1]["items"] == 1 and contribs[1]["replicas"] == 0 and contribs[1]["bytes"] > 6
 
     async def go():
-        async with cluster.client("a") as a:
+        async with cluster.client("a") as anon:
+            # an app cannot list or delete another app's contribution
+            assert (await anon.get("/api/collections/_contributions/downloader")).status_code == 401
+            assert (await anon.delete("/api/collections/_contributions/downloader")).status_code == 401
+            bad = {ADMIN_HEADER: "wrong"}
+            assert (await anon.delete("/api/collections/_contributions/downloader", headers=bad)).status_code == 401
+        async with cluster.admin("a") as a:
             got = (await a.get("/api/collections/_contributions/downloader")).json()["contributions"]
             assert [c["collection"] for c in got] == ["documents", "video"]
             r = await a.delete("/api/collections/_contributions/downloader", params={"collection": "video"})

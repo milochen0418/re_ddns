@@ -22,7 +22,11 @@ app declared in the catalog (``data/appstore_catalog.json`` — the
 
 Status & control are done through the Docker Engine API over the Unix
 socket bind-mounted at ``/var/run/docker.sock``; installs are orchestrated
-by re-ddns over its own copy of that socket.
+by re-ddns over its own copy of that socket.  Installing and uninstalling
+need re-ddns's admin token, which ``admin.py`` reads through that socket.
+
+The shared data of the apps (Owned Collections) has its own page,
+``/storage`` (``storage.py``).
 
 The page is translated, and shares its language with ``/monitor`` (see
 ``lang.py``).  Every text comes from the ``i18n`` tables; one with
@@ -45,8 +49,10 @@ import httpx
 import reflex as rx
 
 from . import i18n
+from .admin import admin_request
 from .lang import LocaleState, language_picker
 from .monitor import MonitorState, monitor
+from .storage import StorageState, storage, thumb_endpoint
 
 CATALOG_PATH = os.environ.get("CATALOG_PATH", "/app/data/appstore_catalog.json")
 SERVICE_ZONE = os.environ.get("SERVICE_ZONE", "reflex-ddns.com")
@@ -729,8 +735,7 @@ class AppStoreState(LocaleState):
             "storage": app.get("storage") or [],
         }
         try:
-            with httpx.Client(timeout=30.0) as client:
-                r = client.post(f"{RE_DDNS_API_URL}/api/appstore/install", json=spec)
+            r = admin_request("POST", f"{RE_DDNS_API_URL}/api/appstore/install", json=spec)
             if r.status_code != 200:
                 self._job_failed(
                     subdomain, "job_install_refused", code=r.status_code, detail=r.text[:200]
@@ -817,8 +822,7 @@ class AppStoreState(LocaleState):
                 pass
         # Shared-collection folders this app owns (kept unless "also delete data").
         try:
-            with httpx.Client(timeout=5.0) as client:
-                r2 = client.get(f"{RE_DDNS_API_URL}/api/collections/_contributions/{subdomain}")
+            r2 = admin_request("GET", f"{RE_DDNS_API_URL}/api/collections/_contributions/{subdomain}", timeout=5.0)
             if r2.status_code == 200:
                 volumes = list(volumes) + [
                     f"collections/{c['path']}" for c in r2.json().get("contributions", []) if c.get("path")
@@ -869,8 +873,7 @@ class AppStoreState(LocaleState):
             "remove_data": bool(remove_data),
         }
         try:
-            with httpx.Client(timeout=30.0) as client:
-                r = client.post(f"{RE_DDNS_API_URL}/api/appstore/uninstall", json=spec)
+            r = admin_request("POST", f"{RE_DDNS_API_URL}/api/appstore/uninstall", json=spec)
             if r.status_code != 200:
                 self._job_failed(
                     subdomain, "job_uninstall_refused", code=r.status_code, detail=r.text[:200]
@@ -1090,8 +1093,7 @@ class AppStoreState(LocaleState):
             "storage": app.get("storage") or [],
         }
         try:
-            with httpx.Client(timeout=30.0) as client:
-                r = client.post(f"{RE_DDNS_API_URL}/api/appstore/dev-install", json=spec)
+            r = admin_request("POST", f"{RE_DDNS_API_URL}/api/appstore/dev-install", json=spec)
             if r.status_code != 200:
                 self._job_failed(
                     subdomain, "job_dev_install_refused", code=r.status_code, detail=r.text[:200]
@@ -1875,6 +1877,14 @@ def index() -> rx.Component:
                         language_picker(AppStoreState),
                         rx.link(
                             rx.el.div(
+                                rx.icon("hard-drive", class_name="h-4 w-4"),
+                                rx.el.span(AppStoreState.t["store_storage"]),
+                                class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
+                            ),
+                            href="/storage",
+                        ),
+                        rx.link(
+                            rx.el.div(
                                 rx.icon("activity", class_name="h-4 w-4"),
                                 rx.el.span(AppStoreState.t["store_memory"]),
                                 class_name="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all",
@@ -1952,3 +1962,7 @@ app.add_page(
     title="Container Memory",
     on_load=MonitorState.refresh,
 )
+app.add_page(storage, route="/storage", title="Storage", on_load=StorageState.load)
+# Previews of collection items for the storage page, fetched from re-ddns with
+# the admin token (nginx sends /api/* to this app's backend).
+app._api.add_route("/api/storage/thumb", thumb_endpoint, methods=["GET"])

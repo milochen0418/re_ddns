@@ -19,7 +19,14 @@ For every app declared in the catalog you can:
 | **Stop**     | Stops the app's container.                                                |
 | **Install**  | Installs the app **in-page** with a live progress bar — no host commands. Several apps can be installed (or removed) at once; each card shows its own bar. |
 | **Uninstall**| Confirms, then removes the app **in-page with live progress**: container, registry, DNS, nginx, TLS cert. Data volumes are kept unless ticked. |
-| **Language** | English, 繁體中文, 简体中文, Español, 日本語 — one choice for this page and `/monitor` (kept in the browser, synced across tabs). |
+| **Language** | English, 繁體中文, 简体中文, Español, 日本語 — one choice for this page, `/monitor` and `/storage` (kept in the browser, synced across tabs). |
+
+The **Storage** page (`/storage`, linked from the header) manages the data the
+apps share through collections: items (search, details with lineage, preview,
+*Open with*, fetch a copy from another host, delete), space (per app and
+collection, quotas, data of apps no longer installed), hosts (peers, the cap
+on copies, clean-up), and importing your own files as items. See
+[docs/collections.md](../docs/collections.md#managing-it-the-storage-page).
 
 > **Real, in-page install (no host shell needed):** every smart app is just the
 > generic `re-ddns/smart-launcher` image started with different environment
@@ -60,6 +67,18 @@ For every app declared in the catalog you can:
   shows one job and grows tabs to switch between them when several are in
   flight. A job that fails while the panel shows another one stays marked on
   its card until its own panel has been opened.
+- **Admin token** — install, dev-install, uninstall and every call of the
+  Storage page carry re-ddns's admin token (`X-Re-DDNS-Admin-Token`), which
+  `appstore/admin.py` takes from `RE_DDNS_ADMIN_TOKEN`, or else reads from
+  `/app/data/admin_token` inside the `re-ddns` container through the Docker
+  socket (`GET /containers/re-ddns/archive`). A 401 makes it read the token
+  again once (re-ddns recreated with a new volume).
+- **Storage** — `appstore/storage.py`: the page calls the re-ddns node API
+  (`/api/collections/_usage`, `_index`, `_item`, `_settings`, `_import`, ...)
+  and the intent registry (`/api/intent/openers?kind=`, for *Open with*).
+  Previews go through this app's own backend, `GET /api/storage/thumb?ref=`,
+  which fetches them with the token, so the browser never sees it. Imports
+  stream each uploaded file to re-ddns in 1 MB chunks.
 - **Routing** — registers `aapps` with `re-ddns` on startup (`register_dns.py`);
   nginx terminates TLS and proxies `aapps.reflex-ddns.com` → `app-store:3000`.
 
@@ -141,6 +160,9 @@ docker logs -f app-store
 | `SERVICE_ZONE`       | `reflex-ddns.com`                     | DNS zone.                                |
 | `CATALOG_PATH`       | `/app/data/appstore_catalog.json`     | App catalog location.                    |
 | `DOCKER_SOCK`        | `/var/run/docker.sock`                | Docker Engine socket for status/control. |
+| `RE_DDNS_ADMIN_TOKEN` | *(empty)*                            | re-ddns's admin token; empty = read it from the re-ddns container. |
+| `RE_DDNS_CONTAINER`  | `re-ddns`                             | The container the token is read from.    |
+| `RE_DDNS_ADMIN_TOKEN_PATH` | `/app/data/admin_token`         | Where the token file is in that container. |
 | `APPSTORE_DEV_MODE`  | `0`                                   | `1` shows the **Dev** button (bind-mount a local checkout). |
 | `HOST_HOME`          | *(empty)*                             | Host home folder; the Dev form autocompletes paths under it. |
 | `HOST_FS_PREFIX`     | `/hostfs`                             | Where the host home is mounted read-only (`${HOME}:/hostfs${HOME}:ro`). |

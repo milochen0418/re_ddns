@@ -485,6 +485,14 @@ from re_ddns.api.registry_api import router as registry_api_router  # noqa: E402
 from re_ddns.api.install_manager import router as install_manager_router  # noqa: E402
 from re_ddns.api.intent_registry import router as intent_registry_router  # noqa: E402
 from re_ddns.api.collections_api import router as collections_router  # noqa: E402
+from re_ddns.api import admin_auth as _admin_auth  # noqa: E402
+
+# Create the admin token file now, so the App Store can read it before the
+# first admin request (see re_ddns/api/admin_auth.py).
+try:
+    _admin_auth.admin_token()
+except OSError as _exc:
+    print(f"[re-ddns] WARNING: admin token unavailable: {_exc}")
 
 _api_app = _FastAPI()
 _api_app.include_router(registry_api_router)

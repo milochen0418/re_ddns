@@ -33,6 +33,14 @@ docker/zones/db.reflex-ddns.com
 data/registry.json
 data/manual_dns.json
 
+# re-ddns state when it runs outside Docker (in Docker it lives in the registry-data volume):
+# the admin token, install jobs, and the Owned Collections node's peers, settings and index
+data/admin_token
+data/install_jobs.json
+data/collections_peers.json
+data/collections_settings.json
+data/collections_index.sqlite*
+
 # Playwright / Test Artifacts
 testcases/**/output/
 .playwright-mcp/

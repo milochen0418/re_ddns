@@ -148,7 +148,8 @@ The App Store lives at `https://aapps.reflex-ddns.com` and lets you manage the e
 | **Install** | In-page live progress bar: `clone → deps → init → register → running` (no shell needed). Several apps can be installed at once, each card with its own bar |
 | **Start / Stop** | Sends `POST /containers/<id>/start` or `/stop` to Docker via re-ddns |
 | **Uninstall** | After a confirmation, in-page live progress like Install: `stop container → remove container → registry + DNS → nginx → TLS cert`. The app's Docker volumes (its data) are kept unless you tick *also delete data*; a reinstall reuses them |
-| **Language** | English, 繁體中文, 简体中文, Español, 日本語. The picker in the header switches the App Store and its Memory page together; the choice is kept in the browser and follows across open tabs |
+| **Storage** | The data apps share through [collections](docs/collections.md), on its own page: every item on this host and its peers, searchable, with details, lineage and a preview; *Open with* another installed app; fetch a copy from another host; delete; per-app quotas; data left behind by uninstalled apps; peers and the cap on copies; and importing your own files ([how](docs/collections.md#managing-it-the-storage-page)) |
+| **Language** | English, 繁體中文, 简体中文, Español, 日本語. The picker in the header switches the App Store and its Memory and Storage pages together; the choice is kept in the browser and follows across open tabs |
 
 ### How install works (no host shell needed)
 
@@ -166,6 +167,8 @@ re-ddns API  ── Docker Engine API ──► creates smart-app-<sub> containe
 ```
 
 The App Store calls re-ddns, which owns the Docker socket. re-ddns spawns a **Smart Launcher** container for each app and streams back progress from the container logs. The App Store UI polls this endpoint and renders a live progress bar — no terminal window required.
+
+Install, dev-install and uninstall (and the Storage page's calls) need re-ddns's **admin token** in the `X-Re-DDNS-Admin-Token` header, so that an app, which can reach the re-ddns API too, cannot install or remove apps or delete shared data. re-ddns creates the token on first start (or takes `RE_DDNS_ADMIN_TOKEN`), and the App Store reads it through its Docker socket, so nothing needs configuring; see [docs/collections.md](docs/collections.md#the-admin-token).
 
 ### App catalog
 

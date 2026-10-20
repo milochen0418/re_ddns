@@ -18,11 +18,14 @@ Progress is derived from the launcher's ``[smart-launcher] HH:MM:SS <stage>``
 log markers plus Reflex's own ``App running`` line.
 
 Endpoints (mounted under ``/api/appstore``)
-    POST /api/appstore/install            → start an install job
+    POST /api/appstore/install            → start an install job            (admin token)
+    POST /api/appstore/dev-install        → start a dev-mode install job    (admin token)
     GET  /api/appstore/status             → progress of every known job
     GET  /api/appstore/status/{subdomain} → progress of one job
-    POST /api/appstore/uninstall          → start an uninstall job (same
+    POST /api/appstore/uninstall          → start an uninstall job (same    (admin token)
                                             status endpoints follow it)
+
+"admin token" = the ``X-Re-DDNS-Admin-Token`` header, see ``admin_auth``.
 """
 
 from __future__ import annotations
@@ -42,10 +45,11 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from re_ddns.api import collections_api
+from re_ddns.api.admin_auth import require_admin
 from re_ddns.api.collections_api import StorageSpec
 
 logger = logging.getLogger("re-ddns.install")
@@ -1037,7 +1041,10 @@ class InstallStarted(BaseModel):
     message: str
 
 
-@router.post("/install", response_model=InstallStarted)
+# Installing, dev-installing and uninstalling need the admin token (admin_auth):
+# an install request names the container's bind mounts and shared storage, an
+# uninstall can delete an app's data.  The status endpoints stay open.
+@router.post("/install", response_model=InstallStarted, dependencies=[Depends(require_admin)])
 async def install_endpoint(req: InstallRequest):
     """Create + start the app container.  Poll /status to follow progress."""
     if not os.path.exists(DOCKER_SOCKET):
@@ -1103,7 +1110,7 @@ async def status_one(subdomain: str):
     return get_job(subdomain) or job
 
 
-@router.post("/dev-install", response_model=InstallStarted)
+@router.post("/dev-install", response_model=InstallStarted, dependencies=[Depends(require_admin)])
 async def dev_install_endpoint(req: DevInstallRequest):
     """Dev mode: mount local source into a container instead of cloning."""
     if not os.path.exists(DOCKER_SOCKET):
@@ -1139,7 +1146,7 @@ async def dev_install_endpoint(req: DevInstallRequest):
     return InstallStarted(ok=True, subdomain=req.subdomain, message="開發模式安裝已開始。")
 
 
-@router.post("/uninstall", response_model=InstallStarted)
+@router.post("/uninstall", response_model=InstallStarted, dependencies=[Depends(require_admin)])
 async def uninstall_endpoint(req: UninstallRequest):
     """Remove an app: container, then registry + DNS + nginx + TLS records.
 

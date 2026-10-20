@@ -11,6 +11,14 @@ answers callers that start an intent without naming the app::
     GET /api/intent/catalog
       -> {"apps": {"livekit": {"call.join": {"title": ..., "route": ..., "params": ...}}}}
 
+    GET /api/intent/openers?kind=dicom.series      ("Open with" for collection items)
+      -> {"kind": "dicom.series", "openers": [{"app": "dicom-viewer", "action": "dicom.open-series",
+                                                "title": ..., "route": "/intent/dicom-open-series"}]}
+
+An action is an opener of a kind when its manifest entry lists the kind in
+``accepts`` (``@intent(..., accepts=("dicom.series",))``); it takes the item's
+ref as its ``ref`` param.
+
 Manifests are cached per service for ``_CACHE_SECONDS``; a service that
 re-registers (new ``registered_at``) is read again right away.
 """
@@ -77,3 +85,20 @@ async def intent_providers(action: str):
         if isinstance(actions.get(action), dict)
     ]
     return {"action": action, "providers": providers}
+
+
+def openers_in(catalog: dict[str, dict[str, Any]], kind: str) -> list[dict[str, str]]:
+    """The actions of ``catalog`` whose ``accepts`` lists ``kind``, sorted by app then action."""
+    found = []
+    for app, actions in sorted(catalog.items()):
+        for action, spec in sorted(actions.items()):
+            accepts = spec.get("accepts") if isinstance(spec, dict) else None
+            if isinstance(accepts, list) and kind in accepts:
+                found.append({"app": app, "action": action, "title": str(spec.get("title") or action),
+                              "route": str(spec.get("route") or "")})
+    return found
+
+
+@router.get("/openers")
+async def intent_openers(kind: str):
+    return {"kind": kind, "openers": openers_in(await _catalog(), kind)}

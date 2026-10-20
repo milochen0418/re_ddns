@@ -589,6 +589,9 @@
       "subdir": "",
       "env_file": "",
       "volumes": [],
+      "storage": [
+        {"collection": "spreadsheets", "access": "contribute"}
+      ],
       "i18n": {
         "zh-Hant": {"description": "在瀏覽器裡使用、相容 Excel 的試算表：可開啟與儲存真正的 .xlsx 活頁簿，包含公式、樣式、表格與圖表。"},
         "zh-Hans": {"description": "在浏览器里使用、兼容 Excel 的电子表格：可打开和保存真正的 .xlsx 工作簿，包括公式、样式、表格和图表。"},
