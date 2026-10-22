@@ -557,6 +557,50 @@
       }
     },
     {
+      "id": "nooklane",
+      "name": "Nooklane",
+      "description": "A little 2D place for your people, like Gather: walk your character up to someone to talk, and their voice and camera get clearer the closer you are. Private nooks, stages, chat and reactions; show an avatar that copies your expressions, your real face close up, or the full camera picture. Built-in, open-source LiveKit server; no keys needed.",
+      "icon": "door-open",
+      "subdomain": "nooklane",
+      "github_repo": "https://github.com/milochen0418/nooklane.git",
+      "app_name": "nooklane",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["smart-app-nooklane-data:/root/.local/share/nooklane"],
+      "ports": ["7581:7581", "7582:7582/udp"],
+      "env_schema": [
+        {"key": "ADMIN_PASSCODE", "label": "Admin Passcode (optional, unlocks /settings and Build mode)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "The LiveKit server is built into this app's container; no LiveKit keys or account are needed. Its media ports are 7581/tcp + 7582/udp, so it can be installed next to the other LiveKit apps.\nWhoever makes a space gets its build key in their browser. The passcode also unlocks Build mode in every space, and /settings (API key/secret, media IP, restart, log)."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "像 Gather 一樣的 2D 小空間：走到對方身邊就能聊天，靠得越近，聲音和畫面越清楚。有私人角落、舞台、聊天和表情反應；鏡頭可以選會跟著你表情動的頭像、真臉特寫或完整畫面。內建開源 LiveKit 伺服器，不需要金鑰。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（選填，解鎖 /settings 和佈置模式）", "placeholder": "可留空", "help": "LiveKit 伺服器已內建在這個 app 的容器裡，不需要任何 LiveKit 金鑰或帳號；媒體埠用 7581/tcp + 7582/udp，可與其他 LiveKit app 同時安裝。\n建立空間的人會在瀏覽器裡拿到該空間的佈置鑰匙；這個密碼則能解鎖所有空間的佈置模式，以及 /settings（API Key/Secret、媒體 IP、重啟、log）。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "像 Gather 一样的 2D 小空间：走到对方身边就能聊天，离得越近，声音和画面越清楚。有私人角落、舞台、聊天和表情反应；摄像头可以选会跟着你表情动的头像、真脸特写或完整画面。内置开源 LiveKit 服务器，不需要密钥。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Admin Passcode（选填，解锁 /settings 和布置模式）", "placeholder": "可留空", "help": "LiveKit 服务器已内置在这个 app 的容器里，不需要任何 LiveKit 密钥或账号；媒体端口用 7581/tcp + 7582/udp，可与其他 LiveKit app 同时安装。\n创建空间的人会在浏览器里拿到该空间的布置钥匙；这个密码则能解锁所有空间的布置模式，以及 /settings（API Key/Secret、媒体 IP、重启、log）。"}
+          }
+        },
+        "ja": {
+          "description": "Gather のような小さな 2D の場所。キャラクターを相手のそばまで歩かせると話せて、近いほど声とカメラがはっきりします。プライベートな小部屋、ステージ、チャット、リアクション付き。カメラは表情をまねるアバター、素顔のアップ、カメラ全体から選べます。オープンソースの LiveKit サーバーを内蔵し、キーは不要です。",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "管理者パスコード（任意、/settings と編集モードを開く）", "placeholder": "空欄でも可", "help": "LiveKit サーバーはこのアプリのコンテナに内蔵されているので、LiveKit のキーやアカウントは不要です。メディアポートは 7581/tcp + 7582/udp なので、ほかの LiveKit アプリと同時にインストールできます。\nスペースを作った人のブラウザにはそのスペースの編集キーが入ります。このパスコードはすべてのスペースの編集モードと /settings（API Key/Secret、メディア IP、再起動、ログ）を開きます。"}
+          }
+        },
+        "es": {
+          "description": "Un pequeño lugar en 2D para tu gente, como Gather: acerca tu personaje a alguien para hablar, y su voz y su cámara se oyen y se ven mejor cuanto más cerca estás. Rincones privados, escenarios, chat y reacciones; muestra un avatar que imita tus expresiones, tu cara real de cerca o la imagen completa de la cámara. Servidor LiveKit de código abierto integrado; no hacen falta claves.",
+          "env": {
+            "ADMIN_PASSCODE": {"label": "Código de administrador (opcional, desbloquea /settings y el modo de edición)", "placeholder": "puede quedar vacío", "help": "El servidor LiveKit viene integrado en el contenedor de esta app; no hacen falta claves ni cuenta de LiveKit. Sus puertos de medios son 7581/tcp + 7582/udp, así que puede instalarse junto a las otras apps de LiveKit.\nQuien crea un espacio recibe su clave de edición en el navegador. El código desbloquea además el modo de edición de todos los espacios y /settings (API Key/Secret, IP de medios, reinicio, log)."}
+          }
+        }
+      }
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",

@@ -194,6 +194,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | LiveKit Video Chat (self-hosted) | `video-chat` | Video rooms (camera + microphone) on its own built-in LiveKit server — no keys (publishes media ports 7981/tcp + 7982/udp, so it can run next to the audio app) |
 | LiveKit Avatar Chat (self-hosted) | `avatar-chat` | Voice calls with emotional cartoon avatars: the face is tracked on the device and only voice + expression values are sent, never video (publishes media ports 7781/tcp + 7782/udp) |
 | LiveKit English Chat (self-hosted) | `english-chat` | English conversation as avatars with live subtitles (Whisper in the app) and right-click translation into your language (local LLM via Ollama on the Docker host) (publishes media ports 7681/tcp + 7682/udp) |
+| Nooklane | `nooklane` | A 2D place like Gather: walk up to someone to talk, and voices and cameras get clearer as you get close (proximity chat); private nooks, stages, chat, a map editor; show an expression avatar, your real face close up or the full camera picture. Built-in LiveKit server (publishes media ports 7581/tcp + 7582/udp) |
 | Instagram Story Downloader | `instagram-story-downloader` | Back up Instagram Stories via headless browser |
 | ReflexGrid | `grid` | Excel-compatible spreadsheet: opens and saves real `.xlsx` workbooks (formulas, styles, tables, charts) |
 | *(add more)* | any subdomain | Any Reflex app on GitHub — add an entry to the JSON |
