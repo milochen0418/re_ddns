@@ -793,6 +793,11 @@ fi
 # config override instead.  Older Reflex has no such option and ignores it.
 export REFLEX_VITE_ALLOWED_HOSTS=true
 
+# Reflex posts usage statistics to PostHog and waits for them when a command
+# exits: 5 s for each of its 16 addresses.  Where PostHog cannot be reached
+# over IPv4 (the containers have no IPv6), every `reflex init` hung ~80 s.
+export REFLEX_TELEMETRY_ENABLED="${REFLEX_TELEMETRY_ENABLED:-false}"
+
 log "Running reflex init ..."
 poetry run reflex init || true
 
