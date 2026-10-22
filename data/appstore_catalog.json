@@ -108,6 +108,29 @@
       }
     },
     {
+      "id": "pacs-lab",
+      "name": "PACS Lab",
+      "description": "Start practice PACS in Docker (Orthanc, a strict hospital-like Orthanc, a mini PACS), fill them with public DICOM images, and get the settings DICOM Data Explorer needs.",
+      "icon": "server-cog",
+      "subdomain": "pacs-lab",
+      "github_repo": "https://github.com/milochen0418/pacs_lab.git",
+      "app_name": "pacs_lab",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["/var/run/docker.sock:/var/run/docker.sock", "smart-app-pacs-lab-data:/root/.local/share/pacs_lab"],
+      "storage": [
+        {"collection": "dicom", "access": "read"}
+      ],
+      "i18n": {
+        "zh-Hant": {"description": "在 Docker 裡開練習用的 PACS（Orthanc、像醫院一樣嚴格的 Orthanc、迷你 PACS），放進公開的 DICOM 影像，並給你 DICOM Data Explorer 要填的設定值。"},
+        "zh-Hans": {"description": "在 Docker 里启动练习用的 PACS（Orthanc、像医院一样严格的 Orthanc、迷你 PACS），放入公开的 DICOM 影像，并给出 DICOM Data Explorer 需要填写的设置。"},
+        "ja": {"description": "Docker で練習用の PACS（Orthanc、病院のように厳しい Orthanc、ミニ PACS）を起動し、公開 DICOM 画像を入れて、DICOM Data Explorer に入力する設定を表示します。"},
+        "es": {"description": "Inicia PACS de práctica en Docker (Orthanc, un Orthanc estricto como en un hospital, un mini PACS), los llena con imágenes DICOM públicas y muestra la configuración que necesita DICOM Data Explorer."}
+      }
+    },
+    {
       "id": "video-segment-splitter",
       "name": "Video Segment Splitter",
       "description": "Split a video into segments.",
