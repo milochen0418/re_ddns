@@ -139,6 +139,7 @@ next to `media.video`) and readers know which files and `meta` keys to expect:
 
 | Kind | Payload | `meta` | Published by |
 |---|---|---|---|
+| `audio.file` | one audio file, the `primary`; from youtube-to-mp3 an MP3 named after the video, item id = `yt-<YouTube video id>`, `source` = the video's address, the video's thumbnail as the preview | `duration` (s); from youtube-to-mp3 also `format`, `youtube_id`, `channel`, `channel_url`, `license` (YouTube's licence text, e.g. Creative Commons), `upload_date` | youtube-to-mp3 |
 | `dicom.series` | the `.dcm` files of one DICOM series; item id = SeriesInstanceUID (imports: a generated id) | `Collection`, `Modality`, `BodyPartExamined`, `ImageCount`, `SeriesDescription`, `SeriesDate`, each when known | dicom-data-explorer, imports |
 | `document.markdown` | one Markdown document, the `primary`: `doc.md` (UTF-8); item id = the document's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name` | md |
 | `file.generic` | any files; promises nothing about them | free | imports |
@@ -149,7 +150,6 @@ Planned for the apps that join next; the first one to publish a kind settles its
 | Kind | Payload | `meta` |
 |---|---|---|
 | `video.file` | one video file, the `primary` | `duration` (s), `width`, `height` when known |
-| `audio.file` | one audio file, the `primary` | `duration` (s) |
 | `image.file` | one image file, the `primary` (its own preview) | `width`, `height` |
 | `document.pdf` | one PDF, the `primary` | `pages` |
 
@@ -332,6 +332,18 @@ change in memory and writes it 1.5 s later, at most once per 1.5 s while
 people type, and what is unwritten at exit is written then; live co-editing
 goes through its Yjs relay and never waits for the disk. Run on its own, it
 keeps its documents in its database.
+
+**YouTube to MP3** and **Video Audio Mixer** share the `audio` collection the
+same way, one writing and one reading: the converter declares
+`{"collection": "audio", "access": "contribute"}` and publishes every song it
+converts as an `audio.file` item (`youtube_to_mp3_tool/jobs.py`; ffmpeg writes
+the MP3 straight into the item being published); the mixer declares
+`{"collection": "audio", "access": "read"}` and lists those items as its audio
+library (`video_audio_mixer/media.py`). They also talk while the user works: the
+mixer opens the converter's DDNS Intent `audio.find` as a dialog that keeps
+running when minimized (or shown as a small picture-in-picture window), and the
+converter reports every finished song with an intent `update` (`{"event":
+"ready", "ref": ...}`), so it appears in the mixer's library at once.
 
 Everything beyond that (a list of the collection's items in the viewer, a
 "Open in Viewer" button through DDNS Intent, fetching from another host with

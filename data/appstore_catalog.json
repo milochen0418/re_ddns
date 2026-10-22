@@ -196,7 +196,7 @@
     {
       "id": "youtube-to-mp3",
       "name": "YouTube to MP3",
-      "description": "Convert YouTube videos into MP3 audio files.",
+      "description": "Search YouTube, listen first, and convert several videos to MP3 at once into the shared audio library.",
       "icon": "file-audio",
       "subdomain": "youtube-to-mp3",
       "github_repo": "https://github.com/milochen0418/youtube_to_mp3_tool.git",
@@ -206,11 +206,14 @@
       "subdir": "",
       "env_file": "",
       "volumes": [],
+      "storage": [
+        {"collection": "audio", "access": "contribute"}
+      ],
       "i18n": {
-        "zh-Hant": {"description": "把 YouTube 影片轉成 MP3 音訊檔。"},
-        "zh-Hans": {"description": "把 YouTube 视频转换成 MP3 音频文件。"},
-        "ja": {"description": "YouTube の動画を MP3 の音声ファイルに変換します。"},
-        "es": {"description": "Convierte vídeos de YouTube en archivos de audio MP3."}
+        "zh-Hant": {"description": "搜尋 YouTube、先試聽，一次把多支影片轉成 MP3，存進共用的音樂庫。"},
+        "zh-Hans": {"description": "搜索 YouTube、先试听，一次把多个视频转换成 MP3，存进共享的音乐库。"},
+        "ja": {"description": "YouTube を検索して試聴し、複数の動画をまとめて MP3 に変換して共有オーディオライブラリに保存します。"},
+        "es": {"description": "Busca en YouTube, escucha primero y convierte varios vídeos a MP3 a la vez en la biblioteca de audio compartida."}
       }
     },
     {
@@ -236,7 +239,7 @@
     {
       "id": "video-audio-mixer",
       "name": "Video Audio Mixer",
-      "description": "Layer and mix multiple audio tracks onto a video, then export.",
+      "description": "Put songs under a video on a timeline: move, trim, fade and change their volume over time, then export.",
       "icon": "music",
       "subdomain": "video-audio-mixer",
       "github_repo": "https://github.com/milochen0418/video_audio_mixer.git",
@@ -246,11 +249,14 @@
       "subdir": "",
       "env_file": "",
       "volumes": [],
+      "storage": [
+        {"collection": "audio", "access": "read"}
+      ],
       "i18n": {
-        "zh-Hant": {"description": "在影片上疊加並混合多條音軌，再匯出。"},
-        "zh-Hans": {"description": "在视频上叠加并混合多条音轨，然后导出。"},
-        "ja": {"description": "動画に複数の音声トラックを重ねてミックスし、書き出します。"},
-        "es": {"description": "Superpón y mezcla varias pistas de audio sobre un vídeo y expórtalo."}
+        "zh-Hant": {"description": "在時間軸上替影片配樂：移動、裁切、淡入淡出、逐段調整音量，再匯出。"},
+        "zh-Hans": {"description": "在时间轴上为视频配乐：移动、裁剪、淡入淡出、逐段调整音量，然后导出。"},
+        "ja": {"description": "タイムライン上で動画に曲を重ね、移動・トリム・フェード・音量の変化を付けて書き出します。"},
+        "es": {"description": "Pon canciones bajo un vídeo en una línea de tiempo: muévelas, recórtalas, haz fundidos y cambia su volumen, y exporta."}
       }
     },
     {
