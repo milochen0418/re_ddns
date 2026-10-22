@@ -72,7 +72,8 @@
       "commit": "",
       "subdir": "",
       "env_file": "",
-      "volumes": [],
+      "volumes": ["smart-app-dicom-data-explorer-data:/root/.local/share/dicom_data_explorer"],
+      "ports": ["11120:11120"],
       "storage": [
         {"collection": "dicom", "access": "contribute"}
       ],
