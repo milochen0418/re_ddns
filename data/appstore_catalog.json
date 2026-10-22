@@ -13,6 +13,9 @@
       "subdir": "",
       "env_file": "",
       "volumes": [],
+      "storage": [
+        {"collection": "documents", "access": "contribute"}
+      ],
       "i18n": {
         "zh-Hant": {"description": "多人協作編輯文件，以 Markdown 呈現。"},
         "zh-Hans": {"description": "多人协作编辑文档，以 Markdown 呈现。"},

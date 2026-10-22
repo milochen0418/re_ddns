@@ -140,6 +140,7 @@ next to `media.video`) and readers know which files and `meta` keys to expect:
 | Kind | Payload | `meta` | Published by |
 |---|---|---|---|
 | `dicom.series` | the `.dcm` files of one DICOM series; item id = SeriesInstanceUID (imports: a generated id) | `Collection`, `Modality`, `BodyPartExamined`, `ImageCount`, `SeriesDescription`, `SeriesDate`, each when known | dicom-data-explorer, imports |
+| `document.markdown` | one Markdown document, the `primary`: `doc.md` (UTF-8); item id = the document's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name` | md |
 | `file.generic` | any files; promises nothing about them | free | imports |
 | `spreadsheet.workbook` | one workbook, the `primary`: `book.xlsx`, or `book.xlsm` when it has macros; item id = the workbook's id in its link; revised in place while it is edited | `sheets`, `created_by_email`, `created_by_name`, `last_editor` | reflex-grid |
 
@@ -323,6 +324,14 @@ item: `publish()` when the workbook is created, `revise()` on every save,
 work as before, because editing happens in memory and only the save moved;
 a workbook deleted on the storage page while people are on it is shown to
 them as deleted. Run on its own, it keeps its files in `REFLEX_GRID_HOME`.
+
+**CoDoc in MD** (`md`) does the same with `{"collection": "documents", "access": "contribute"}`:
+each document is an item holding one `doc.md` (`codoc_in_md/state.py`, about
+190 lines more). Its editor saves on every keystroke, so the store keeps a
+change in memory and writes it 1.5 s later, at most once per 1.5 s while
+people type, and what is unwritten at exit is written then; live co-editing
+goes through its Yjs relay and never waits for the disk. Run on its own, it
+keeps its documents in its database.
 
 Everything beyond that (a list of the collection's items in the viewer, a
 "Open in Viewer" button through DDNS Intent, fetching from another host with
