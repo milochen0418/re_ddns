@@ -601,6 +601,67 @@
       }
     },
     {
+      "id": "cellora",
+      "name": "Cellora",
+      "description": "A Python notebook you use together, smarter than Jupyter: everyone edits and runs the same cells live, each with their own cursor; see who is here and call everyone. AI suggests code as you type, writes or changes a cell from a sentence (⌘I) and fixes errors in one click. DataFrames show as interactive tables and charts, with %%sql on them. Real Jupyter .ipynb files.",
+      "icon": "notebook-pen",
+      "subdomain": "cellora",
+      "github_repo": "https://github.com/milochen0418/cellora.git",
+      "app_name": "cellora",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["smart-app-cellora-data:/root/.local/share/cellora"],
+      "storage": [
+        {"collection": "notebooks", "access": "contribute"}
+      ],
+      "env_schema": [
+        {"key": "ANTHROPIC_API_KEY", "label": "Anthropic API key (optional: the AI is Claude)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "Left empty, the AI is Ollama (a local model) on the Docker host when it has one: run ollama pull qwen2.5-coder:7b there first. With a key, the AI is Claude, and each AI request sends the notebook (cells, outputs, variables) to Anthropic.\nCode run in Cellora can read the container's settings, this key too: set a passcode below if other people use your network."},
+        {"key": "OLLAMA_MODEL", "label": "Ollama model (optional)", "placeholder": "qwen2.5-coder:7b", "secret": false, "required": false, "help": "Used when there is no Anthropic key. Left empty, a pulled model with \"coder\" in its name is used, else the first one (ollama list)."},
+        {"key": "OLLAMA_URL", "label": "Ollama address (optional)", "placeholder": "http://host.docker.internal:11434", "secret": false, "required": false, "help": "Left empty, the Ollama on the Docker host is used (http://host.docker.internal:11434). Fill this in only when Ollama runs on another machine."},
+        {"key": "CELLORA_RUN_PASSCODE", "label": "Passcode to run code (optional)", "placeholder": "may be left empty", "secret": true, "required": false, "help": "Running a notebook runs Python in Cellora's container. Left empty, anyone who can open Cellora can do that (fine on your own network). With a passcode, reading and editing stay open, and running code asks for it once per tab."}
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "比 Jupyter 更聰明、可以多人一起用的 Python 筆記本：每個人即時編輯、執行同一份儲存格，各自有自己的游標；看得到誰在線上，還能 Call everyone。AI 會在你打字時建議程式、用一句話寫好或修改一格（⌘I）、一鍵修正錯誤。DataFrame 直接變成互動表格和圖表，還能用 %%sql 查詢。存的是真正的 Jupyter .ipynb 檔。",
+          "env": {
+            "ANTHROPIC_API_KEY": {"label": "Anthropic API Key（選填：AI 改用 Claude）", "placeholder": "可留空", "help": "留空時，AI 使用 Docker 主機上的 Ollama（本地模型）：請先在主機執行 ollama pull qwen2.5-coder:7b。填了 Key，AI 改用 Claude，每次 AI 請求都會把筆記本內容（儲存格、輸出、變數）送到 Anthropic。\n在 Cellora 執行的程式讀得到容器的設定，也包括這個 Key：如果有別人使用你的網路，請在下面設定密碼。"},
+            "OLLAMA_MODEL": {"label": "Ollama 模型（選填）", "help": "沒有 Anthropic Key 時使用。留空會用名稱含「coder」的已下載模型，沒有的話用第一個（ollama list）。"},
+            "OLLAMA_URL": {"label": "Ollama 位址（選填）", "help": "留空即使用 Docker 主機上的 Ollama（http://host.docker.internal:11434）；Ollama 在別台機器時再填它的位址。"},
+            "CELLORA_RUN_PASSCODE": {"label": "執行程式的密碼（選填）", "placeholder": "可留空", "help": "執行筆記本會在 Cellora 的容器裡跑 Python。留空時，任何打得開 Cellora 的人都能執行（在自己的網路裡沒問題）。設定密碼後，閱讀和編輯照常開放，執行程式時每個分頁要輸入一次密碼。"}
+          }
+        },
+        "zh-Hans": {
+          "description": "比 Jupyter 更聪明、可以多人一起用的 Python 笔记本：每个人实时编辑、运行同一份单元格，各自有自己的光标；看得到谁在线，还能 Call everyone。AI 会在你打字时建议代码、用一句话写好或修改一格（⌘I）、一键修正错误。DataFrame 直接变成交互表格和图表，还能用 %%sql 查询。存的是真正的 Jupyter .ipynb 文件。",
+          "env": {
+            "ANTHROPIC_API_KEY": {"label": "Anthropic API Key（选填：AI 改用 Claude）", "placeholder": "可留空", "help": "留空时，AI 使用 Docker 主机上的 Ollama（本地模型）：请先在主机执行 ollama pull qwen2.5-coder:7b。填了 Key，AI 改用 Claude，每次 AI 请求都会把笔记本内容（单元格、输出、变量）发送到 Anthropic。\n在 Cellora 运行的代码读得到容器的设置，也包括这个 Key：如果有别人使用你的网络，请在下面设置密码。"},
+            "OLLAMA_MODEL": {"label": "Ollama 模型（选填）", "help": "没有 Anthropic Key 时使用。留空会用名称含“coder”的已下载模型，没有的话用第一个（ollama list）。"},
+            "OLLAMA_URL": {"label": "Ollama 地址（选填）", "help": "留空即使用 Docker 主机上的 Ollama（http://host.docker.internal:11434）；Ollama 在别的机器上时再填它的地址。"},
+            "CELLORA_RUN_PASSCODE": {"label": "运行代码的密码（选填）", "placeholder": "可留空", "help": "运行笔记本会在 Cellora 的容器里跑 Python。留空时，任何打得开 Cellora 的人都能运行（在自己的网络里没问题）。设置密码后，阅读和编辑照常开放，运行代码时每个标签页要输入一次密码。"}
+          }
+        },
+        "ja": {
+          "description": "Jupyter より賢く、みんなで使える Python ノートブック。全員が同じセルをリアルタイムに編集・実行でき、それぞれのカーソルが見えます。誰がいるかが分かり、Call everyone で全員に電話できます。AI は入力中にコードを提案し、一文でセルを書いたり直したり（⌘I）、エラーをワンクリックで修正します。DataFrame はインタラクティブな表とグラフになり、%%sql で検索もできます。本物の Jupyter .ipynb ファイルです。",
+          "env": {
+            "ANTHROPIC_API_KEY": {"label": "Anthropic API キー（任意：AI を Claude に）", "placeholder": "空欄でも可", "help": "空欄なら、AI は Docker ホスト上の Ollama（ローカルモデル）を使います。先にホストで ollama pull qwen2.5-coder:7b を実行してください。キーを入れると AI は Claude になり、AI へのリクエストごとにノートブックの内容（セル、出力、変数）が Anthropic に送られます。\nCellora で実行したコードはコンテナの設定を読めます（このキーも）。ほかの人があなたのネットワークを使うなら、下のパスコードを設定してください。"},
+            "OLLAMA_MODEL": {"label": "Ollama モデル（任意）", "help": "Anthropic キーがないときに使います。空欄なら名前に「coder」を含む取得済みモデル、なければ最初のモデル（ollama list）を使います。"},
+            "OLLAMA_URL": {"label": "Ollama のアドレス（任意）", "help": "空欄なら Docker ホスト上の Ollama（http://host.docker.internal:11434）を使います。Ollama が別のマシンにあるときだけ入力してください。"},
+            "CELLORA_RUN_PASSCODE": {"label": "コード実行のパスコード（任意）", "placeholder": "空欄でも可", "help": "ノートブックを実行すると Cellora のコンテナで Python が動きます。空欄なら Cellora を開ける人は誰でも実行できます（自分のネットワーク内なら問題ありません）。パスコードを設定すると、閲覧と編集はそのままで、コードの実行時にタブごとに一度パスコードを聞かれます。"}
+          }
+        },
+        "es": {
+          "description": "Un cuaderno de Python para usar en equipo, más listo que Jupyter: todos editan y ejecutan las mismas celdas en vivo, cada uno con su cursor; ves quién está y puedes llamar a todos. La IA sugiere código mientras escribes, escribe o cambia una celda a partir de una frase (⌘I) y corrige errores con un clic. Los DataFrames se ven como tablas y gráficos interactivos, con %%sql sobre ellos. Archivos .ipynb de Jupyter de verdad.",
+          "env": {
+            "ANTHROPIC_API_KEY": {"label": "Clave de API de Anthropic (opcional: la IA es Claude)", "placeholder": "puede quedar vacía", "help": "Si la dejas vacía, la IA es Ollama (un modelo local) en el host de Docker cuando lo hay: ejecuta antes ollama pull qwen2.5-coder:7b allí. Con una clave, la IA es Claude, y cada petición a la IA envía el cuaderno (celdas, salidas, variables) a Anthropic.\nEl código que se ejecuta en Cellora puede leer la configuración del contenedor, también esta clave: pon un código abajo si otras personas usan tu red."},
+            "OLLAMA_MODEL": {"label": "Modelo de Ollama (opcional)", "help": "Se usa cuando no hay clave de Anthropic. Si lo dejas vacío, se usa un modelo descargado con \"coder\" en su nombre, o el primero (ollama list)."},
+            "OLLAMA_URL": {"label": "Dirección de Ollama (opcional)", "help": "Si lo dejas vacío se usa el Ollama del host de Docker (http://host.docker.internal:11434). Rellénalo solo si Ollama corre en otra máquina."},
+            "CELLORA_RUN_PASSCODE": {"label": "Código para ejecutar (opcional)", "placeholder": "puede quedar vacío", "help": "Ejecutar un cuaderno ejecuta Python en el contenedor de Cellora. Si lo dejas vacío, cualquiera que pueda abrir Cellora puede hacerlo (está bien en tu propia red). Con un código, leer y editar siguen abiertos, y ejecutar código lo pide una vez por pestaña."}
+          }
+        }
+      }
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",

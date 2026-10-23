@@ -143,6 +143,7 @@ next to `media.video`) and readers know which files and `meta` keys to expect:
 | `dicom.series` | the `.dcm` files of one DICOM series; item id = SeriesInstanceUID (imports: a generated id) | `Collection`, `Modality`, `BodyPartExamined`, `ImageCount`, `SeriesDescription`, `SeriesDate`, each when known | dicom-data-explorer, imports |
 | `document.markdown` | one Markdown document, the `primary`: `doc.md` (UTF-8); item id = the document's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name` | md |
 | `file.generic` | any files; promises nothing about them | free | imports |
+| `notebook.jupyter` | one Jupyter notebook, the `primary`: `notebook.ipynb` (nbformat 4.5, with its outputs); item id = the notebook's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name`, `last_editor`, `cells` | cellora |
 | `spreadsheet.workbook` | one workbook, the `primary`: `book.xlsx`, or `book.xlsm` when it has macros; item id = the workbook's id in its link; revised in place while it is edited | `sheets`, `created_by_email`, `created_by_name`, `last_editor` | reflex-grid |
 
 Planned for the apps that join next; the first one to publish a kind settles its row:
