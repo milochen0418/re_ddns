@@ -176,9 +176,11 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 
 | App | Subdomain | Description |
 |-----|-----------|-------------|
+| AI Hub | `ai` | One door between AI and the apps: agents (Claude Code, …) use every app's tools through one MCP address (`/api/mcp`), and an assistant does tasks in the apps with Claude or a local Ollama model |
 | Codoc in Markdown | `md` | Collaborative document editing in Markdown |
 | Codoc in PlantUML | `plantuml` | Collaborative diagrams in PlantUML |
 | Codoc in VecDraw | `vecdraw` | Collaborative vector drawing canvas |
+| Codoc in CAD | `cad` | 3D CAD as code, together: co-edited build123d Python and a live 3D view |
 | DICOM Data Explorer | `dicom-data-explorer` | Browse and inspect DICOM datasets |
 | DICOM Viewer | `dicom-viewer` | Render and view DICOM medical images |
 | Video Segment Splitter | `video-segment-splitter` | Split videos into segments |

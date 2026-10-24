@@ -1,6 +1,118 @@
 {
   "apps": [
     {
+      "id": "ai",
+      "name": "AI Hub",
+      "description": "One door between AI and the apps: agents such as Claude Code reach every app's tools through one MCP address, and an assistant does tasks in the apps with Claude or a local Ollama model.",
+      "icon": "bot",
+      "subdomain": "ai",
+      "github_repo": "https://github.com/milochen0418/ai_hub.git",
+      "app_name": "ai_hub",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [
+        "smart-app-ai-data:/root/.local/share/ai_hub"
+      ],
+      "env_schema": [
+        {
+          "key": "ANTHROPIC_API_KEY",
+          "label": "Anthropic API key (optional: Claude)",
+          "placeholder": "may be left empty",
+          "secret": true,
+          "required": false,
+          "help": "With a key, the assistant's smart role is Claude, and what it works on is sent to Anthropic. Left empty, it uses Ollama on the Docker host: run ollama pull qwen2.5:7b there first. Keys can also be set later on the hub's page."
+        },
+        {
+          "key": "OLLAMA_URL",
+          "label": "Ollama address (optional)",
+          "placeholder": "http://host.docker.internal:11434",
+          "secret": false,
+          "required": false,
+          "help": "Left empty, the Ollama on the Docker host is used. Fill this in only when Ollama runs on another machine."
+        },
+        {
+          "key": "ADMIN_PASSCODE",
+          "label": "Admin passcode (optional: protects tokens and models)",
+          "placeholder": "may be left empty",
+          "secret": true,
+          "required": false,
+          "help": "With a passcode, making agent tokens and changing models or keys on the hub's page asks for it. Left empty, anyone who can open the hub can do that (fine on your own network)."
+        }
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "AI 和各個 App 之間的一道門：Claude Code 之類的 agent 透過一個 MCP 網址使用所有 App 的工具；助理也能用 Claude 或本機的 Ollama 模型在 App 裡做事。",
+          "env": {
+            "ANTHROPIC_API_KEY": {
+              "label": "Anthropic API 金鑰（選填：用 Claude）",
+              "help": "填了金鑰，助理的 smart 角色就用 Claude，它處理的內容會送到 Anthropic。不填就用 Docker 主機上的 Ollama：請先在那裡執行 ollama pull qwen2.5:7b。金鑰之後也能在 AI Hub 的頁面上設定。"
+            },
+            "OLLAMA_URL": {
+              "label": "Ollama 位址（選填）",
+              "help": "不填就用 Docker 主機上的 Ollama。只有 Ollama 在別台機器上時才需要填。"
+            },
+            "ADMIN_PASSCODE": {
+              "label": "管理密碼（選填：保護 token 和模型設定）",
+              "help": "設了密碼，在 AI Hub 頁面上產生 agent token、改模型或金鑰都要先輸入它。不設的話，能打開 AI Hub 的人都能做（在自己的網路裡沒問題）。"
+            }
+          }
+        },
+        "zh-Hans": {
+          "description": "AI 和各个 App 之间的一道门：Claude Code 之类的 agent 通过一个 MCP 地址使用所有 App 的工具；助理也能用 Claude 或本机的 Ollama 模型在 App 里做事。",
+          "env": {
+            "ANTHROPIC_API_KEY": {
+              "label": "Anthropic API 密钥（选填：用 Claude）",
+              "help": "填了密钥，助理的 smart 角色就用 Claude，它处理的内容会发送到 Anthropic。不填就用 Docker 主机上的 Ollama：请先在那里执行 ollama pull qwen2.5:7b。密钥之后也能在 AI Hub 的页面上设置。"
+            },
+            "OLLAMA_URL": {
+              "label": "Ollama 地址（选填）",
+              "help": "不填就用 Docker 主机上的 Ollama。只有 Ollama 在别的机器上时才需要填。"
+            },
+            "ADMIN_PASSCODE": {
+              "label": "管理密码（选填：保护 token 和模型设置）",
+              "help": "设了密码，在 AI Hub 页面上生成 agent token、改模型或密钥都要先输入它。不设的话，能打开 AI Hub 的人都能做（在自己的网络里没问题）。"
+            }
+          }
+        },
+        "ja": {
+          "description": "AI と各アプリをつなぐ一つの入り口：Claude Code などのエージェントは一つの MCP アドレスで全アプリのツールを使え、アシスタントは Claude かローカルの Ollama モデルでアプリの作業をします。",
+          "env": {
+            "ANTHROPIC_API_KEY": {
+              "label": "Anthropic API キー（任意：Claude を使う）",
+              "help": "キーがあると、アシスタントの smart ロールは Claude になり、扱う内容は Anthropic に送られます。空欄なら Docker ホストの Ollama を使います（先にそこで ollama pull qwen2.5:7b を実行）。キーは後から AI Hub のページでも設定できます。"
+            },
+            "OLLAMA_URL": {
+              "label": "Ollama のアドレス（任意）",
+              "help": "空欄なら Docker ホストの Ollama を使います。Ollama が別のマシンにあるときだけ入力してください。"
+            },
+            "ADMIN_PASSCODE": {
+              "label": "管理パスコード（任意：トークンとモデル設定を保護）",
+              "help": "パスコードがあると、AI Hub のページでエージェント用トークンを作ったりモデルやキーを変えたりするときに必要です。空欄なら AI Hub を開ける人は誰でもできます（自分のネットワーク内なら問題ありません）。"
+            }
+          }
+        },
+        "es": {
+          "description": "Una sola puerta entre la IA y las apps: agentes como Claude Code usan las herramientas de todas las apps por una dirección MCP, y un asistente hace tareas en las apps con Claude o un modelo local de Ollama.",
+          "env": {
+            "ANTHROPIC_API_KEY": {
+              "label": "Clave de API de Anthropic (opcional: Claude)",
+              "help": "Con una clave, el rol smart del asistente es Claude, y aquello con lo que trabaja se envía a Anthropic. Si la dejas vacía, usa Ollama en el host de Docker: ejecuta antes ollama pull qwen2.5:7b allí. Las claves también se pueden poner después en la página del hub."
+            },
+            "OLLAMA_URL": {
+              "label": "Dirección de Ollama (opcional)",
+              "help": "Si la dejas vacía, se usa el Ollama del host de Docker. Rellénala solo si Ollama está en otra máquina."
+            },
+            "ADMIN_PASSCODE": {
+              "label": "Código de administración (opcional: protege tokens y modelos)",
+              "help": "Con un código, crear tokens para agentes y cambiar modelos o claves en la página del hub lo pide. Si lo dejas vacío, cualquiera que pueda abrir el hub puede hacerlo (bien en tu propia red)."
+            }
+          }
+        }
+      }
+    },
+    {
       "id": "md",
       "name": "Codoc in Markdown",
       "description": "Collaborative document editing rendered as Markdown.",
@@ -61,6 +173,26 @@
         "zh-Hans": {"description": "多人协作的矢量绘图画布。"},
         "ja": {"description": "共同編集できるベクター描画キャンバス。"},
         "es": {"description": "Lienzo colaborativo de dibujo vectorial."}
+      }
+    },
+    {
+      "id": "cad",
+      "name": "Codoc in CAD",
+      "description": "3D CAD as code, together: edit the same build123d Python and see the model in 3D.",
+      "icon": "box",
+      "subdomain": "cad",
+      "github_repo": "https://github.com/milochen0418/codoc_in_cad.git",
+      "app_name": "codoc_in_cad",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "i18n": {
+        "zh-Hant": {"description": "多人一起用 Python（build123d）寫 3D CAD 模型，即時看到 3D 結果。"},
+        "zh-Hans": {"description": "多人一起用 Python（build123d）编写 3D CAD 模型，实时看到 3D 结果。"},
+        "ja": {"description": "Python（build123d）で 3D CAD モデルを一緒に書き、その場で 3D 表示を確かめられます。"},
+        "es": {"description": "CAD 3D como código, en equipo: editáis el mismo Python de build123d y veis el modelo en 3D."}
       }
     },
     {
