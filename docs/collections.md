@@ -139,6 +139,7 @@ next to `media.video`) and readers know which files and `meta` keys to expect:
 
 | Kind | Payload | `meta` | Published by |
 |---|---|---|---|
+| `cad.build123d` | one 3D model as build123d code, the `primary`: `model.py` (UTF-8 Python leaving the shape in `result`), plus `model.stl` once it built; item id = the model's id in its link; revised in place while it is edited; a picture of its last build as the preview | `created_by_email`, `created_by_name` | cad |
 | `audio.file` | one audio file, the `primary`; from youtube-to-mp3 an MP3 named after the video, item id = `yt-<YouTube video id>`, `source` = the video's address, the video's thumbnail as the preview | `duration` (s); from youtube-to-mp3 also `format`, `youtube_id`, `channel`, `channel_url`, `license` (YouTube's licence text, e.g. Creative Commons), `upload_date` | youtube-to-mp3 |
 | `dicom.series` | the `.dcm` files of one DICOM series; item id = SeriesInstanceUID (imports: a generated id) | `Collection`, `Modality`, `BodyPartExamined`, `ImageCount`, `SeriesDescription`, `SeriesDate`, each when known | dicom-data-explorer, imports |
 | `document.markdown` | one Markdown document, the `primary`: `doc.md` (UTF-8); item id = the document's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name` | md |

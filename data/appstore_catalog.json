@@ -188,6 +188,9 @@
       "subdir": "",
       "env_file": "",
       "volumes": [],
+      "storage": [
+        {"collection": "cad-models", "access": "contribute"}
+      ],
       "i18n": {
         "zh-Hant": {"description": "多人一起用 Python（build123d）寫 3D CAD 模型，即時看到 3D 結果。"},
         "zh-Hans": {"description": "多人一起用 Python（build123d）编写 3D CAD 模型，实时看到 3D 结果。"},
