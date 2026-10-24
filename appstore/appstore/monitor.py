@@ -19,6 +19,12 @@ This page makes that visible and manageable:
   • **Limits** — set a memory limit per container, live, without recreating it.
     A container with a limit is killed alone when it runs away, instead of the
     kernel picking the biggest innocent process in the VM.
+  • **VM size** — *Resize* changes the Docker VM's own memory.  Docker Desktop
+    fixes it when the VM starts, so a new size means a VM restart (every
+    container stops for a minute or two; all of them have a restart policy and
+    come back).  The setting lives on the Mac, out of this container's reach:
+    a small helper there makes the change (``docker_vm_helper/``, installed
+    with ``macos_docker_vm_helper.sh --install``).
 
 Everything is read through the Docker Engine API over the socket bind-mounted
 at ``/var/run/docker.sock`` (the same socket the app cards already use), plus
@@ -74,6 +80,27 @@ CRITICAL_MB = 800
 TIGHT_MB = 1536
 # Docker itself refuses anything under 6 MB; keep a workable floor.
 MIN_LIMIT_MB = 128
+
+# The Mac-side helper that resizes the Docker VM.  Its port and token are in a
+# file in the host home, which this container sees read-only under
+# HOST_FS_PREFIX (apps have no such mount); Docker Desktop forwards
+# host.docker.internal to the Mac's loopback, where the helper listens.
+HOST_HOME = os.environ.get("HOST_HOME", "").rstrip("/")
+HOST_FS_PREFIX = os.environ.get("HOST_FS_PREFIX", "/hostfs").rstrip("/")
+VM_HELPER_CONFIG = f"{HOST_FS_PREFIX}{HOST_HOME}/.re_ddns/docker-vm-helper.json"
+VM_HELPER_HOST = os.environ.get("VM_HELPER_HOST", "host.docker.internal")
+VM_HELPER_TOKEN_HEADER = "X-Docker-VM-Helper-Token"
+# The size slider's step.
+VM_STEP_MIB = 512
+# A new size must leave this much room above what is in use now: after the
+# restart every app starts again.
+VM_HEADROOM_MIB = 1024
+VM_FLOOR_MIB = 2048
+# Docker Desktop allows up to all of the Mac's memory; the slider stops short.
+VM_MAC_KEEP_MIB = 2048
+# A change that ended this recently is announced when the page loads, which is
+# how the page, reconnecting after the restart, says it worked.
+VM_ANNOUNCE_SECONDS = 600
 
 
 # ---------------------------------------------------------------------------
@@ -473,6 +500,7 @@ async def collect(
         "error": "",
         "total": f"{total_kb / 1048576:.1f} GB",
         "used": f"{used_kb / 1048576:.1f} GB",
+        "used_mb": str(used_kb // 1024),
         "cache": f"{cache_kb / 1048576:.1f} GB",
         "avail": f"{avail_kb / 1048576:.2f} GB",
         "avail_mb": str(avail_mb),
@@ -485,6 +513,81 @@ async def collect(
         "note": note,
     }
     return rows, summary, next_cpu
+
+
+# ---------------------------------------------------------------------------
+# Docker VM size (the Mac-side helper)
+# ---------------------------------------------------------------------------
+
+def _gb(mib: int) -> str:
+    """12288 → "12 GB", 12800 → "12.5 GB", 5432 → "5.3 GB" (GiB, as Docker Desktop counts)."""
+    if mib % VM_STEP_MIB == 0:
+        return f"{mib / 1024:g} GB"
+    return f"{mib / 1024:.1f} GB"
+
+
+async def vm_helper(method: str = "GET", body: dict | None = None) -> tuple[str, dict]:
+    """Ask the helper on the Mac; ``(status, reply)``.
+
+    ``status`` is "ready" (``reply`` is its JSON), "missing" (not installed:
+    no config file), "offline" (installed, not answering) or "error" (it
+    answered with an error, in ``reply["error"]``).
+    """
+    try:
+        cfg = json.loads(Path(VM_HELPER_CONFIG).read_text())
+        port, token = int(cfg["port"]), str(cfg["token"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return "missing", {}
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(40.0, connect=3.0)) as c:
+            r = await c.request(
+                method, f"http://{VM_HELPER_HOST}:{port}/vm",
+                json=body, headers={VM_HELPER_TOKEN_HEADER: token},
+            )
+    except httpx.HTTPError as exc:
+        return "offline", {"error": str(exc) or type(exc).__name__}
+    try:
+        reply = r.json()
+    except ValueError:
+        reply = None
+    if not isinstance(reply, dict):
+        reply = {}
+    if r.status_code != 200:
+        return "error", {"error": str(reply.get("error") or f"HTTP {r.status_code}")}
+    return "ready", reply
+
+
+def _vm_size_view(status: str, reply: dict) -> dict[str, str]:
+    """The helper's answer as the strings the Resize panel shows."""
+    if status != "ready":
+        return {"state": status, "error": str(reply.get("error") or "")}
+    mem = int(reply.get("memory_mib") or 0)
+    lo = int(reply.get("min_mib") or 1024)
+    hi = int(reply.get("max_mib") or mem)
+    host = int(reply.get("host_mib") or 0)
+    if host > VM_MAC_KEEP_MIB:
+        hi = max(mem, min(hi, (host - VM_MAC_KEEP_MIB) // VM_STEP_MIB * VM_STEP_MIB))
+    # Leave the Mac a third of its memory for macOS, the browser and editors.
+    rec = min(hi, host * 2 // 3 // VM_STEP_MIB * VM_STEP_MIB) if host else hi
+    job = reply.get("job") or {}
+    return {
+        "state": "restarting" if job.get("state") == "restarting" else "ready",
+        "error": "",
+        "memory_mib": str(mem),
+        "memory_label": _gb(mem),
+        "min_mib": str(lo),
+        "min_label": _gb(lo),
+        "max_mib": str(hi),
+        "max_label": _gb(hi),
+        "host_mib": str(host),
+        "host_label": _gb(host) if host else "—",
+        "rec_mib": str(rec),
+        "job_state": str(job.get("state") or ""),
+        "job_from": _gb(int(job.get("from_mib") or 0)),
+        "job_to": _gb(int(job.get("to_mib") or 0)),
+        "job_error": str(job.get("error") or ""),
+        "job_age": str(int(job.get("age") or 0)),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -521,14 +624,58 @@ class MonitorState(LocaleState):
     switch_text: str = ""      # the confirmation question, in the current language
     switching: str = ""        # container being recreated right now
 
+    # Docker VM size: the Resize panel in the VM card.
+    vm_panel: bool = False
+    vm_size: dict[str, str] = {}   # _vm_size_view() of the helper's answer
+    vm_target: int = 0             # the slider, MiB
+    vm_applying: bool = False
+
     # Backend-only: CPU samples to diff against, and the sparkline history.
     _cpu: dict[str, list[int]] = {}
     _hist: dict[str, list[int]] = {}
+    # The helper has been asked once since this page (re)connected.
+    _vm_checked: bool = False
 
     @rx.var
     def subtitle(self) -> str:
         """Composed here because a Var cannot be ``.format()``-ed in a component."""
         return i18n.strings(self.locale)["subtitle"].format(seconds=int(POLL_SECONDS))
+
+    @rx.var
+    def vm_target_label(self) -> str:
+        return _gb(self.vm_target) if self.vm_target else ""
+
+    @rx.var
+    def vm_target_note(self) -> dict[str, str]:
+        """What the size on the slider means: ``{"level", "text"}``.
+
+        level: "same" (nothing to apply), "block" (too small for what runs
+        now: every app starts again after the restart, so it would OOM),
+        "warn" (more than the Mac can comfortably give) or "ok".
+        """
+        t = i18n.strings(self.locale)
+        target = self.vm_target
+        current = int(self.vm_size.get("memory_mib") or 0)
+        if not target or not current or target == current:
+            return {"level": "same", "text": t["vm_size_same"] if target else ""}
+        used = int(self.vm.get("used_mb") or 0)
+        need = max(VM_FLOOR_MIB, used + VM_HEADROOM_MIB)
+        if target < need:
+            need = -(-need // VM_STEP_MIB) * VM_STEP_MIB
+            return {
+                "level": "block",
+                "text": t["vm_size_low"].format(used=_gb(used), need=_gb(need)),
+            }
+        host = int(self.vm_size.get("host_mib") or 0)
+        rec = int(self.vm_size.get("rec_mib") or 0)
+        if host and rec and target > rec:
+            return {
+                "level": "warn",
+                "text": t["vm_size_high"].format(rec=_gb(rec), left=_gb(max(0, host - target))),
+            }
+        if host:
+            return {"level": "ok", "text": t["vm_size_ok"].format(left=_gb(host - target))}
+        return {"level": "ok", "text": ""}
 
     async def _sample(self):
         rows, vm, cpu = await collect(
@@ -549,6 +696,12 @@ class MonitorState(LocaleState):
             self.message = self._strings()["msg_read_failed"].format(error=exc)
             self.message_kind = "error"
         self.loading = False
+        if not self._vm_checked:
+            # Once per page: a reconnect after a resize lands here first.
+            # The table goes out first; the helper may wait on Docker Desktop.
+            self._vm_checked = True
+            yield
+            await self._load_vm_size(announce=True)
 
     @rx.event
     async def set_locale(self, code: str):
@@ -659,10 +812,83 @@ class MonitorState(LocaleState):
             await self._sample()
         except Exception:  # noqa: BLE001 - keep the timer alive through a blip
             pass
+        if self.vm_size.get("state") == "restarting":
+            await self._load_vm_size(announce=True)
 
     @rx.event
     def toggle_auto(self):
         self.auto = not self.auto
+
+    # ── Docker VM size ──
+
+    async def _load_vm_size(self, announce: bool = False):
+        """Ask the helper; with ``announce``, report a change that ended lately."""
+        status, reply = await vm_helper()
+        self.vm_size = _vm_size_view(status, reply)
+        job = self.vm_size.get("job_state")
+        if not announce or job not in ("done", "error"):
+            return
+        if int(self.vm_size.get("job_age") or 0) > VM_ANNOUNCE_SECONDS:
+            return
+        t = self._strings()
+        if job == "done":
+            self.message = t["msg_vm_done"].format(
+                old=self.vm_size["job_from"], new=self.vm_size["job_to"]
+            )
+            self.message_kind = "success"
+        else:
+            self.message = t["msg_vm_failed"].format(error=self.vm_size["job_error"])
+            self.message_kind = "error"
+
+    @rx.event
+    async def toggle_vm_panel(self):
+        """Open or close Resize; opening asks the helper for the current size."""
+        if self.vm_panel:
+            self.vm_panel = False
+            return
+        self.vm_panel = True
+        self.menu_name = ""
+        self.show_langs = False
+        self.vm_size = {"state": "loading"}
+        yield
+        await self._load_vm_size()
+        self.vm_target = int(self.vm_size.get("memory_mib") or 0)
+
+    @rx.event
+    def set_vm_target(self, value: float):
+        try:
+            self.vm_target = int(float(value))
+        except (TypeError, ValueError):
+            pass
+
+    @rx.event
+    async def apply_vm_size(self):
+        """Have the helper save the new size; Docker Desktop then restarts the VM.
+
+        The helper answers as soon as the setting is saved.  This page then
+        loses its connection while the VM (and this container) restart, and
+        reloads when it reconnects, where ``refresh`` reports the outcome.
+        """
+        if self.vm_applying or self.vm_target_note["level"] in ("same", "block"):
+            return
+        t = self._strings()
+        target = self.vm_target
+        self.vm_applying = True
+        yield
+        status, reply = await vm_helper("POST", {"memory_mib": target})
+        self.vm_applying = False
+        if status != "ready":
+            self.message = t["msg_vm_apply_failed"].format(error=reply.get("error") or status)
+            self.message_kind = "error"
+            return
+        if reply.get("state") == "unchanged":
+            self.message = t["msg_vm_unchanged"].format(size=_gb(target))
+            self.message_kind = "info"
+            return
+        old = _gb(int(reply.get("from_mib") or 0))
+        self.vm_size = {**self.vm_size, "state": "restarting", "job_from": old, "job_to": _gb(target)}
+        self.message = t["msg_vm_restarting"].format(old=old, new=_gb(target))
+        self.message_kind = "info"
 
     # ── container actions ──
 
@@ -818,9 +1044,22 @@ def vm_card() -> rx.Component:
                 ),
                 class_name="flex items-center gap-2",
             ),
-            rx.el.span(
-                MonitorState.vm["containers"],
-                class_name="text-sm text-gray-500",
+            rx.el.div(
+                rx.el.span(
+                    MonitorState.vm["containers"],
+                    class_name="text-sm text-gray-500",
+                ),
+                rx.el.button(
+                    rx.icon("memory-stick", class_name="h-4 w-4"),
+                    rx.el.span(MonitorState.t["vm_resize"]),
+                    on_click=MonitorState.toggle_vm_panel,
+                    class_name=rx.cond(
+                        MonitorState.vm_panel,
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold",
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200",
+                    ),
+                ),
+                class_name="flex items-center gap-3",
             ),
             class_name="flex items-center justify-between mb-4",
         ),
@@ -891,7 +1130,143 @@ def vm_card() -> rx.Component:
                 "flex items-start gap-2 mt-4 p-3 rounded-xl bg-green-50 text-green-700",
             ),
         ),
+        rx.cond(MonitorState.vm_panel, vm_resize_panel(), None),
         class_name="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm mb-6",
+    )
+
+
+def _command(text: str) -> rx.Component:
+    """A shell command to copy, on its own line."""
+    return rx.el.code(
+        text,
+        class_name="block w-fit max-w-full overflow-x-auto my-2 px-3 py-2 rounded-lg bg-gray-900 text-gray-100 text-xs font-mono whitespace-nowrap",
+    )
+
+
+def _vm_size_setup(intro_key: str, command: str) -> rx.Component:
+    """The helper is missing or does not answer: how to fix it, and the manual way."""
+    return rx.el.div(
+        rx.el.p(MonitorState.t[intro_key], class_name="text-sm text-gray-700"),
+        _command(command),
+        rx.cond(
+            MonitorState.vm_size["error"] != "",
+            rx.el.p(MonitorState.vm_size["error"], class_name="text-xs text-gray-400 mb-2 break-all"),
+            None,
+        ),
+        rx.el.p(MonitorState.t["vm_size_manual"], class_name="text-xs text-gray-500"),
+    )
+
+
+def _vm_size_ready() -> rx.Component:
+    """The slider, what the chosen size means, and the button."""
+    size = MonitorState.vm_size
+    note = MonitorState.vm_target_note
+    return rx.el.div(
+        rx.el.div(
+            rx.el.span(MonitorState.t["vm_size_now"] + " ", class_name="text-gray-500"),
+            rx.el.span(size["memory_label"], class_name="font-bold text-gray-900"),
+            rx.el.span(" · " + MonitorState.t["vm_size_host"] + " ", class_name="text-gray-500"),
+            rx.el.span(size["host_label"], class_name="font-bold text-gray-900"),
+            class_name="text-sm",
+        ),
+        rx.el.div(
+            rx.el.input(
+                type="range",
+                min=size["min_mib"],
+                max=size["max_mib"],
+                step=VM_STEP_MIB,
+                default_value=MonitorState.vm_target,
+                on_change=MonitorState.set_vm_target,
+                class_name="flex-1 accent-blue-600 cursor-pointer",
+            ),
+            rx.el.span(
+                MonitorState.vm_target_label,
+                class_name="w-20 text-right text-lg font-black text-gray-900 tabular-nums",
+            ),
+            class_name="flex items-center gap-4 mt-3",
+        ),
+        rx.el.div(
+            rx.el.span(size["min_label"]),
+            rx.el.span(size["max_label"]),
+            class_name="flex justify-between mr-24 text-[11px] text-gray-400",
+        ),
+        rx.cond(
+            note["text"] != "",
+            rx.el.p(
+                note["text"],
+                class_name=rx.match(
+                    note["level"],
+                    ("block", "mt-2 text-sm text-red-700"),
+                    ("warn", "mt-2 text-sm text-amber-700"),
+                    ("ok", "mt-2 text-sm text-green-700"),
+                    "mt-2 text-sm text-gray-500",
+                ),
+            ),
+            None,
+        ),
+        rx.el.p(MonitorState.t["vm_size_impact"], class_name="mt-3 text-xs text-gray-500"),
+        rx.el.div(
+            rx.el.button(
+                rx.cond(
+                    MonitorState.vm_applying,
+                    rx.icon("loader-circle", class_name="h-3.5 w-3.5 animate-spin"),
+                    rx.icon("rotate-cw", class_name="h-3.5 w-3.5"),
+                ),
+                rx.el.span(MonitorState.t["vm_size_apply"]),
+                on_click=MonitorState.apply_vm_size,
+                disabled=(note["level"] == "same") | (note["level"] == "block") | MonitorState.vm_applying,
+                class_name="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed",
+            ),
+            rx.el.button(
+                MonitorState.t["cancel"],
+                on_click=MonitorState.toggle_vm_panel,
+                class_name="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold hover:bg-gray-200",
+            ),
+            class_name="flex items-center gap-2 mt-3",
+        ),
+    )
+
+
+def vm_resize_panel() -> rx.Component:
+    """Resize: change the Docker VM's memory through the helper on the Mac."""
+    return rx.el.div(
+        rx.match(
+            MonitorState.vm_size["state"],
+            (
+                "loading",
+                rx.el.div(
+                    rx.icon("loader-circle", class_name="h-4 w-4 animate-spin"),
+                    rx.el.span(MonitorState.t["vm_size_loading"]),
+                    class_name="flex items-center gap-2 text-sm text-gray-500",
+                ),
+            ),
+            ("missing", _vm_size_setup("vm_size_missing", "./macos_docker_vm_helper.sh --install")),
+            ("offline", _vm_size_setup("vm_size_offline", "./macos_docker_vm_helper.sh --status")),
+            (
+                "error",
+                rx.el.div(
+                    rx.el.p(MonitorState.t["vm_size_error"], class_name="text-sm text-gray-700"),
+                    rx.el.p(
+                        MonitorState.vm_size["error"],
+                        class_name="my-2 text-xs text-red-700 break-all",
+                    ),
+                    rx.el.p(MonitorState.t["vm_size_manual"], class_name="text-xs text-gray-500"),
+                ),
+            ),
+            (
+                "restarting",
+                rx.el.div(
+                    rx.icon("loader-circle", class_name="h-4 w-4 animate-spin shrink-0"),
+                    rx.el.span(
+                        MonitorState.t["vm_size_restarting"] + " "
+                        + MonitorState.vm_size["job_from"] + " → " + MonitorState.vm_size["job_to"],
+                    ),
+                    class_name="flex items-center gap-2 text-sm text-blue-700",
+                ),
+            ),
+            _vm_size_ready(),
+        ),
+        class_name="mt-4 p-4 rounded-2xl border border-blue-100 bg-blue-50/40",
     )
 
 

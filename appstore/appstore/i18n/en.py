@@ -39,6 +39,41 @@ STRINGS: dict[str, str] = {
     ),
     "socket_error": "Cannot reach the Docker socket",
 
+    # ── Docker VM size (Resize) ──
+    "vm_resize": "Resize",
+    "vm_size_loading": "Asking the helper on the Mac…",
+    "vm_size_missing": "To change the size from this page, run this once on the Mac, in the re_ddns folder:",
+    "vm_size_offline": "The helper on the Mac is installed but does not answer. Check it with:",
+    "vm_size_error": "The helper on the Mac could not reach Docker Desktop:",
+    "vm_size_manual": "You can also change it in Docker Desktop: Settings → Resources → Memory → Apply & restart.",
+    "vm_size_now": "Docker VM now:",
+    "vm_size_host": "this Mac:",
+    "vm_size_same": "This is the current size.",
+    "vm_size_low": (
+        "Too small: the apps use {used} right now, and all of them start again "
+        "after the restart. Stop some apps first, or choose at least {need}."
+    ),
+    "vm_size_high": (
+        "More than the recommended {rec}: only {left} stays for macOS, the "
+        "browser and the editor, so the Mac may slow down."
+    ),
+    "vm_size_ok": "{left} stays for the Mac itself.",
+    "vm_size_impact": (
+        "A new size needs a Docker restart: every app stops for 1–2 minutes and "
+        "then starts again by itself (apps you stopped stay stopped). This page "
+        "disconnects meanwhile and comes back on its own."
+    ),
+    "vm_size_apply": "Apply and restart Docker",
+    "vm_size_restarting": "Docker is restarting with the new size:",
+    "msg_vm_restarting": (
+        "Docker is restarting to change the VM from {old} to {new}. The apps are "
+        "back in 1–2 minutes; this page reconnects by itself."
+    ),
+    "msg_vm_done": "The Docker VM now has {new} (was {old}).",
+    "msg_vm_failed": "The Docker VM size did not change: {error}",
+    "msg_vm_apply_failed": "Could not change the size: {error}",
+    "msg_vm_unchanged": "Docker already has {size}.",
+
     # ── per-container row ──
     "st_running": "Running",
     "st_half_dead": "OOM half-dead",

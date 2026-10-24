@@ -30,6 +30,34 @@ STRINGS: dict[str, str] = {
     ),
     "socket_error": "Docker socket 無法存取",
 
+    # ── Docker VM 大小（調整大小）──
+    "vm_resize": "調整大小",
+    "vm_size_loading": "正在詢問 Mac 上的小幫手…",
+    "vm_size_missing": "要從這個頁面調整，請先在 Mac 的 re_ddns 資料夾執行一次：",
+    "vm_size_offline": "Mac 上的小幫手已安裝，但沒有回應。用這個指令檢查：",
+    "vm_size_error": "Mac 上的小幫手連不上 Docker Desktop：",
+    "vm_size_manual": "也可以在 Docker Desktop 調整：Settings → Resources → Memory → Apply & restart。",
+    "vm_size_now": "Docker VM 目前：",
+    "vm_size_host": "這台 Mac：",
+    "vm_size_same": "這就是目前的大小。",
+    "vm_size_low": (
+        "太小了：app 現在就用了 {used}，重啟後全部會再跑起來。"
+        "請先停掉一些 app，或至少選 {need}。"
+    ),
+    "vm_size_high": "超過建議的 {rec}：只剩 {left} 給 macOS、瀏覽器和編輯器，Mac 可能會變慢。",
+    "vm_size_ok": "Mac 自己還留 {left}。",
+    "vm_size_impact": (
+        "改大小要重新啟動 Docker：所有 app 會停 1–2 分鐘，然後自己再跑起來"
+        "（你手動停掉的會維持停止）。這段時間這個頁面會斷線，之後會自己接回來。"
+    ),
+    "vm_size_apply": "套用並重新啟動 Docker",
+    "vm_size_restarting": "Docker 正在用新大小重新啟動：",
+    "msg_vm_restarting": "Docker 正在重新啟動，把 VM 從 {old} 改成 {new}。app 約 1–2 分鐘後回來，這個頁面會自己重新連上。",
+    "msg_vm_done": "Docker VM 已調整為 {new}（原本 {old}）。",
+    "msg_vm_failed": "Docker VM 大小沒有改成：{error}",
+    "msg_vm_apply_failed": "無法調整大小：{error}",
+    "msg_vm_unchanged": "Docker 已經是 {size}。",
+
     # ── 每個容器 ──
     "st_running": "執行中",
     "st_half_dead": "OOM 半死",

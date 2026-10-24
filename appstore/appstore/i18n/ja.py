@@ -34,6 +34,35 @@ STRINGS: dict[str, str] = {
     ),
     "socket_error": "Docker socket にアクセスできません",
 
+    # ── Docker VM のサイズ（サイズ変更）──
+    "vm_resize": "サイズ変更",
+    "vm_size_loading": "Mac のヘルパーに問い合わせ中…",
+    "vm_size_missing": "このページからサイズを変えるには、Mac の re_ddns フォルダで一度だけ次を実行してください：",
+    "vm_size_offline": "Mac のヘルパーはインストール済みですが応答しません。次で確認してください：",
+    "vm_size_error": "Mac のヘルパーが Docker Desktop に接続できませんでした：",
+    "vm_size_manual": "Docker Desktop でも変更できます：Settings → Resources → Memory → Apply & restart。",
+    "vm_size_now": "Docker VM の現在：",
+    "vm_size_host": "この Mac：",
+    "vm_size_same": "今のサイズと同じです。",
+    "vm_size_low": (
+        "小さすぎます：app はいま {used} 使っていて、再起動後はすべてもう一度起動します。"
+        "先にいくつか app を止めるか、{need} 以上を選んでください。"
+    ),
+    "vm_size_high": "推奨の {rec} を超えています：macOS・ブラウザ・エディタに残るのは {left} だけで、Mac が重くなるかもしれません。",
+    "vm_size_ok": "Mac 自身には {left} 残ります。",
+    "vm_size_impact": (
+        "サイズを変えるには Docker の再起動が必要です：すべての app が 1〜2 分止まり、"
+        "その後自動で起動します（手動で止めた app は止まったまま）。その間このページは"
+        "切断され、自動でつながり直します。"
+    ),
+    "vm_size_apply": "適用して Docker を再起動",
+    "vm_size_restarting": "Docker を新しいサイズで再起動中：",
+    "msg_vm_restarting": "Docker を再起動して VM を {old} から {new} に変更しています。app は 1〜2 分で戻り、このページも自動で再接続します。",
+    "msg_vm_done": "Docker VM は {new} になりました（以前は {old}）。",
+    "msg_vm_failed": "Docker VM のサイズは変わりませんでした：{error}",
+    "msg_vm_apply_failed": "サイズを変更できませんでした：{error}",
+    "msg_vm_unchanged": "Docker はすでに {size} です。",
+
     # ── コンテナごと ──
     "st_running": "実行中",
     "st_half_dead": "OOM 半死状態",

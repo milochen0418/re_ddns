@@ -34,6 +34,41 @@ STRINGS: dict[str, str] = {
     ),
     "socket_error": "No se puede acceder al socket de Docker",
 
+    # ── tamaño de la VM de Docker (Cambiar tamaño) ──
+    "vm_resize": "Cambiar tamaño",
+    "vm_size_loading": "Consultando al asistente del Mac…",
+    "vm_size_missing": "Para cambiar el tamaño desde esta página, ejecuta esto una vez en el Mac, en la carpeta re_ddns:",
+    "vm_size_offline": "El asistente del Mac está instalado pero no responde. Compruébalo con:",
+    "vm_size_error": "El asistente del Mac no pudo comunicarse con Docker Desktop:",
+    "vm_size_manual": "También puedes cambiarlo en Docker Desktop: Settings → Resources → Memory → Apply & restart.",
+    "vm_size_now": "VM de Docker ahora:",
+    "vm_size_host": "este Mac:",
+    "vm_size_same": "Es el tamaño actual.",
+    "vm_size_low": (
+        "Demasiado poco: las apps usan {used} ahora mismo y todas vuelven a "
+        "arrancar tras el reinicio. Detén algunas antes, o elige al menos {need}."
+    ),
+    "vm_size_high": (
+        "Más de lo recomendado ({rec}): solo quedan {left} para macOS, el "
+        "navegador y el editor, y el Mac puede ir más lento."
+    ),
+    "vm_size_ok": "Quedan {left} para el propio Mac.",
+    "vm_size_impact": (
+        "Un tamaño nuevo requiere reiniciar Docker: todas las apps se detienen "
+        "1–2 minutos y luego arrancan solas (las que detuviste siguen detenidas). "
+        "Mientras tanto esta página se desconecta y vuelve sola."
+    ),
+    "vm_size_apply": "Aplicar y reiniciar Docker",
+    "vm_size_restarting": "Docker se está reiniciando con el nuevo tamaño:",
+    "msg_vm_restarting": (
+        "Docker se está reiniciando para cambiar la VM de {old} a {new}. Las apps "
+        "vuelven en 1–2 minutos; esta página se reconecta sola."
+    ),
+    "msg_vm_done": "La VM de Docker tiene ahora {new} (antes {old}).",
+    "msg_vm_failed": "El tamaño de la VM de Docker no cambió: {error}",
+    "msg_vm_apply_failed": "No se pudo cambiar el tamaño: {error}",
+    "msg_vm_unchanged": "Docker ya tiene {size}.",
+
     # ── fila de cada contenedor ──
     "st_running": "En ejecución",
     "st_half_dead": "Medio caído (OOM)",

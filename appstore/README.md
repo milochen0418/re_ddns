@@ -28,6 +28,18 @@ collection, quotas, data of apps no longer installed), hosts (peers, the cap
 on copies, clean-up), and importing your own files as items. See
 [docs/collections.md](../docs/collections.md#managing-it-the-storage-page).
 
+The **Memory** page (`/monitor`, linked from the header) shows the Docker VM's
+memory and every container's share of it, sampled every 4 s, with per-container
+limits, restart, and the Dev / Non-Dev switch. **Resize** on the VM card
+changes the VM's own memory. Docker Desktop keeps that setting on the Mac,
+where this container cannot reach it, so a small helper on the Mac makes the
+change (`../macos_docker_vm_helper.sh --install`, once; see the main README).
+The page reads the helper's port and token from
+`<HOST_FS_PREFIX><HOST_HOME>/.re_ddns/docker-vm-helper.json` and calls it at
+`http://host.docker.internal:<port>/vm`. Applying a size restarts the VM, this
+container included, so the page disconnects; when it reconnects, its on_load
+asks the helper again and reports the outcome.
+
 > **Real, in-page install (no host shell needed):** every smart app is just the
 > generic `re-ddns/smart-launcher` image started with different environment
 > variables. The App Store asks **re-ddns** (which owns the Docker socket and an
@@ -164,8 +176,9 @@ docker logs -f app-store
 | `RE_DDNS_CONTAINER`  | `re-ddns`                             | The container the token is read from.    |
 | `RE_DDNS_ADMIN_TOKEN_PATH` | `/app/data/admin_token`         | Where the token file is in that container. |
 | `APPSTORE_DEV_MODE`  | `0`                                   | `1` shows the **Dev** button (bind-mount a local checkout). |
-| `HOST_HOME`          | *(empty)*                             | Host home folder; the Dev form autocompletes paths under it. |
+| `HOST_HOME`          | *(empty)*                             | Host home folder; the Dev form autocompletes paths under it, and the Memory page finds the VM helper's token there. |
 | `HOST_FS_PREFIX`     | `/hostfs`                             | Where the host home is mounted read-only (`${HOME}:/hostfs${HOME}:ro`). |
+| `VM_HELPER_HOST`     | `host.docker.internal`                | Where the Mac-side Docker VM helper answers (port from its config file). |
 
 ### Dev form path autocomplete
 

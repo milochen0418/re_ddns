@@ -148,6 +148,7 @@ The App Store lives at `https://aapps.reflex-ddns.com` and lets you manage the e
 | **Install** | In-page live progress bar: `clone → deps → init → register → running` (no shell needed). Several apps can be installed at once, each card with its own bar |
 | **Start / Stop** | Sends `POST /containers/<id>/start` or `/stop` to Docker via re-ddns |
 | **Uninstall** | After a confirmation, in-page live progress like Install: `stop container → remove container → registry + DNS → nginx → TLS cert`. The app's Docker volumes (its data) are kept unless you tick *also delete data*; a reinstall reuses them |
+| **Memory** | Every container's memory on its own page (`/monitor`), with per-container limits, restart and Dev / Non-Dev switch. *Resize* changes the Docker VM's own memory; it needs the [Mac helper](#macos_docker_vm_helpersh--resize-the-docker-vm-from-the-memory-page), and Docker restarts to apply it (every app is back in 1–2 minutes) |
 | **Storage** | The data apps share through [collections](docs/collections.md), on its own page: every item on this host and its peers, searchable, with details, lineage and a preview; *Open with* another installed app; fetch a copy from another host; delete; per-app quotas; data left behind by uninstalled apps; peers and the cap on copies; and importing your own files ([how](docs/collections.md#managing-it-the-storage-page)) |
 | **Language** | English, 繁體中文, 简体中文, Español, 日本語. The picker in the header switches the App Store and its Memory and Storage pages together; the choice is kept in the browser and follows across open tabs |
 
@@ -323,6 +324,20 @@ Configures a **remote Mac** over SSH: installs the Local CA and sets up DNS so i
 
 The script copies the CA certificate, installs it into the remote System Keychain, and configures DNS — all over SSH. Run `./remote_install_ca.sh --help` for details.
 
+### `macos_docker_vm_helper.sh` — Resize the Docker VM from the Memory page
+
+Every app shares the memory of Docker Desktop's VM (8 GB by default). The App Store's Memory page can change that size, but the App Store runs inside the VM and cannot reach Docker Desktop's settings, so a small helper on the Mac does it ([docker_vm_helper/docker_vm_helper.py](docker_vm_helper/docker_vm_helper.py), standard-library Python). Install it once:
+
+```bash
+./macos_docker_vm_helper.sh --install     # start it now and at every login (LaunchAgent)
+./macos_docker_vm_helper.sh --status      # running? what Docker Desktop has now
+./macos_docker_vm_helper.sh --uninstall   # stop and remove it
+```
+
+Then open `https://aapps.reflex-ddns.com/monitor`, press **Resize** on the Docker VM card, pick a size and press **Apply and restart Docker**. Docker Desktop fixes the VM's memory when the VM starts, so it restarts the VM: every container stops for 1–2 minutes and comes back by itself (they all have a restart policy; containers you stopped stay stopped), and the page reconnects and reports the new size. The slider refuses a size smaller than what the apps use now plus 1 GB, and warns above two thirds of the Mac's memory.
+
+The helper listens on `127.0.0.1:3143` only; containers reach it as `host.docker.internal:3143`. Each request needs the token in `~/.re_ddns/docker-vm-helper.json`, which the App Store reads through its read-only mount of your home folder and apps cannot see. The first time it talks to Docker Desktop, macOS may ask whether `python3` may access data from other apps; allow it. Without the helper, change the size in Docker Desktop: Settings → Resources → Memory → Apply & restart.
+
 ---
 
 ## Test Containers
@@ -439,6 +454,11 @@ open http://localhost:3142                    # download cache status (hits, MB 
 ./macos_set_dns.sh --join                     # enable local DNS
 ./macos_set_dns.sh --leave                    # restore original DNS
 dig home.reflex-ddns.com                      # test resolution
+
+# ── Docker VM memory ─────────────────────────────────────────────────────
+./macos_docker_vm_helper.sh --install         # once: lets the Memory page resize the VM
+./macos_docker_vm_helper.sh --status          # helper running? current VM size
+tail -f ~/.re_ddns/docker-vm-helper.log       # what the helper did
 
 # ── Containers ───────────────────────────────────────────────────────────
 docker exec -it re-ddns bash
