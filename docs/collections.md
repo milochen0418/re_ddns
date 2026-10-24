@@ -347,6 +347,15 @@ running when minimized (or shown as a small picture-in-picture window), and the
 converter reports every finished song with an intent `update` (`{"event":
 "ready", "ref": ...}`), so it appears in the mixer's library at once.
 
+**CAD Roam** (`cad-roam`) is a reader: its entry declares
+`{"collection": "cad-models", "access": "read"}`, it lists the models with
+`Collection("cad-models").local_items()` and shows the one picked at its real size from the item's
+`.stl` file (Codoc in CAD's `model.stl`, or an STL imported on the storage page), with the size
+read from the comments of its `primary` code. What it makes from them (meshes, sizes people chose)
+stays in its own volume, never in the collection; it follows a model's revisions (one stat of the
+manifest every 2 s while someone is at it). It declares `@intent(..., accepts=("cad.build123d",))`,
+so the storage page offers **Open with → Walk in CAD Roam** for CAD models.
+
 Everything beyond that (a list of the collection's items in the viewer, a
 "Open in Viewer" button through DDNS Intent, fetching from another host with
 a progress bar) is optional product work on top, not part of joining.

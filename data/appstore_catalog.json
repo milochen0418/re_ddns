@@ -797,6 +797,42 @@
       }
     },
     {
+      "id": "cad-roam",
+      "name": "CAD Roam",
+      "description": "Walk into your CAD models: pick a model from Codoc in CAD and it stands in front of you at its real size. Walk in like in a first-person game or fly round it like a drone; everyone at the same model sees each other, and a rebuild in Codoc in CAD shows up at once.",
+      "icon": "footprints",
+      "subdomain": "cad-roam",
+      "github_repo": "https://github.com/milochen0418/cad_roam.git",
+      "app_name": "cad_roam",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [
+        "smart-app-cad-roam-data:/root/.local/share/cad_roam"
+      ],
+      "storage": [
+        {
+          "collection": "cad-models",
+          "access": "read"
+        }
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "走進你的 CAD 模型：從 Codoc in CAD 選一個模型，它就照真實大小站在你面前。可以像第一人稱遊戲一樣走進去，也可以像無人機一樣繞著它飛；在同一個模型裡的人都看得到彼此，Codoc in CAD 一重建，這裡馬上就換成新的。"
+        },
+        "zh-Hans": {
+          "description": "走进你的 CAD 模型：从 Codoc in CAD 选一个模型，它就按真实大小立在你面前。可以像第一人称游戏一样走进去，也可以像无人机一样绕着它飞；在同一个模型里的人都看得到彼此，Codoc in CAD 一重建，这里马上就换成新的。"
+        },
+        "ja": {
+          "description": "CAD モデルの中へ：Codoc in CAD のモデルを選ぶと、実寸で目の前に建ちます。一人称ゲームのように歩いて入ったり、ドローンのように周りを飛んだりできます。同じモデルにいる人は互いが見え、Codoc in CAD で作り直すとすぐに反映されます。"
+        },
+        "es": {
+          "description": "Entra en tus modelos CAD: elige un modelo de Codoc in CAD y aparece ante ti a su tamaño real. Entra a pie como en un juego en primera persona o vuela a su alrededor como un dron; quienes están en el mismo modelo se ven, y una reconstrucción en Codoc in CAD aparece al instante."
+        }
+      }
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
