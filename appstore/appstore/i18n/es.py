@@ -12,6 +12,10 @@ STRINGS: dict[str, str] = {
     "refresh": "Actualizar",
     "back_to_store": "App Store",
     "loading_rows": "Leyendo contenedores…",
+    "sort_label": "Ordenar",
+    "sort_memory": "Memoria, mayor primero",
+    "sort_installed": "Instalados más recientes primero",
+    "sort_name": "Nombre, A–Z",
     "language": "Idioma",
 
     # ── tarjeta de la VM ──
@@ -79,6 +83,7 @@ STRINGS: dict[str, str] = {
     "restarts": "{count} reinicios",
     "cpu": "CPU",
     "no_limit": "sin límite",
+    "row_installed": "Instalado",
     "act_limit": "Límite",
     "act_stop": "Detener",
 

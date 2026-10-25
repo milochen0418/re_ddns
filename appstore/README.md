@@ -30,7 +30,12 @@ on copies, clean-up), and importing your own files as items. See
 
 The **Memory** page (`/monitor`, linked from the header) shows the Docker VM's
 memory and every container's share of it, sampled every 4 s, with per-container
-limits, restart, and the Dev / Non-Dev switch. **Resize** on the VM card
+limits, restart, and the Dev / Non-Dev switch. The list can be ordered by
+memory (the default), by install time (newest first, with each row's install
+time shown) or by name; the browser remembers the choice. The install time is
+the container's creation time; the Dev / Non-Dev switch recreates the
+container, so it keeps the original time in the `com.reflex-ddns.installed-at`
+label. **Resize** on the VM card
 changes the VM's own memory. Docker Desktop keeps that setting on the Mac,
 where this container cannot reach it, so a small helper on the Mac makes the
 change (`../macos_docker_vm_helper.sh --install`, once; see the main README).

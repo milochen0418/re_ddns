@@ -12,6 +12,10 @@ STRINGS: dict[str, str] = {
     "refresh": "刷新",
     "back_to_store": "App Store",
     "loading_rows": "读取容器数据…",
+    "sort_label": "排序",
+    "sort_memory": "内存（大的在前）",
+    "sort_installed": "最近安装的在前",
+    "sort_name": "名称（A–Z）",
     "language": "语言",
 
     # ── Docker VM ──
@@ -68,6 +72,7 @@ STRINGS: dict[str, str] = {
     "restarts": "重启 {count} 次",
     "cpu": "CPU",
     "no_limit": "无上限",
+    "row_installed": "安装于",
     "act_limit": "上限",
     "act_stop": "停止",
 

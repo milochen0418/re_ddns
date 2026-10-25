@@ -18,6 +18,10 @@ STRINGS: dict[str, str] = {
     "refresh": "Refresh",
     "back_to_store": "App Store",
     "loading_rows": "Reading containers…",
+    "sort_label": "Sort",
+    "sort_memory": "Memory, largest first",
+    "sort_installed": "Recently installed first",
+    "sort_name": "Name, A–Z",
     "language": "Language",
 
     # ── Docker VM card ──
@@ -84,6 +88,7 @@ STRINGS: dict[str, str] = {
     "restarts": "{count} restarts",
     "cpu": "CPU",
     "no_limit": "no limit",
+    "row_installed": "Installed",
     "act_limit": "Limit",
     "act_stop": "Stop",
 

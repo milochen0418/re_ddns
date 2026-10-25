@@ -13,6 +13,10 @@ This page makes that visible and manageable:
     how much is actually available for the next allocation.
   • **Per container** — working set, share of the VM, CPU, a short history,
     and the container's own memory limit.
+  • **Order** — by memory (largest first, the default), by install time
+    (newest first, and each row then shows its install time) or by name.  The
+    choice is kept in the browser.  Ties fall back to the name, so rows with
+    equal values never swap places between samples.
   • **Half-dead detection** — ``State.OOMKilled`` is true while the container
     is still running, i.e. the OOM killer took a child process since the last
     start.  ``docker restart`` is the fix.
@@ -49,6 +53,7 @@ import asyncio
 import json
 import os
 from collections.abc import Mapping
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -80,6 +85,13 @@ CRITICAL_MB = 800
 TIGHT_MB = 1536
 # Docker itself refuses anything under 6 MB; keep a workable floor.
 MIN_LIMIT_MB = 128
+
+# How the container list can be ordered; the first one is the default.
+SORTS = ("memory", "installed", "name")
+# A container's install time, in Unix seconds.  Docker's own "Created" is the
+# install time until the Dev / Non-Dev switch recreates the container, so the
+# switch copies the original time into this label, and reads prefer it.
+INSTALLED_LABEL = "com.reflex-ddns.installed-at"
 
 # The Mac-side helper that resizes the Docker VM.  Its port and token are in a
 # file in the host home, which this container sees read-only under
@@ -248,6 +260,47 @@ def _env_of(insp: dict | None) -> dict[str, str]:
     )
 
 
+def _epoch_of(created: str) -> int:
+    """Unix seconds of an inspect ``Created`` ("2026-10-25T10:55:57.53Z", UTC); 0 if unreadable."""
+    try:
+        moment = datetime.strptime(created[:19], "%Y-%m-%dT%H:%M:%S")
+    except (TypeError, ValueError):
+        return 0
+    return int(moment.replace(tzinfo=timezone.utc).timestamp())
+
+
+def _installed_at(item: dict) -> str:
+    """When a listed container was installed, as UTC ISO text ("" if unknown).
+
+    ``item`` is an entry of ``/containers/json``, whose ``Created`` is Unix
+    seconds.  Text in this one fixed format sorts in time order, and the
+    browser shows it in the viewer's own time zone.
+    """
+    for value in ((item.get("Labels") or {}).get(INSTALLED_LABEL), item.get("Created")):
+        try:
+            seconds = int(value or 0)
+        except (TypeError, ValueError):
+            continue
+        if seconds > 0:
+            return datetime.fromtimestamp(seconds, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return ""
+
+
+def sort_rows(rows: list[dict[str, str]], how: str) -> list[dict[str, str]]:
+    """The rows in the chosen order (one of ``SORTS``; anything else is memory).
+
+    The rows are put in name order first and every later sort is stable, so
+    rows that tie (stopped containers at 0 MB, installs in the same second)
+    keep their places from one sample to the next.
+    """
+    ordered = sorted(rows, key=lambda r: (r["label"].casefold(), r["name"]))
+    if how == "name":
+        return ordered
+    if how == "installed":
+        return sorted(ordered, key=lambda r: r["installed"], reverse=True)
+    return sorted(ordered, key=lambda r: int(r["ws_mb"] or 0), reverse=True)
+
+
 # Config keys a container is created with, copied from its inspect output when
 # it is recreated.
 _CREATE_KEYS = (
@@ -279,7 +332,9 @@ async def recreate(
     Docker cannot change an existing container's environment, so switching an
     app between dev and prod means a new container.  Everything else is taken
     from ``inspect``: image, mounts and named volumes (so app data survives),
-    published ports, network, restart policy, memory limit.  Env entries that
+    published ports, network, restart policy, memory limit, and the install
+    time (``INSTALLED_LABEL``, so the app keeps its place when the list is
+    ordered by install time).  Env entries that
     merely repeat the old image's defaults are dropped, so the image's current
     defaults apply.
 
@@ -306,6 +361,13 @@ async def recreate(
 
         body: dict = {"Image": cfg["Image"], "Env": env, "HostConfig": host}
         body.update({k: cfg[k] for k in _CREATE_KEYS if cfg.get(k) is not None})
+        # The new container's own "Created" will be now, not the install.
+        labels = dict(cfg.get("Labels") or {})
+        installed = _epoch_of(str(insp.get("Created") or ""))
+        if installed and INSTALLED_LABEL not in labels:
+            labels[INSTALLED_LABEL] = str(installed)
+        if labels:
+            body["Labels"] = labels
         body.update({
             k: cfg[k] for k in _IMAGE_KEYS
             if cfg.get(k) is not None and cfg.get(k) != img_cfg.get(k)
@@ -386,8 +448,9 @@ async def collect(
 ) -> tuple[list[dict[str, str]], dict[str, str], dict[str, list[int]]]:
     """Sample the VM and every container once.
 
-    Returns the table rows (largest first), the VM summary, and the CPU
-    samples to compare against on the next poll.  ``hist`` is updated in place.
+    Returns the table rows (in Docker's order; ``sort_rows`` orders them),
+    the VM summary, and the CPU samples to compare against on the next poll.
+    ``hist`` is updated in place.
     """
     mem = _read_meminfo()
     total_kb = mem.get("MemTotal", 0)
@@ -479,13 +542,9 @@ async def collect(
                 "mode_label": t["mode_prod"] if mode == "prod" else t["mode_dev"] if mode else "",
                 "can_stop": "" if name in NO_STOP or status == "stopped" else "1",
                 "can_restart": "" if name in NO_RESTART else "1",
-                "_sort": f"{ws:020d}",
+                "installed": _installed_at(item),
             }
         )
-
-    rows.sort(key=lambda r: r["_sort"], reverse=True)
-    for r in rows:
-        del r["_sort"]
 
     avail_mb = avail_kb // 1024
     level = "ok"
@@ -610,6 +669,9 @@ class MonitorState(LocaleState):
 
     show_langs: bool = False    # the language menu is open
 
+    # The list's order (one of SORTS), remembered in this browser.
+    sort_by: str = rx.LocalStorage(SORTS[0], name="appstore_monitor_sort")
+
     # Memory-limit editor (one row at a time).
     edit_name: str = ""
     edit_value: str = ""
@@ -681,7 +743,7 @@ class MonitorState(LocaleState):
         rows, vm, cpu = await collect(
             self._cpu, self._hist, _catalog_meta(), self._strings()
         )
-        self.rows = rows
+        self.rows = sort_rows(rows, self.sort_by)
         self.vm = vm
         self._cpu = cpu
 
@@ -720,6 +782,12 @@ class MonitorState(LocaleState):
             await self._sample()
         except Exception:  # noqa: BLE001 - the language still changed
             pass
+
+    @rx.event
+    def set_sort(self, value: str):
+        """Reorder the list at once, without waiting for the next sample."""
+        self.sort_by = value if value in SORTS else SORTS[0]
+        self.rows = sort_rows(self.rows, self.sort_by)
 
     @rx.event
     def toggle_langs(self):
@@ -1587,19 +1655,34 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
                 rx.el.span(
                     rx.icon("cpu", class_name="h-3.5 w-3.5 inline mr-1 -mt-0.5"),
                     MonitorState.t["cpu"] + " " + row["cpu"] + "%",
-                    class_name="text-xs text-gray-500",
+                    class_name="text-xs text-gray-500 whitespace-nowrap",
                 ),
                 rx.el.span(
                     rx.icon("gauge", class_name="h-3.5 w-3.5 inline mr-1 -mt-0.5"),
                     row["limit_label"],
                     class_name=rx.cond(
                         row["limit_mb"] == "0",
-                        "text-xs text-gray-400",
-                        "text-xs text-blue-600 font-semibold",
+                        "text-xs text-gray-400 whitespace-nowrap",
+                        "text-xs text-blue-600 font-semibold whitespace-nowrap",
                     ),
                 ),
-                rx.el.span(row["uptime"], class_name="text-xs text-gray-400 truncate"),
-                class_name="flex items-center gap-3 min-w-0",
+                # Ordered by install time, the install time takes the uptime's
+                # place (the footer has room for one of them; the uptime stays
+                # in the tooltip).
+                rx.cond(
+                    (MonitorState.sort_by == "installed") & (row["installed"] != ""),
+                    rx.el.span(
+                        rx.icon("calendar-plus", class_name="h-3.5 w-3.5 inline mr-1 -mt-0.5"),
+                        MonitorState.t["row_installed"] + " ",
+                        # Formatted by the browser, in the viewer's time zone.
+                        rx.moment(date=row["installed"], format="YYYY-MM-DD HH:mm", interval=0),
+                        title=row["uptime"],
+                        class_name="text-xs text-gray-500 truncate",
+                    ),
+                    rx.el.span(row["uptime"], class_name="text-xs text-gray-400 truncate"),
+                ),
+                # On a narrow card the items wrap whole, not inside "CPU 1.0%".
+                class_name="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0",
             ),
             rx.el.div(
                 _row_btn(
@@ -1639,6 +1722,26 @@ def container_row(row: rx.Var[dict]) -> rx.Component:
             ("half_dead", "p-4 bg-white rounded-2xl border-2 border-red-200 shadow-sm"),
             "p-4 bg-white rounded-2xl border border-gray-100 shadow-sm",
         ),
+    )
+
+
+def sort_bar() -> rx.Component:
+    """The order picker above the list (the options are fixed; the choice is state)."""
+    return rx.el.div(
+        rx.el.label(
+            rx.icon("arrow-down-up", class_name="h-4 w-4"),
+            rx.el.span(MonitorState.t["sort_label"]),
+            html_for="monitor-sort",
+            class_name="flex items-center gap-1.5 text-sm text-gray-500",
+        ),
+        rx.el.select(
+            *[rx.el.option(MonitorState.t[f"sort_{key}"], value=key) for key in SORTS],
+            id="monitor-sort",
+            value=MonitorState.sort_by,
+            on_change=MonitorState.set_sort,
+            class_name="px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-700",
+        ),
+        class_name="flex items-center justify-end gap-2 mb-3",
     )
 
 
@@ -1753,8 +1856,11 @@ def monitor() -> rx.Component:
             rx.cond(
                 MonitorState.rows.length() > 0,
                 rx.el.div(
-                    rx.foreach(MonitorState.rows, container_row),
-                    class_name="grid grid-cols-1 xl:grid-cols-2 gap-4",
+                    sort_bar(),
+                    rx.el.div(
+                        rx.foreach(MonitorState.rows, container_row),
+                        class_name="grid grid-cols-1 xl:grid-cols-2 gap-4",
+                    ),
                 ),
                 rx.el.div(
                     rx.icon("loader-circle", class_name="h-10 w-10 text-gray-300 animate-spin mb-4"),
