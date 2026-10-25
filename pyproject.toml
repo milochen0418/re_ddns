@@ -13,6 +13,9 @@ reflex = "0.8.24.post1"
 fastapi = "*"
 dnspython = "*"
 httpx = "*"
+# Reflex 0.8 imports sqlalchemy.ext.asyncio, which needs greenlet; SQLAlchemy 2.1
+# moved greenlet into the optional [asyncio] extra, so stay on 2.0.x.
+sqlalchemy = "<2.1"
 
 [build-system]
 requires = ["poetry-core"]

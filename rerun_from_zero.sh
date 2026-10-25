@@ -118,7 +118,8 @@ verify_backend() {
     for d in "${DOMAINS[@]}"; do
         code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 8 \
             --resolve "${d}.reflex-ddns.com:443:127.0.0.1" \
-            "https://${d}.reflex-ddns.com/" 2>/dev/null || echo "000")
+            "https://${d}.reflex-ddns.com/" 2>/dev/null || true)
+        [[ -z "$code" ]] && code="000"
         if [[ "$code" == "200" ]]; then
             ok "${d}.reflex-ddns.com → HTTPS ${code}"
         else

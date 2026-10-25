@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ── Poetry ──
-ENV POETRY_VERSION=1.8.4 \
+ENV POETRY_VERSION=2.2.1 \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
     POETRY_NO_INTERACTION=1
