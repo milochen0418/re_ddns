@@ -833,6 +833,71 @@
       }
     },
     {
+      "id": "chipova",
+      "name": "Chipova",
+      "description": "Design chips together with your team and AI agents: everyone edits the same Verilog live, with their own cursor; lint, simulate with waveforms, synthesize, build FPGA bitstreams and take a design from RTL to GDSII (SiliconCompiler, OpenROAD, KLayout on open PDKs), each run in a sealed container on a frozen snapshot. AI agents propose changes that people accept or reject; DRC, LVS and timing checks, signoff with evidence and tape-out preparation packages keep every result traceable.",
+      "icon": "cpu",
+      "subdomain": "chipova",
+      "github_repo": "https://github.com/milochen0418/chipova.git",
+      "app_name": "chipova",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "smart-app-chipova-data:/root/.local/share/chipova"
+      ],
+      "env_schema": [
+        {
+          "key": "CHIPOVA_MAX_PARALLEL_RUNS",
+          "label": "Runs at once (optional)",
+          "placeholder": "2",
+          "secret": false,
+          "required": false,
+          "help": "How many EDA runs (each its own container) may run at the same time; the others wait in order. A Build ASIC run uses up to 6 CPUs and 6 GB of memory."
+        }
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "和團隊、AI agent 一起設計晶片：大家即時編輯同一份 Verilog，各自有自己的游標；Lint、看得到波形的模擬、合成、產生 FPGA bitstream，以及用開源 PDK 從 RTL 一路做到 GDSII（SiliconCompiler、OpenROAD、KLayout）。每次執行都在密封的容器裡跑在凍結的快照上。AI agent 只提出修改，由人決定接受或拒絕；DRC、LVS、時序檢查、附證據的 signoff 和 tape-out 準備包，讓每個結果都追溯得到來源。",
+          "env": {
+            "CHIPOVA_MAX_PARALLEL_RUNS": {
+              "label": "同時執行數（選填）",
+              "help": "同一時間最多跑幾個 EDA 執行（每個是自己的容器），其他的依序排隊。一次 Build ASIC 最多用 6 顆 CPU、6 GB 記憶體。"
+            }
+          }
+        },
+        "zh-Hans": {
+          "description": "和团队、AI agent 一起设计芯片：大家实时编辑同一份 Verilog，各自有自己的光标；Lint、看得到波形的仿真、综合、生成 FPGA bitstream，以及用开源 PDK 从 RTL 一路做到 GDSII（SiliconCompiler、OpenROAD、KLayout）。每次运行都在密封的容器里跑在冻结的快照上。AI agent 只提出修改，由人决定接受或拒绝；DRC、LVS、时序检查、附证据的 signoff 和 tape-out 准备包，让每个结果都能追溯来源。",
+          "env": {
+            "CHIPOVA_MAX_PARALLEL_RUNS": {
+              "label": "同时运行数（选填）",
+              "help": "同一时间最多运行几个 EDA 任务（每个是自己的容器），其他的依次排队。一次 Build ASIC 最多用 6 个 CPU、6 GB 内存。"
+            }
+          }
+        },
+        "ja": {
+          "description": "チームや AI エージェントと一緒にチップを設計：全員が同じ Verilog をリアルタイムに編集し、それぞれのカーソルが見えます。Lint、波形付きのシミュレーション、論理合成、FPGA ビットストリーム、そしてオープン PDK で RTL から GDSII まで（SiliconCompiler、OpenROAD、KLayout）。どの実行も凍結したスナップショットを密閉コンテナで動かします。AI エージェントは変更を提案するだけで、採否は人が決めます。DRC・LVS・タイミング検査、証拠付きのサインオフ、テープアウト準備パッケージで、すべての結果をたどれます。",
+          "env": {
+            "CHIPOVA_MAX_PARALLEL_RUNS": {
+              "label": "同時実行数（任意）",
+              "help": "同時に動かせる EDA 実行（それぞれ専用のコンテナ）の数。ほかは順番待ちになります。Build ASIC 1 回で最大 6 CPU・6 GB を使います。"
+            }
+          }
+        },
+        "es": {
+          "description": "Diseña chips con tu equipo y agentes de IA: todos editan el mismo Verilog en vivo, cada uno con su cursor; lint, simulación con formas de onda, síntesis, bitstreams de FPGA y de RTL a GDSII (SiliconCompiler, OpenROAD, KLayout con PDK abiertos), cada ejecución en un contenedor sellado sobre una instantánea congelada. Los agentes de IA proponen cambios que las personas aceptan o rechazan; DRC, LVS, comprobación de tiempos, signoff con evidencias y paquetes de preparación de tape-out hacen trazable cada resultado.",
+          "env": {
+            "CHIPOVA_MAX_PARALLEL_RUNS": {
+              "label": "Ejecuciones a la vez (opcional)",
+              "help": "Cuántas ejecuciones EDA (cada una en su contenedor) pueden ir a la vez; las demás esperan en orden. Un Build ASIC usa hasta 6 CPU y 6 GB de memoria."
+            }
+          }
+        }
+      }
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
