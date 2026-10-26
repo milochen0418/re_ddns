@@ -3,7 +3,7 @@
     {
       "id": "ai",
       "name": "AI Hub",
-      "description": "One door between AI and the apps: agents such as Claude Code reach every app's tools through one MCP address, and an assistant does tasks in the apps with Claude or a local Ollama model.",
+      "description": "One door between AI and the apps: agents such as Claude Code reach every app's tools through one MCP address, an assistant does tasks in the apps with Claude or a local Ollama model, and a talking AI (a face that listens and speaks, Whisper and Kokoro on this machine) can be called up in any app, knowing what its page shows.",
       "icon": "bot",
       "subdomain": "ai",
       "github_repo": "https://github.com/milochen0418/ai_hub.git",
@@ -43,7 +43,7 @@
       ],
       "i18n": {
         "zh-Hant": {
-          "description": "AI 和各個 App 之間的一道門：Claude Code 之類的 agent 透過一個 MCP 網址使用所有 App 的工具；助理也能用 Claude 或本機的 Ollama 模型在 App 裡做事。",
+          "description": "AI 和各個 App 之間的一道門：Claude Code 之類的 agent 透過一個 MCP 網址使用所有 App 的工具；助理能用 Claude 或本機的 Ollama 模型在 App 裡做事；還有一個會聽、會說、有表情的 AI 人（Whisper 和 Kokoro 都在本機跑），在任何 App 裡一鍵叫出來，而且知道你眼前的畫面在演什麼。",
           "env": {
             "ANTHROPIC_API_KEY": {
               "label": "Anthropic API 金鑰（選填：用 Claude）",
@@ -60,7 +60,7 @@
           }
         },
         "zh-Hans": {
-          "description": "AI 和各个 App 之间的一道门：Claude Code 之类的 agent 通过一个 MCP 地址使用所有 App 的工具；助理也能用 Claude 或本机的 Ollama 模型在 App 里做事。",
+          "description": "AI 和各个 App 之间的一道门：Claude Code 之类的 agent 通过一个 MCP 地址使用所有 App 的工具；助理能用 Claude 或本机的 Ollama 模型在 App 里做事；还有一个会听、会说、有表情的 AI 人（Whisper 和 Kokoro 都在本机跑），在任何 App 里一键叫出来，而且知道你眼前的画面在演什么。",
           "env": {
             "ANTHROPIC_API_KEY": {
               "label": "Anthropic API 密钥（选填：用 Claude）",
@@ -77,7 +77,7 @@
           }
         },
         "ja": {
-          "description": "AI と各アプリをつなぐ一つの入り口：Claude Code などのエージェントは一つの MCP アドレスで全アプリのツールを使え、アシスタントは Claude かローカルの Ollama モデルでアプリの作業をします。",
+          "description": "AI と各アプリをつなぐ一つの入り口：Claude Code などのエージェントは一つの MCP アドレスで全アプリのツールを使え、アシスタントは Claude かローカルの Ollama モデルでアプリの作業をします。さらに、聞いて話して表情を持つ AI（Whisper と Kokoro はこのマシン上で動作）をどのアプリからもワンタッチで呼び出せ、そのページに何が映っているかを知っています。",
           "env": {
             "ANTHROPIC_API_KEY": {
               "label": "Anthropic API キー（任意：Claude を使う）",
@@ -94,7 +94,7 @@
           }
         },
         "es": {
-          "description": "Una sola puerta entre la IA y las apps: agentes como Claude Code usan las herramientas de todas las apps por una dirección MCP, y un asistente hace tareas en las apps con Claude o un modelo local de Ollama.",
+          "description": "Una sola puerta entre la IA y las apps: agentes como Claude Code usan las herramientas de todas las apps por una dirección MCP, un asistente hace tareas en las apps con Claude o un modelo local de Ollama, y una IA que habla (una cara que escucha y responde en voz alta; Whisper y Kokoro en esta máquina) se llama con un botón desde cualquier app, sabiendo qué muestra su página.",
           "env": {
             "ANTHROPIC_API_KEY": {
               "label": "Clave de API de Anthropic (opcional: Claude)",
