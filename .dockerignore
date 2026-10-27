@@ -14,3 +14,8 @@ uploaded_files
 pkg_cache/data
 .pytest_cache
 .mypy_cache
+# Documentation and notes: never needed inside the image; docs/videos holds
+# multi-GB recording sources (git-ignored, but Docker would copy them).
+docs
+reports
+research_notes
