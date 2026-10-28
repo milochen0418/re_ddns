@@ -898,6 +898,34 @@
       }
     },
     {
+      "id": "mindspar",
+      "name": "Mindspar",
+      "description": "A quiz duel against an AI: you and the model the AI Hub sets for it get the same question at the same moment, bet your confidence, and see who is quicker and right more often. Seven kinds of questions (mental math, making a number, sequences, deduction, counting letters, the day of the week, trick questions) each test one thing a model may or may not be good at, and every match is kept per model, so you can switch the model on the AI Hub and compare.",
+      "icon": "swords",
+      "subdomain": "mindspar",
+      "github_repo": "https://github.com/milochen0418/mindspar.git",
+      "app_name": "mindspar",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["smart-app-mindspar-data:/root/.local/share/mindspar"],
+      "i18n": {
+        "zh-Hant": {
+          "description": "腦力擂台：跟 AI 比賽解題。你和 AI Hub 替它選的模型同時拿到同一題，各自押信心作答，看誰又快又準。七種題型（心算、湊數字、數列、推理排名、數字母、星期幾、陷阱題）各測模型的一種能力；每場結果按模型記下來，在 AI Hub 換個模型再打，就能比較。"
+        },
+        "zh-Hans": {
+          "description": "脑力擂台：跟 AI 比赛解题。你和 AI Hub 替它选的模型同时拿到同一题，各自押信心作答，看谁又快又准。七种题型（心算、凑数字、数列、推理排名、数字母、星期几、陷阱题）各测模型的一种能力；每场结果按模型记下来，在 AI Hub 换个模型再打，就能比较。"
+        },
+        "ja": {
+          "description": "AI とのクイズ対決：あなたと、AI Hub が選んだモデルに同じ問題が同時に出ます。自信の度合いを賭けて答え、どちらが速く正確かを競います。7 種類の問題（暗算、数を作る、数列、順位の推理、文字数え、曜日、ひっかけ問題）がそれぞれモデルの得意・不得意を測り、対戦結果はモデルごとに残るので、AI Hub でモデルを替えて比べられます。"
+        },
+        "es": {
+          "description": "Un duelo de preguntas contra una IA: tú y el modelo que el AI Hub elige para él recibís la misma pregunta a la vez, apostáis vuestra confianza y se ve quién acierta más y antes. Siete tipos de preguntas (cálculo mental, formar un número, series, deducción, contar letras, el día de la semana, preguntas trampa) miden cada uno algo en lo que un modelo puede ser bueno o no, y cada partida se guarda por modelo, para cambiar de modelo en el AI Hub y comparar."
+        }
+      }
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
