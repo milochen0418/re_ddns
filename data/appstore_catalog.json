@@ -926,6 +926,62 @@
       }
     },
     {
+      "id": "snake-duel",
+      "name": "Snake Duel",
+      "description": "Snake against an AI: two snakes on one board after the same food. You steer yours with the arrow keys or by swiping; the model the AI Hub sets for it decides where its snake goes (which food to race you for, or where to block you), and its snake finds the way there. Gold ones are worth three points and crashes cost three; every match is kept per model, so you can switch the model on the AI Hub and compare. A practice snake plays without any AI.",
+      "icon": "worm",
+      "subdomain": "snake-duel",
+      "github_repo": "https://github.com/milochen0418/snake_duel.git",
+      "app_name": "snake_duel",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["smart-app-snake-duel-data:/root/.local/share/snake_duel"],
+      "i18n": {
+        "zh-Hant": {
+          "description": "雙蛇搶食：跟 AI 玩貪食蛇對戰。兩條蛇在同一塊場地搶同一批食物：你用方向鍵（手機用滑的）控制自己的蛇；AI Hub 替它選的模型決定它的蛇要去哪裡（跟你搶哪一顆、或去哪裡擋你），蛇再自己找路過去。金果 3 分、撞到扣 3 分；每場結果按模型記下來，在 AI Hub 換個模型再打就能比較。沒有 AI 也能跟內建的練習蛇玩。"
+        },
+        "zh-Hans": {
+          "description": "双蛇抢食：跟 AI 玩贪食蛇对战。两条蛇在同一块场地抢同一批食物：你用方向键（手机用滑的）控制自己的蛇；AI Hub 替它选的模型决定它的蛇要去哪里（跟你抢哪一颗、或去哪里挡你），蛇再自己找路过去。金果 3 分、撞到扣 3 分；每场结果按模型记下来，在 AI Hub 换个模型再打就能比较。没有 AI 也能跟内置的练习蛇玩。"
+        },
+        "ja": {
+          "description": "AI とのスネーク対戦：2 匹のヘビが同じフィールドで同じエサを取り合います。あなたは矢印キー（スマホではスワイプ）で自分のヘビを動かし、AI Hub が選んだモデルが相手のヘビの行き先（どのエサを狙うか、どこであなたをふさぐか）を決め、ヘビは自分で道を見つけて向かいます。金のエサは 3 点、ぶつかると 3 点減点。対戦結果はモデルごとに残るので、AI Hub でモデルを替えて比べられます。AI なしで練習用のヘビとも遊べます。"
+        },
+        "es": {
+          "description": "La serpiente contra una IA: dos serpientes en el mismo tablero tras la misma comida. Tú guías la tuya con las flechas o deslizando el dedo; el modelo que el AI Hub elige para él decide adónde va su serpiente (qué comida disputarte o dónde cerrarte el paso), y ella encuentra el camino. La dorada vale tres puntos y chocar cuesta tres; cada partida se guarda por modelo, para cambiar de modelo en el AI Hub y comparar. Una serpiente de práctica juega sin ninguna IA."
+        }
+      }
+    },
+    {
+      "id": "apexline",
+      "name": "Apexline",
+      "description": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed.",
+      "icon": "flag",
+      "subdomain": "apexline",
+      "github_repo": "https://github.com/milochen0418/apexline.git",
+      "app_name": "apexline",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["smart-app-apexline-data:/root/.local/share/apexline"],
+      "i18n": {
+        "zh-Hant": {
+          "description": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。"
+        },
+        "zh-Hans": {
+          "description": "极速对决：在同一个画面跟 AI 赛车，左边是你、右边是 AI，各自从自己的车后面看，两台车可以互撞。10 条赛道各有风景（环道、海边夕阳、发夹山路、会交叉的 8 字、城市街道、冰湖、沙丘、夜间、雨天、大奖赛）。AI 是 AI Hub 替它选的模型：先研究赛道，替每个弯定速度、决定要不要挡你或撞你，每跑完一圈再改计划；结束时把它的计划和抓地力允许的极限并排给你看。"
+        },
+        "ja": {
+          "description": "AI と同じ画面でレース：左があなた、右が AI、それぞれ自分の車の後ろから見ます。車同士はぶつかれます。10 のコースはそれぞれ違う景色（オーバル、夕日の海岸、山のヘアピン、交差する 8 の字、市街地、凍った湖、砂丘、夜、雨、グランプリ）。AI は AI Hub が選んだモデルで、コースを研究してコーナーごとの速度とあなたへの攻め方を決め、1 周ごとに計画を直します。レース後は計画とグリップの限界を並べて見せます。"
+        },
+        "es": {
+          "description": "Una carrera en 3D contra una IA en una sola pantalla: tú a la izquierda y la IA a la derecha, cada uno detrás de su coche; los coches pueden chocar. Diez circuitos, cada uno con su paisaje (un óvalo, una costa al atardecer, horquillas de montaña, un ocho que se cruza, calles de ciudad, un lago helado, dunas, un circuito nocturno, lluvia, un Gran Premio). La IA es el modelo que el AI Hub elige para él: estudia el circuito, planea la velocidad de cada curva y cuánto pelearte, y cambia el plan tras cada vuelta; al final muestra sus planes junto al límite del agarre."
+        }
+      }
+    },
+    {
       "id": "instagram-story-downloader",
       "name": "Instagram Story Downloader",
       "description": "MiStories — back up your Instagram Stories. Uses a headless browser (Playwright) and yt-dlp.",
