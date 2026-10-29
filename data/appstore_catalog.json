@@ -928,7 +928,7 @@
     {
       "id": "snake-duel",
       "name": "Snake Duel",
-      "description": "Snake against an AI: two snakes on one board after the same food. You steer yours with the arrow keys or by swiping; the model the AI Hub sets for it decides where its snake goes (which food to race you for, or where to block you), and its snake finds the way there. Gold ones are worth three points and crashes cost three; every match is kept per model, so you can switch the model on the AI Hub and compare. A practice snake plays without any AI.",
+      "description": "Snake against an AI: snakes on one board after the same food, one on one or a free-for-all against two to four AI snakes. You steer yours with the arrow keys or by swiping; for each AI snake the model the AI Hub sets decides where it goes (which food to race for, or where to block), and the snake finds the way there. Gold ones are worth three points and crashes cost three; every match is kept per model and mode, so you can switch the model on the AI Hub and compare. Practice snakes play without any AI.",
       "icon": "worm",
       "subdomain": "snake-duel",
       "github_repo": "https://github.com/milochen0418/snake_duel.git",
@@ -940,16 +940,16 @@
       "volumes": ["smart-app-snake-duel-data:/root/.local/share/snake_duel"],
       "i18n": {
         "zh-Hant": {
-          "description": "雙蛇搶食：跟 AI 玩貪食蛇對戰。兩條蛇在同一塊場地搶同一批食物：你用方向鍵（手機用滑的）控制自己的蛇；AI Hub 替它選的模型決定它的蛇要去哪裡（跟你搶哪一顆、或去哪裡擋你），蛇再自己找路過去。金果 3 分、撞到扣 3 分；每場結果按模型記下來，在 AI Hub 換個模型再打就能比較。沒有 AI 也能跟內建的練習蛇玩。"
+          "description": "雙蛇搶食：跟 AI 玩貪食蛇對戰，可以 1 對 1，也可以跟 2 到 4 條 AI 蛇混戰。大家在同一塊場地搶同一批食物：你用方向鍵（手機用滑的）控制自己的蛇；每條 AI 蛇都由 AI Hub 替它選的模型決定要去哪裡（搶哪一顆、或去哪裡擋路），蛇再自己找路過去。金果 3 分、撞到扣 3 分；每場結果按模型和模式記下來，在 AI Hub 換個模型再打就能比較。沒有 AI 也能跟內建的練習蛇玩。"
         },
         "zh-Hans": {
-          "description": "双蛇抢食：跟 AI 玩贪食蛇对战。两条蛇在同一块场地抢同一批食物：你用方向键（手机用滑的）控制自己的蛇；AI Hub 替它选的模型决定它的蛇要去哪里（跟你抢哪一颗、或去哪里挡你），蛇再自己找路过去。金果 3 分、撞到扣 3 分；每场结果按模型记下来，在 AI Hub 换个模型再打就能比较。没有 AI 也能跟内置的练习蛇玩。"
+          "description": "双蛇抢食：跟 AI 玩贪食蛇对战，可以 1 对 1，也可以跟 2 到 4 条 AI 蛇混战。大家在同一块场地抢同一批食物：你用方向键（手机用滑的）控制自己的蛇；每条 AI 蛇都由 AI Hub 替它选的模型决定要去哪里（抢哪一颗、或去哪里挡路），蛇再自己找路过去。金果 3 分、撞到扣 3 分；每场结果按模型和模式记下来，在 AI Hub 换个模型再打就能比较。没有 AI 也能跟内置的练习蛇玩。"
         },
         "ja": {
-          "description": "AI とのスネーク対戦：2 匹のヘビが同じフィールドで同じエサを取り合います。あなたは矢印キー（スマホではスワイプ）で自分のヘビを動かし、AI Hub が選んだモデルが相手のヘビの行き先（どのエサを狙うか、どこであなたをふさぐか）を決め、ヘビは自分で道を見つけて向かいます。金のエサは 3 点、ぶつかると 3 点減点。対戦結果はモデルごとに残るので、AI Hub でモデルを替えて比べられます。AI なしで練習用のヘビとも遊べます。"
+          "description": "AI とのスネーク対戦：1 対 1 でも、2〜4 匹の AI ヘビとのバトルロイヤルでも遊べます。みんな同じフィールドで同じエサを取り合います。あなたは矢印キー（スマホではスワイプ）で自分のヘビを動かし、AI ヘビそれぞれの行き先（どのエサを狙うか、どこでふさぐか）は AI Hub が選んだモデルが決め、ヘビは自分で道を見つけて向かいます。金のエサは 3 点、ぶつかると 3 点減点。対戦結果はモデルとモードごとに残るので、AI Hub でモデルを替えて比べられます。AI なしで練習用のヘビとも遊べます。"
         },
         "es": {
-          "description": "La serpiente contra una IA: dos serpientes en el mismo tablero tras la misma comida. Tú guías la tuya con las flechas o deslizando el dedo; el modelo que el AI Hub elige para él decide adónde va su serpiente (qué comida disputarte o dónde cerrarte el paso), y ella encuentra el camino. La dorada vale tres puntos y chocar cuesta tres; cada partida se guarda por modelo, para cambiar de modelo en el AI Hub y comparar. Una serpiente de práctica juega sin ninguna IA."
+          "description": "La serpiente contra una IA: serpientes en el mismo tablero tras la misma comida, uno contra uno o todos contra todos con dos a cuatro serpientes IA. Tú guías la tuya con las flechas o deslizando el dedo; para cada serpiente IA, el modelo que elige el AI Hub decide adónde va (qué comida disputar o dónde cerrar el paso), y ella encuentra el camino. La dorada vale tres puntos y chocar cuesta tres; cada partida se guarda por modelo y modo, para cambiar de modelo en el AI Hub y comparar. Las serpientes de práctica juegan sin ninguna IA."
         }
       }
     },
