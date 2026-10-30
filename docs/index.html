@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agentic App Store: your own app store, where apps and AI work together</title>
+<meta name="description" content="Agentic App Store installs open-source Python Reflex apps from GitHub on your own computer or server in one click. Each app gets its own HTTPS address, apps work together, and AI agents use their tools through the AI Hub.">
+<link rel="canonical" href="https://milochen0418.github.io/re_ddns/">
+<link rel="icon" href="site/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="site/img/apple-touch-icon.png">
+<meta name="theme-color" content="#0b0e17">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Agentic App Store">
+<meta property="og:title" content="Agentic App Store">
+<meta property="og:description" content="一鍵把開源 App 裝到你自己的電腦，App 之間會合作，AI 透過 AI Hub 使用它們的工具。Install open-source apps on your own computer in one click: apps that work together and with AI.">
+<meta property="og:url" content="https://milochen0418.github.io/re_ddns/">
+<meta property="og:image" content="https://milochen0418.github.io/re_ddns/site/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Agentic App Store: your own app store, where apps and AI work together">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Sora:wght@600;700&amp;display=swap">
+<link rel="stylesheet" href="site/site.css">
+<script>
+  // Pick the language before the page paints: ?lang=en|zh, then the saved choice, then the browser.
+  (function () {
+    var l = null;
+    try { l = new URLSearchParams(location.search).get("lang"); } catch (e) {}
+    if (l) l = /^zh/i.test(l) ? "zh-Hant" : "en";
+    if (!l) { try { l = localStorage.getItem("aas-lang"); } catch (e) {} }
+    if (l !== "en" && l !== "zh-Hant") {
+      var ls = navigator.languages || [navigator.language || ""];
+      l = Array.prototype.some.call(ls, function (x) { return /^zh/i.test(x); }) ? "zh-Hant" : "en";
+    }
+    document.documentElement.lang = l;
+  })();
+</script>
+</head>
+<body>
+<a class="skip" href="#main"><span lang="en">Skip to content</span><span lang="zh-Hant">跳到主要內容</span></a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="site/favicon.svg" alt="" width="30" height="30">Agentic App Store</a>
+    <nav class="nav-links">
+      <a href="#how"><span lang="en">How it works</span><span lang="zh-Hant">運作方式</span></a>
+      <a href="#apps"><span lang="en">Apps</span><span lang="zh-Hant">App 目錄</span></a>
+      <a href="#videos"><span lang="en">Videos</span><span lang="zh-Hant">影片</span></a>
+      <a href="#start"><span lang="en">Get started</span><span lang="zh-Hant">開始使用</span></a>
+    </nav>
+    <div class="nav-icons">
+      <a class="icon-btn" href="https://github.com/milochen0418/re_ddns" aria-label="GitHub" title="GitHub"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+      <a class="icon-btn opt" href="https://www.youtube.com/@milochenmilochen" aria-label="YouTube" title="YouTube"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></a>
+      <a class="icon-btn opt" href="https://www.facebook.com/profile.php?id=61595998981597" aria-label="Facebook" title="Facebook"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg></a>
+      <button class="lang-btn" id="lang-btn" type="button">中文</button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<section class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg><span lang="en">Open source · Self-hosted · Built with Python Reflex</span><span lang="zh-Hant">開源 · 自架 · 用 Python Reflex 打造</span></span>
+      <h1><span lang="en">Your own app store, <em class="hl">where apps and AI work together</em></span><span lang="zh-Hant">你自己的 <span class="nw">App Store</span>，<br><em class="hl">讓 App 和 AI 一起工作</em></span></h1>
+      <p class="lead" lang="en">Install open-source Python Reflex apps from GitHub on your own computer or server in one click. Every app gets its own HTTPS address. Apps open each other and share files, and AI agents use their tools through one door.</p>
+      <p class="lead" lang="zh-Hant">一鍵把 GitHub 上的開源 Python Reflex App 裝到你自己的電腦或伺服器。每個 App 都有自己的 HTTPS 網址；App 之間能互相開啟、共用檔案；AI agent 則透過同一道門使用它們的工具。</p>
+      <div class="cta">
+        <a class="btn btn-gold" href="https://github.com/milochen0418/re_ddns"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><span lang="en">Get it on GitHub</span><span lang="zh-Hant">到 GitHub 取得</span></a>
+        <a class="btn" href="#demo"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"/></svg><span lang="en">Watch the 1-minute demo</span><span lang="zh-Hant">看 1 分鐘示範</span></a>
+        <a class="btn" href="https://www.facebook.com/profile.php?id=61595998981597"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg><span lang="en">Follow on Facebook</span><span lang="zh-Hant">追蹤 Facebook 粉專</span></a>
+      </div>
+      <div class="stats">
+        <div class="stat"><b data-count>30</b><span lang="en">apps in the catalog</span><span lang="zh-Hant">個 App 可以安裝</span></div>
+        <div class="stat"><b>5</b><span lang="en">languages in the store</span><span lang="zh-Hant">種商店介面語言</span></div>
+        <div class="stat"><b>1</b><span lang="en">MCP address for AI agents</span><span lang="zh-Hant">個 MCP 網址給 AI agent</span></div>
+        <div class="stat"><b>MIT</b><span lang="en">open-source license</span><span lang="zh-Hant">開源授權</span></div>
+      </div>
+    </div>
+    <div class="frame">
+      <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">https://aapps.reflex-ddns.com</span></div>
+      <img src="site/img/store.webp" width="1440" height="900" fetchpriority="high" alt="The Agentic App Store page: a card for each app with Install, Open and Stop buttons">
+    </div>
+  </div>
+</section>
+
+<section class="section" id="why">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">Why Agentic App Store</span><span lang="zh-Hant">為什麼用 Agentic App Store</span></span>
+      <h2><span lang="en">Apps you own, ready for AI</span><span lang="zh-Hant">App 是你自己的，也準備好和 AI 合作</span></h2>
+      <p lang="en">Everything runs on your own machine, in Docker, and apps keep their data there. For AI, choose Claude or a model that runs on your own computer through Ollama.</p>
+      <p lang="zh-Hant">一切都在你自己的機器上、在 Docker 裡執行，App 的資料也存在那裡。AI 可以選 Claude，也可以選透過 Ollama 在你自己電腦上跑的模型。</p>
+    </div>
+    <div class="cards">
+      <article class="card">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V12"/><path d="M16 17h6"/><path d="M19 14v6"/><path d="M21 10.535V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.729l7 4a2 2 0 0 0 2 .001l1.675-.955"/><path d="M3.29 7 12 12l8.71-5"/><path d="m7.5 4.27 8.997 5.148"/></svg></div>
+        <h3><span lang="en">One click to install</span><span lang="zh-Hant">一鍵安裝</span></h3>
+        <p lang="en">Pick an app and press Install. The store downloads it from GitHub, installs what it needs and starts it in its own container, with a live progress bar. No terminal needed.</p>
+        <p lang="zh-Hant">選好 App 按下 Install，商店就從 GitHub 下載、裝好它需要的套件，在它自己的容器裡啟動，進度即時顯示，不必開終端機。</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <h3><span lang="en">HTTPS for every app</span><span lang="zh-Hant">每個 App 都有 HTTPS 網址</span></h3>
+        <p lang="en">Built-in DNS, a local certificate authority and a proxy give each app an address like grid.reflex-ddns.com with a green padlock. Other computers on your network join with one script.</p>
+        <p lang="zh-Hant">內建 DNS、本機憑證中心和反向代理，讓每個 App 都有像 grid.reflex-ddns.com 這樣、有綠色鎖頭的網址。網路裡的其他電腦，跑一個腳本就能加入。</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>
+        <h3><span lang="en">One door for AI</span><span lang="zh-Hant">AI 走同一道門</span></h3>
+        <p lang="en">The AI Hub app connects AI to the apps. Agents such as Claude Code use the tools apps offer through one MCP address, and an assistant can do tasks inside the apps.</p>
+        <p lang="zh-Hant">AI Hub 負責把 AI 接到各個 App：Claude Code 之類的 agent 透過一個 MCP 網址使用 App 提供的工具，助理也能直接在 App 裡幫你做事。</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg></div>
+        <h3><span lang="en">Apps that work together</span><span lang="zh-Hant">App 之間會合作</span></h3>
+        <p lang="en">Apps open each other's pages as dialogs, which is how a notebook, a spreadsheet or an image viewer can start a call. They share files through collections: one app downloads DICOM images, another shows them.</p>
+        <p lang="zh-Hant">App 能把彼此的頁面當成對話框打開，所以筆記本、試算表、影像檢視器都能直接發起通話；也能透過 collections 共用檔案：一個 App 下載 DICOM 影像，另一個 App 直接顯示。</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">How it works</span><span lang="zh-Hant">運作方式</span></span>
+      <h2><span lang="en">From a GitHub repo to a running app</span><span lang="zh-Hant">從 GitHub 專案到正在執行的 App</span></h2>
+      <p lang="en">The App Store asks re-ddns, the core container, to start a Smart Launcher container for the app. re-ddns gives the app its name in DNS, signs a certificate for it and adds it to the proxy.</p>
+      <p lang="zh-Hant">App Store 請核心容器 re-ddns 替 App 開一個 Smart Launcher 容器；re-ddns 再替它登記 DNS 名稱、簽發憑證，並把它加進反向代理。</p>
+    </div>
+    <div class="flow">
+      <div class="node"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><b>GitHub</b><small><span lang="en">Any Reflex app</span><span lang="zh-Hant">任何 Reflex App</span></small></div>
+      <div class="arrow" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span lang="en">install</span><span lang="zh-Hant">安裝</span></div>
+      <div class="node"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/></svg><b>App Store</b><small><span lang="en">One click, live progress</span><span lang="zh-Hant">一鍵安裝，進度即時顯示</span></small></div>
+      <div class="arrow" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span lang="en">starts</span><span lang="zh-Hant">啟動</span></div>
+      <div class="node"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg><b>Smart Launcher</b><small><span lang="en">Clone, install and run, in its own container</span><span lang="zh-Hant">下載、安裝、執行，各自一個容器</span></small></div>
+      <div class="arrow" aria-hidden="true"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg><span lang="en">registers</span><span lang="zh-Hant">註冊</span></div>
+      <div class="node end"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><b><span lang="en">Its own address</span><span lang="zh-Hant">專屬網址</span></b><span class="mono">https://name.reflex-ddns.com</span><small><span lang="en">DNS, certificate and proxy, done for you</span><span lang="zh-Hant">DNS、憑證、反向代理自動完成</span></small></div>
+    </div>
+    <p class="loop"><span class="pill"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg><span lang="en">Apps that offer tools are found by the AI Hub, which hands them to AI agents through one MCP address.</span><span lang="zh-Hant">有提供工具的 App 會被 AI Hub 找到，再透過一個 MCP 網址交給 AI agent 使用。</span></span></p>
+    <div class="shots">
+      <figure class="shot">
+        <img src="site/img/storage.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The Storage page: a searchable list of items that apps share">
+        <figcaption><span lang="en"><b>Storage</b>: the files apps share, with search, Open with another app and quotas.</span><span lang="zh-Hant"><b>Storage</b>：App 共用的檔案，可以搜尋、用別的 App 開啟、設定配額。</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="site/img/monitor.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The Memory page: memory used by the Docker VM and by each app's container">
+        <figcaption><span lang="en"><b>Memory</b>: how much memory each app's container uses, with limits and restarts.</span><span lang="zh-Hant"><b>Memory</b>：每個 App 的容器用了多少記憶體，可以設上限、重新啟動。</span></figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="site/img/home.webp" width="1280" height="800" loading="lazy" decoding="async" alt="The Re-DDNS control panel: DNS records of the registered apps">
+        <figcaption><span lang="en"><b>Re-DDNS control panel</b>: the DNS records of every app that registered.</span><span lang="zh-Hant"><b>Re-DDNS 控制台</b>：每個已註冊 App 的 DNS 紀錄。</span></figcaption>
+      </figure>
+    </div>
+    <figure class="shot wide">
+      <a href="images/AgenticAppStore-Arch.png"><img src="site/img/arch.webp" width="1536" height="1024" loading="lazy" decoding="async" alt="Architecture diagram of the Agentic App Store: users, the developer ecosystem, AI agents and where it can be deployed"></a>
+      <figcaption><span lang="en"><b>Architecture</b>: the people who use the store, the developers who publish apps, and the AI agents that connect to it. Parts marked Future, such as conversational search, are plans.</span><span lang="zh-Hant"><b>架構圖</b>：使用商店的人、上架 App 的開發者，以及接進來的 AI agent。標示 Future 的部分（例如對話式搜尋）還在規劃中。</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="demo">
+  <div class="wrap demo">
+    <video controls preload="none" playsinline poster="site/img/demo-poster.webp" width="1280" height="833">
+      <source src="videos/AgenticAppStore-1min-demo.mp4" type="video/mp4">
+    </video>
+    <div>
+      <span class="kicker"><span lang="en">See it in action</span><span lang="zh-Hant">實際操作</span></span>
+      <h2><span lang="en">One minute, from the store to a running app</span><span lang="zh-Hant">一分鐘：從商店到 App 跑起來</span></h2>
+      <p lang="en">In this recording the store installs Video Segment Splitter while a progress bar shows each step. The app then opens at its own HTTPS address and splits a video.</p>
+      <p lang="zh-Hant">這段錄影裡，商店安裝 Video Segment Splitter，進度條顯示每一步；裝好後，App 在它自己的 HTTPS 網址打開，接著切割一段影片。</p>
+      <a class="btn" href="https://www.youtube.com/watch?v=dbz7ta0M1TM"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg><span lang="en">Full 17-minute demo on YouTube</span><span lang="zh-Hant">YouTube 上的 17 分鐘完整示範</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="apps">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">The catalog</span><span lang="zh-Hant">App 目錄</span></span>
+      <h2><span lang="en"><span data-count>30</span> apps, ready to install</span><span lang="zh-Hant"><span data-count>30</span> 個 App，隨時可以安裝</span></h2>
+      <p lang="en">Tools to create together, medical imaging, meetings, games against AI and everyday media tools. The code of every one of them is public on GitHub.</p>
+      <p lang="zh-Hant">一起創作的工具、醫學影像、聊天會議、跟 AI 對戰的遊戲，還有日常的影音工具。每一個的原始碼都公開在 GitHub 上。</p>
+    </div>
+    <div class="toolbar">
+      <div class="filters" id="filters" role="group"></div>
+      <label class="sr" for="app-search" id="app-search-label">Search apps</label>
+      <input class="search" id="app-search" type="search" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="apps" id="app-grid"></div>
+    <p class="empty" id="app-empty" hidden></p>
+    <noscript><p class="empty"><span lang="en">The app list needs JavaScript. You can also read the <a href="https://github.com/milochen0418/re_ddns/blob/main/data/appstore_catalog.json">catalog on GitHub</a>.</span><span lang="zh-Hant">App 清單需要 JavaScript。也可以直接看 <a href="https://github.com/milochen0418/re_ddns/blob/main/data/appstore_catalog.json">GitHub 上的目錄檔</a>。</span></p></noscript>
+    <p class="note"><span lang="en">Your app could be next: <a href="#start">add it to the catalog</a>.</span><span lang="zh-Hant">下一個上架的可以是你的 App：<a href="#start">把它加進目錄</a>。</span></p>
+  </div>
+</section>
+
+<section class="section" id="stories">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">Apps working together</span><span lang="zh-Hant">App 一起合作</span></span>
+      <h2><span lang="en">What apps can do together</span><span lang="zh-Hant">App 合在一起能做什麼</span></h2>
+    </div>
+    <div class="story">
+      <img src="site/img/apps/dicom-viewer.webp" width="1280" height="800" loading="lazy" decoding="async" alt="DICOM Viewer showing a CT scan in three views with segmentation outlines">
+      <div>
+        <span class="kicker"><span lang="en">Healthcare</span><span lang="zh-Hant">醫療</span></span>
+        <h3><span lang="en">Starting with healthcare</span><span lang="zh-Hant">從醫療開始</span></h3>
+        <p lang="en">PACS Lab starts a practice PACS, the kind of image archive a hospital uses. DICOM Data Explorer finds public research images and downloads them into the shared dicom collection. DICOM Viewer shows them in one or three views with annotations, and one link brings everyone to the same view, with a call.</p>
+        <p lang="zh-Hant">PACS Lab 開一台練習用的 PACS，也就是醫院存放影像的那種系統；DICOM Data Explorer 搜尋公開的研究影像，下載到共用的 dicom collection；DICOM Viewer 用單一或三個視角顯示影像和標註，分享一個連結，大家就看同一個畫面，還能通話。</p>
+        <p class="fine" lang="en">For research, teaching and discussion; not for diagnosis.</p>
+        <p class="fine" lang="zh-Hant">供研究、教學與討論使用，不作診斷用途。</p>
+        <a class="btn" lang="en" href="https://www.youtube.com/watch?v=xwQz1Xm6ZZk"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>Watch: reviewing radiotherapy contours together</a>
+        <a class="btn" lang="zh-Hant" href="https://www.youtube.com/watch?v=RkApttGQEMM"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>觀看：一起討論放療描線</a>
+      </div>
+    </div>
+    <div class="story rev">
+      <img src="site/img/apps/cad-roam.webp" width="1280" height="800" loading="lazy" decoding="async" alt="CAD Roam: visitors standing in front of a church model built in Codoc in CAD">
+      <div>
+        <span class="kicker"><span lang="en">AI and 3D</span><span lang="zh-Hant">AI 與 3D</span></span>
+        <h3><span lang="en">Say it, build it, walk in</span><span lang="zh-Hant">說出來，蓋出來，走進去</span></h3>
+        <p lang="en">Through the AI Hub, Claude Code writes build123d code in Codoc in CAD, then looks at the result in CAD Roam and improves it, round after round. When it is done, people walk into the building together, at its real size.</p>
+        <p lang="zh-Hant">透過 AI Hub，Claude Code 在 Codoc in CAD 裡寫 build123d 程式，再到 CAD Roam 看看成果、繼續修改，一輪接一輪。完成後，大家一起照真實大小走進建築裡。</p>
+        <a class="btn" lang="en" href="https://www.youtube.com/watch?v=jR9b1qqIzzM"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>Watch the AI × CAD video</a>
+        <a class="btn" lang="zh-Hant" href="https://www.youtube.com/watch?v=Y_98JTrUKoY"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>看 AI × CAD 影片</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="videos">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">Videos</span><span lang="zh-Hant">影片</span></span>
+      <h2><span lang="en">Watch the apps at work</span><span lang="zh-Hant">看 App 實際運作</span></h2>
+      <p lang="en">Demos and tutorials from the YouTube channel. A video loads from YouTube only when you press play.</p>
+      <p lang="zh-Hant">YouTube 頻道上的示範與教學。按下播放後，影片才會從 YouTube 載入。</p>
+    </div>
+    <div class="videos" id="video-grid"></div>
+    <p class="center"><a class="btn" href="https://www.youtube.com/@milochenmilochen/videos"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg><span lang="en">More on YouTube</span><span lang="zh-Hant">到 YouTube 看更多</span></a></p>
+  </div>
+</section>
+
+<section class="section" id="start">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">Get started</span><span lang="zh-Hant">開始使用</span></span>
+      <h2><span lang="en">Run it on your own Mac</span><span lang="zh-Hant">在你自己的 Mac 上跑起來</span></h2>
+      <p lang="en">Agentic App Store is part of re_ddns, an open-source platform that gives Reflex apps private HTTPS addresses. You need Docker Desktop. One script builds and starts everything, then sets up DNS and the certificate on your Mac.</p>
+      <p lang="zh-Hant">Agentic App Store 是開源專案 re_ddns 的一部分；re_ddns 讓 Reflex App 擁有私有的 HTTPS 網址。你需要 Docker Desktop，一個腳本就會建置並啟動所有服務，再替你的 Mac 設好 DNS 和憑證。</p>
+    </div>
+    <div class="start">
+      <div>
+        <pre><code>git clone https://github.com/milochen0418/re_ddns.git
+cd re_ddns
+./rerun_from_zero.sh</code></pre>
+        <p lang="en">When it finishes, open these in your browser:</p>
+        <p lang="zh-Hant">完成後，用瀏覽器打開：</p>
+        <ul class="urls">
+          <li><code>https://aapps.reflex-ddns.com</code><span>Agentic App Store</span></li>
+          <li><code>https://home.reflex-ddns.com</code><span lang="en">Re-DDNS control panel</span><span lang="zh-Hant">Re-DDNS 控制台</span></li>
+          <li><code>https://ai.reflex-ddns.com</code><span lang="en">AI Hub, once you install it</span><span lang="zh-Hant">AI Hub（安裝之後）</span></li>
+        </ul>
+        <p class="fine" lang="en">These addresses work on your own network after setup, not on the public internet.</p>
+        <p class="fine" lang="zh-Hant">這些網址要在設定好的自家網路裡才連得到，不在公開網路上。</p>
+      </div>
+      <div>
+        <h3><span lang="en">Put your app in the store</span><span lang="zh-Hant">把你的 App 放上架</span></h3>
+        <p lang="en">Any Reflex app on GitHub can join. Add an entry to <code>data/appstore_catalog.json</code> and open a pull request.</p>
+        <p lang="zh-Hant">GitHub 上任何 Reflex App 都能上架：在 <code>data/appstore_catalog.json</code> 加一筆資料，再發一個 pull request。</p>
+        <pre><code>{
+  "id": "my-app",
+  "name": "My App",
+  "description": "Does something useful.",
+  "icon": "star",
+  "subdomain": "my-app",
+  "github_repo": "https://github.com/you/my_app.git",
+  "app_name": "my_app",
+  "branch": "main",
+  "commit": "",
+  "subdir": "",
+  "env_file": "",
+  "volumes": []
+}</code></pre>
+        <ul class="linklist">
+          <li><a href="https://github.com/milochen0418/re_ddns#readme"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span lang="en">README: setup, catalog fields and the Smart Launcher</span><span lang="zh-Hant">README：安裝、目錄欄位與 Smart Launcher</span></a></li>
+          <li><a href="https://github.com/milochen0418/re_ddns/blob/main/docs/collections.md"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span lang="en">Collections: sharing data between apps</span><span lang="zh-Hant">Collections：App 之間怎麼共用資料</span></a></li>
+          <li><a href="https://github.com/milochen0418/reflex_ddns_auth"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span lang="en">reflex_ddns_auth: sign-in, intents, shared data and AI tools for apps</span><span lang="zh-Hant">reflex_ddns_auth：App 的登入、Intent、共用資料與 AI 工具</span></a></li>
+          <li><a href="https://hackmd.io/@milochen0418/PyCon-TW-2026-Sprint-Guide"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg><span lang="en">PyCon TW 2026 sprint guide</span><span lang="zh-Hant">PyCon TW 2026 Sprint 指南</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt" id="vision">
+  <div class="wrap">
+    <span class="kicker"><span lang="en">Vision</span><span lang="zh-Hant">願景</span></span>
+    <h2><span lang="en">A global network of builders, starting with healthcare</span><span lang="zh-Hant">從醫療出發，連起全球的開發者</span></h2>
+    <blockquote class="quote">
+      <p lang="en">I hope the Agentic App Store can grow from an open-source community into a decentralized global network of developers and builders. We can start with healthcare, creating useful applications that solve real problems while also giving developers the opportunity to build meaningful sources of passive income.</p>
+      <p lang="zh-Hant">我希望 Agentic App Store 能從一個開源社群，成長為去中心化、遍布全球的開發者與創作者網路。我們可以從醫療開始，做出能解決真實問題的實用 App，同時讓開發者有機會建立有意義的被動收入。</p>
+      <p lang="en"><b>Find valuable applications before others do, identify meaningful problems, and start building early.</b></p>
+      <p lang="zh-Hant"><b>比別人更早發現有價值的應用，找出值得解決的問題，及早開始動手。</b></p>
+      <footer><span lang="en">Milo Chen, creator of re_ddns · <a href="https://github.com/milochen0418/re_ddns#vision">Read the full vision</a></span><span lang="zh-Hant">Milo Chen，re_ddns 作者 · <a href="https://github.com/milochen0418/re_ddns#vision">閱讀完整願景（英文）</a></span></footer>
+    </blockquote>
+  </div>
+</section>
+
+<section class="section" id="follow">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker"><span lang="en">Follow along</span><span lang="zh-Hant">持續關注</span></span>
+      <h2><span lang="en">Follow the project</span><span lang="zh-Hant">追蹤這個專案</span></h2>
+    </div>
+    <div class="follow">
+      <a href="https://github.com/milochen0418/re_ddns"><span class="ic"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></span><span><b>GitHub</b><small><span lang="en">Star re_ddns and see new apps arrive</span><span lang="zh-Hant">幫 re_ddns 按顆星，看新 App 上架</span></small></span></a>
+      <a href="https://www.facebook.com/profile.php?id=61595998981597"><span class="ic"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"/></svg></span><span><b><span lang="en">Facebook page</span><span lang="zh-Hant">Facebook 粉專</span></b><small><span lang="en">News, demos and events</span><span lang="zh-Hant">最新消息、示範與活動</span></small></span></a>
+      <a href="https://www.youtube.com/@milochenmilochen"><span class="ic"><svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></span><span><b>YouTube</b><small><span lang="en">Demos and tutorials</span><span lang="zh-Hant">示範與教學影片</span></small></span></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <span lang="en">© 2026 Milo Chen. re_ddns is open source under the MIT License.</span><span lang="zh-Hant">© 2026 Milo Chen。re_ddns 以 MIT 授權開源。</span>
+    <span lang="en">Icons: Lucide (ISC) and Simple Icons (CC0).</span><span lang="zh-Hant">圖示：Lucide（ISC）與 Simple Icons（CC0）。</span>
+  </div>
+</footer>
+
+<script src="site/apps.js"></script>
+<script src="site/site.js"></script>
+</body>
+</html>

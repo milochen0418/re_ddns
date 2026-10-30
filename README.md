@@ -7,6 +7,8 @@
 
 > **TL;DR** — Run one script. Get a local HTTPS network where every Reflex app gets its own `https://<name>.reflex-ddns.com` with a green padlock. Then open the **Agentic App Store** and install apps from GitHub in one click — no shell commands needed.
 
+**Website:** <https://milochen0418.github.io/re_ddns/> · **Facebook:** [Agentic App Store](https://www.facebook.com/profile.php?id=61595998981597) · **YouTube:** [demos and tutorials](https://www.youtube.com/@milochenmilochen)
+
 > Before working on this project, read [AGENTS.md](AGENTS.md) for required workflows and tooling expectations.
 
 ---
@@ -228,6 +230,8 @@ To add your own app, append an entry to `data/appstore_catalog.json`:
 ```
 
 `icon` accepts any [Lucide](https://lucide.dev/icons/) icon name.
+
+The [website](https://milochen0418.github.io/re_ddns/) lists the catalog too. After editing it, run `python3 docs/site/update_apps.py` so the site shows the change; [docs/site/README.md](docs/site/README.md) says how to add the app's picture.
 
 Optional fields:
 
