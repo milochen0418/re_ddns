@@ -7,7 +7,7 @@ The project website is [docs/index.html](../index.html), published by GitHub Pag
 | `docs/index.html` | The page. English and Traditional Chinese sit side by side (`lang="en"` / `lang="zh-Hant"` elements) and the language button shows one of them. Icons are inlined SVGs. |
 | `docs/.nojekyll` | Tells GitHub Pages to serve the folder as it is, without Jekyll. |
 | `docs/site/site.css` | Styles. |
-| `docs/site/site.js` | Language switch, the app list (filters, search) and the video list (`VIDEOS`). |
+| `docs/site/site.js` | Language switch, the app list (filters, search), the video list (`VIDEOS`), the videos of each app (`APP_VIDEOS`) and the dialog that plays them. |
 | `docs/site/apps.js` | The app list, generated from `data/appstore_catalog.json`. Do not edit it by hand. |
 | `docs/site/update_apps.py` | Writes `apps.js`. |
 | `docs/site/img/` | Screenshots (WebP), `og.jpg` (the 1200×630 link preview on Facebook and elsewhere), `apple-touch-icon.png`. |
@@ -35,6 +35,15 @@ For a new app:
 ## Videos
 
 Edit `VIDEOS` in `site.js`: the YouTube id per language (`en`, and `zh` when there is a Chinese version), the length, and a title and one-line description in both languages. The card shows YouTube's thumbnail; when that one does not read well, set `img` to a 16:9 picture in `docs/site/img/videos/`. Videos load from youtube-nocookie.com only after a click.
+
+### Videos on the app cards
+
+`APP_VIDEOS` in `site.js` lists the videos about each app, by subdomain, the most direct one first: `["<English id>", <second to start at>]`. An app listed there gets a small YouTube icon on its card; an app that is not listed gets no icon.
+
+- List a video only if it really shows the app, and check the start second on a frame of the video. Chinese versions use the same second, so check them too.
+- A video that belongs on a card but not in the Videos section is a `VIDEOS` entry with `appOnly: true`.
+
+The icon opens the video in a dialog, with the app's other videos in a list under the player. When YouTube reports that the video cannot play there, or its player script cannot load, the video opens in a new window; if the browser blocks that window, the dialog shows a link instead. A player that has not loaded after 12 seconds also shows the link. The dialog needs YouTube's player API for this, so after the click it also loads `iframe_api` from www.youtube.com.
 
 ## Preview
 

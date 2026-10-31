@@ -17,6 +17,7 @@
       shares: "Shares: ", sharesTip: "Shares files with other apps in the {c} collection",
       setup: "Needs setup", setupTip: "Asks for keys or settings when you install it",
       more: "More", less: "Less", source: "Source on GitHub", shot: "Screenshot of {n}",
+      watch: "Watch a video about {n}",
       play: "Play video: {t}", other: "中文版", empty: "No app matches “{q}”."
     },
     zh: {
@@ -29,12 +30,14 @@
       shares: "共用：", sharesTip: "透過 {c} collection 跟其他 App 共用檔案",
       setup: "需先設定", setupTip: "安裝時要先填金鑰或設定",
       more: "展開", less: "收合", source: "GitHub 原始碼", shot: "{n} 的畫面",
+      watch: "看 {n} 的影片",
       play: "播放影片：{t}", other: "English version", empty: "沒有符合「{q}」的 App。"
     }
   };
 
   // Videos on the channel. Where both exist, "zh" is the Chinese version of the same video.
   // "img" is a 16:9 picture for videos whose YouTube thumbnail does not read well on the card.
+  // "appOnly" keeps a video out of the Videos section: it shows only from its app's card.
   var VIDEOS = [
     { id: { en: "jR9b1qqIzzM", zh: "Y_98JTrUKoY" }, dur: { en: "3:43", zh: "3:40" },
       t: { en: "AI × CAD: say it, build it, walk in", zh: "AI × CAD：說出來，蓋出來，走進去" },
@@ -60,6 +63,10 @@
       t: { en: "Video Audio Mixer: put the music in the right place", zh: "Video Audio Mixer：把音樂放對地方" },
       d: { en: "What research says about music under video, then the timeline at work: turn a song down under a voice, trim it, fade into the next.",
            zh: "研究怎麼說影片配樂，再看時間軸實際操作：講話時把音樂壓低、裁出想用的段落、淡入下一首。" } },
+    { id: { en: "cHdsxtrEHtg" }, dur: { en: "3:46" }, img: "site/img/videos/cellora-intro.webp",
+      t: { en: "Cellora: Python notebooks, together", zh: "Cellora：一起寫的 Python 筆記本" },
+      d: { en: "A class learns imaging code on one machine: get a CT from a practice PACS, view it together, write the code in a shared notebook with AI, and send the result back to the PACS. A demonstration; not for diagnosis.",
+           zh: "一堂課在一台機器上學影像程式：從練習用 PACS 取得 CT、一起看片、在共用筆記本裡和 AI 一起寫程式，再把結果存回 PACS。示範情境，不作診斷用途。" } },
     { id: { en: "dbz7ta0M1TM" }, dur: { en: "16:44" },
       t: { en: "Agentic App Store: the full demo", zh: "Agentic App Store 完整示範" },
       d: { en: "The whole store in action: installing apps and using them, with sign-in and calls.",
@@ -91,17 +98,52 @@
     { id: { en: "Zl0tysSTTOI", zh: "OvGv0PB3UKU" }, dur: { en: "3:20", zh: "3:41" },
       t: { en: "ReflexGrid: co-editing, VBA macros and UserForms", zh: "ReflexGrid：共同編輯、VBA 巨集與 UserForm" },
       d: { en: "An Excel-compatible spreadsheet in the browser that runs VBA macros while people edit together.",
-           zh: "在瀏覽器裡、相容 Excel 的試算表，能執行 VBA 巨集，也能多人同時編輯。" } }
+           zh: "在瀏覽器裡、相容 Excel 的試算表，能執行 VBA 巨集，也能多人同時編輯。" } },
+    { id: { en: "8U_jHWmAXmA" }, dur: { en: "8:56" }, appOnly: true,
+      t: { en: "Codoc in CAD: people and AI agents design together", zh: "Codoc in CAD：人和 AI agent 一起做機構設計" } },
+    { id: { en: "qPKxzscEXRo" }, dur: { en: "3:36" }, appOnly: true,
+      t: { en: "Codoc in VecDraw: draw together, with ChatGPT Atlas", zh: "Codoc in VecDraw：一起畫圖，ChatGPT Atlas 也能畫" } },
+    { id: { en: "I5rBceuf1tM" }, dur: { en: "1:51" }, appOnly: true,
+      t: { en: "ReflexGrid v1.0: a first look", zh: "ReflexGrid v1.0 簡介" } }
   ];
+
+  // Videos about each app, by subdomain, the most direct one first: [English id, second to start at].
+  // List a video here only if it really shows the app. An app without a video gets no icon.
+  var APP_VIDEOS = {
+    "ai": [["jR9b1qqIzzM"]],
+    "plantuml": [["dbz7ta0M1TM", 61]],
+    "vecdraw": [["qPKxzscEXRo"]],
+    "cad": [["jR9b1qqIzzM"], ["8U_jHWmAXmA"]],
+    "cad-roam": [["jR9b1qqIzzM", 54]],
+    "dicom-data-explorer": [["HZKiZ_LepIs", 179], ["cHdsxtrEHtg", 63], ["4q_QHQv0wrI", 57], ["xwQz1Xm6ZZk", 60]],
+    "dicom-viewer": [["xwQz1Xm6ZZk"], ["cHdsxtrEHtg", 91], ["4q_QHQv0wrI", 68]],
+    "pacs-lab": [["HZKiZ_LepIs"], ["cHdsxtrEHtg", 70]],
+    "video-segment-splitter": [["dbz7ta0M1TM", 257]],
+    "video-audio-mixer": [["DC_OD47kK3U"]],
+    "relack": [["J60fVC0Y5Ys"], ["xwQz1Xm6ZZk", 32], ["Y5YKXsWkrxg", 100]],
+    "livekit": [["Y5YKXsWkrxg", 43]],
+    "video-chat": [["Y5YKXsWkrxg", 43]],
+    "avatar-chat": [["cHdsxtrEHtg", 155], ["Y5YKXsWkrxg", 43]],
+    "english-chat": [["Y5YKXsWkrxg", 43]],
+    "nooklane": [["jKJ8QdtrUs4"]],
+    "cellora": [["cHdsxtrEHtg"]],
+    "chipova": [["Zt3voGhKGOk"]],
+    "snake-duel": [["NLCrHKpTJ5U"]],
+    "apexline": [["dTvia4_5Iaw"]],
+    "grid": [["196pWZceyas"], ["Zl0tysSTTOI"], ["I5rBceuf1tM"]]
+  };
 
   var CHIPS = ["all", "ai", "create", "health", "meet", "play", "tools"];
   var GITHUB = '<svg class="b" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>';
   var PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
+  var YOUTUBE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#f00" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/><path fill="#fff" d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>';
 
   var state = { chip: "all", q: "" };
   var $ = function (id) { return document.getElementById(id); };
   var grid = $("app-grid"), empty = $("app-empty"), filters = $("filters"), search = $("app-search");
   var videoGrid = $("video-grid"), langBtn = $("lang-btn");
+  var dialog = $("video-dialog"), vdPlayer = $("vd-player"), vdList = $("vd-list"), vdNote = $("vd-note"), vdLink = $("vd-link");
+  var dialogVideos = [], player = null, playerApi = null, slowTimer = 0, playing = 0;
 
   function k() { return document.documentElement.lang === "zh-Hant" ? "zh" : "en"; }
   function esc(s) {
@@ -110,6 +152,13 @@
     });
   }
   function fill(s, vars) { return s.replace(/\{(\w)\}/g, function (_, v) { return vars[v]; }); }
+  function videosOf(sub, lang) {
+    return (APP_VIDEOS[sub] || []).map(function (e) {
+      var v = VIDEOS.filter(function (x) { return x.id.en === e[0]; })[0];
+      return { v: v, id: v.id[lang] || v.id.en, at: e[1] || 0 };
+    });
+  }
+  function watchUrl(item) { return YT + item.id + (item.at ? "&t=" + item.at + "s" : ""); }
   function inChip(a, chip) { return chip === "all" || (chip === "ai" ? a.ai : a.cat === chip); }
   function matches(a, q) {
     if (!q) return true;
@@ -137,7 +186,9 @@
       tags += '<span class="tag col" title="' + esc(fill(t.sharesTip, { c: c })) + '">' + esc(t.shares + c) + "</span>";
     });
     if (a.setup) tags += '<span class="tag set" title="' + esc(t.setupTip) + '">' + esc(t.setup) + "</span>";
+    var vids = videosOf(a.sub, lang), watch = esc(fill(t.watch, { n: a.name }));
     return '<article class="app">' + media +
+      (vids.length ? '<a class="app-video" href="' + esc(watchUrl(vids[0])) + '" target="_blank" rel="noopener" data-sub="' + esc(a.sub) + '" title="' + watch + '" aria-label="' + watch + '">' + YOUTUBE + "</a>" : "") +
       '<div class="app-body">' +
         '<div class="app-title">' + a.icon + "<h3>" + esc(a.name) + "</h3></div>" +
         (tags ? '<div class="tags">' + tags + "</div>" : "") +
@@ -182,7 +233,8 @@
 
   function renderVideos() {
     var lang = k(), t = T[lang];
-    videoGrid.innerHTML = VIDEOS.map(function (v) { return videoCard(v, lang, t); }).join("");
+    videoGrid.innerHTML = VIDEOS.filter(function (v) { return !v.appOnly; })
+      .map(function (v) { return videoCard(v, lang, t); }).join("");
   }
 
   function playVideo(btn) {
@@ -197,6 +249,76 @@
     box.appendChild(f);
     btn.replaceWith(box);
     f.focus();
+  }
+
+  // YouTube's player API, loaded on the first click: unlike a plain iframe it reports a video
+  // that cannot play here.
+  function loadPlayerApi() {
+    if (!playerApi) playerApi = new Promise(function (ok, fail) {
+      var s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      s.onerror = function () { playerApi = null; fail(); };
+      window.onYouTubeIframeAPIReady = ok;
+      document.head.appendChild(s);
+    });
+    return playerApi;
+  }
+
+  function stopDialogVideo() {
+    playing++;
+    clearTimeout(slowTimer);
+    if (player) player.destroy();
+    player = null;
+    vdPlayer.textContent = "";
+    vdNote.hidden = true;
+  }
+
+  // A video that cannot play in the dialog opens in a window of its own. The browser may block
+  // that window when the click is a while ago; the dialog then shows the link to press instead.
+  function playInWindow() {
+    var w = window.open(vdLink.href, "_blank");
+    if (w) { w.opener = null; dialog.close(); } else vdNote.hidden = false;
+  }
+
+  function showInDialog(i) {
+    var item = dialogVideos[i], slot = document.createElement("div");
+    stopDialogVideo();
+    var mine = playing;
+    function failed() {
+      if (mine !== playing) return;
+      clearTimeout(slowTimer);
+      playInWindow();
+    }
+    $("vd-title").textContent = item.v.t[k()];
+    vdLink.href = vdNote.href = watchUrl(item);
+    vdList.querySelectorAll("button").forEach(function (b, n) { b.setAttribute("aria-current", String(n === i)); });
+    vdPlayer.appendChild(slot);
+    slowTimer = setTimeout(function () { vdNote.hidden = false; }, 12000);
+    loadPlayerApi().then(function () {
+      if (mine !== playing) return;
+      player = new window.YT.Player(slot, {
+        host: "https://www.youtube-nocookie.com",
+        videoId: item.id,
+        playerVars: { autoplay: 1, rel: 0, playsinline: 1, start: item.at },
+        events: {
+          onReady: function () { clearTimeout(slowTimer); vdNote.hidden = true; },
+          onError: failed
+        }
+      });
+    }).catch(failed);
+  }
+
+  function openVideos(sub) {
+    var lang = k();
+    dialogVideos = videosOf(sub, lang);
+    vdList.hidden = dialogVideos.length < 2;
+    vdList.innerHTML = vdList.hidden ? "" : dialogVideos.map(function (item, i) {
+      return '<li><button type="button" data-i="' + i + '">' +
+        '<img src="' + (item.v.img || "https://i.ytimg.com/vi/" + item.id + "/mqdefault.jpg") + '" alt="" width="96" height="54">' +
+        "<span>" + esc(item.v.t[lang]) + "<small>" + (item.v.dur[lang] || item.v.dur.en) + "</small></span></button></li>";
+    }).join("");
+    dialog.showModal();
+    showInDialog(0);
   }
 
   function apply() {
@@ -229,6 +351,12 @@
   });
   search.addEventListener("input", function () { state.q = search.value.trim(); renderApps(); });
   grid.addEventListener("click", function (e) {
+    // Ctrl/Cmd/Shift-click, or a browser without <dialog>, keeps the link: YouTube in a new window.
+    var w = e.target.closest(".app-video");
+    if (w && dialog.showModal && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      openVideos(w.getAttribute("data-sub"));
+    }
     var b = e.target.closest(".more");
     if (!b) return;
     var card = b.closest(".app"), open = !card.classList.contains("open"), t = T[k()];
@@ -240,6 +368,13 @@
     var b = e.target.closest("button.yt");
     if (b) playVideo(b);
   });
+  dialog.addEventListener("click", function (e) {
+    if (e.target === dialog) { dialog.close(); return; }  // the area around the box
+    var b = e.target.closest("[data-i]");
+    if (b) showInDialog(Number(b.getAttribute("data-i")));
+  });
+  dialog.addEventListener("close", stopDialogVideo);
+  $("vd-close").addEventListener("click", function () { dialog.close(); });
   var resizeTimer;
   window.addEventListener("resize", function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(markLong, 150); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(markLong);

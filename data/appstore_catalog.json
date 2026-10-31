@@ -395,6 +395,52 @@
       }
     },
     {
+      "id": "music-studio",
+      "name": "Music Studio",
+      "description": "Say what a piece of music is for and the AI writes it: twelve styles from synthwave to orchestral, ready to loop without a seam in a game. Or turn a song you have into what you need: new speed, key, tone and drums. What you keep goes into the shared audio library.",
+      "icon": "audio-lines",
+      "subdomain": "music-studio",
+      "github_repo": "https://github.com/milochen0418/music_studio.git",
+      "app_name": "music_studio",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": ["smart-app-music-studio-data:/root/.local/share/music_studio"],
+      "storage": [
+        {"collection": "audio", "access": "contribute"}
+      ],
+      "i18n": {
+        "zh-Hant": {"description": "說出這首音樂要用在哪裡，AI 就替你作一首：從合成波到管弦史詩共 12 種曲風，可在遊戲裡無縫循環。也能把現有的歌改成你要的樣子：換速度、調性、音色，加上新的鼓。收下的作品都進共用音樂庫。"},
+        "zh-Hans": {"description": "说出这首音乐要用在哪里，AI 就为你作一首：从合成波到管弦史诗共 12 种曲风，可在游戏里无缝循环。也能把现有的歌改成你要的样子：换速度、调性、音色，加上新的鼓。收下的作品都进共享音乐库。"},
+        "ja": {"description": "音楽の使い道を伝えるだけで AI が作曲します。シンセウェーブからオーケストラまで 12 スタイル、ゲームで継ぎ目なくループできます。手元の曲を、速さ・キー・音色・新しいドラムで作り変えることもできます。保存した曲は共有オーディオライブラリに入ります。"},
+        "es": {"description": "Di para qué es la música y la IA la compone: doce estilos, del synthwave a lo orquestal, listos para repetirse sin cortes en un juego. O transforma una canción que ya tienes: velocidad, tono, sonido y batería nueva. Lo que guardas va a la biblioteca de audio compartida."}
+      }
+    },
+    {
+      "id": "music-box",
+      "name": "Music Box",
+      "description": "Listen to everything in the shared audio library in one place, whoever made it: what the AI wrote, what you changed, what you collected. Other apps open it as their song picker.",
+      "icon": "disc-3",
+      "subdomain": "music-box",
+      "github_repo": "https://github.com/milochen0418/music_box.git",
+      "app_name": "music_box",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [],
+      "storage": [
+        {"collection": "audio", "access": "read"}
+      ],
+      "i18n": {
+        "zh-Hant": {"description": "共用音樂庫裡的音樂都在這裡聽：AI 作的、改編的、你收藏的。其他 app 也用它來選歌。"},
+        "zh-Hans": {"description": "共享音乐库里的音乐都在这里听：AI 作的、改编的、你收藏的。其他 app 也用它来选歌。"},
+        "ja": {"description": "共有オーディオライブラリの音楽をまとめて聴けます。AI が作った曲も、作り変えた曲も、集めた曲も。ほかのアプリの選曲画面にもなります。"},
+        "es": {"description": "Escucha en un solo lugar todo lo de la biblioteca de audio compartida: lo que compuso la IA, lo que transformaste, lo que coleccionaste. Otras apps lo abren para elegir canciones."}
+      }
+    },
+    {
       "id": "pdf-signature",
       "name": "PDF Signature",
       "description": "Upload a PDF, draw a signature on the page, and export the signed document.",
@@ -960,7 +1006,7 @@
     {
       "id": "apexline",
       "name": "Apexline",
-      "description": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed. Pick your car and the AI's from the same four, with four levels and a driving line that tells you when to brake.",
+      "description": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed. Pick your car and the AI's from the same four, with four levels and a driving line that tells you when to brake. Pick each track's music from the shared audio library, or ask the AI for a piece made for that track.",
       "icon": "flag",
       "subdomain": "apexline",
       "github_repo": "https://github.com/milochen0418/apexline.git",
@@ -970,9 +1016,12 @@
       "subdir": "",
       "env_file": "",
       "volumes": ["smart-app-apexline-data:/root/.local/share/apexline"],
+      "storage": [
+        {"collection": "audio", "access": "read"}
+      ],
       "i18n": {
         "zh-Hant": {
-          "description": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。你的車和 AI 的車都從同樣四台裡挑，難度分四級，還有告訴你何時該煞車的行車線。"
+          "description": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。你的車和 AI 的車都從同樣四台裡挑，難度分四級，還有告訴你何時該煞車的行車線。每條賽道都能從共用音樂庫選歌，或請 AI 替這條賽道作一首。"
         },
         "zh-Hans": {
           "description": "极速对决：在同一个画面跟 AI 赛车，左边是你、右边是 AI，各自从自己的车后面看，两台车可以互撞。10 条赛道各有风景（环道、海边夕阳、发夹山路、会交叉的 8 字、城市街道、冰湖、沙丘、夜间、雨天、大奖赛）。AI 是 AI Hub 替它选的模型：先研究赛道，替每个弯定速度、决定要不要挡你或撞你，每跑完一圈再改计划；结束时把它的计划和抓地力允许的极限并排给你看。你的车和 AI 的车都从同样四辆里挑，难度分四级，还有告诉你何时该刹车的行车线。"

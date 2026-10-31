@@ -140,7 +140,7 @@ next to `media.video`) and readers know which files and `meta` keys to expect:
 | Kind | Payload | `meta` | Published by |
 |---|---|---|---|
 | `cad.build123d` | one 3D model as build123d code, the `primary`: `model.py` (UTF-8 Python leaving the shape in `result`), plus `model.stl` once it built; item id = the model's id in its link; revised in place while it is edited; a picture of its last build as the preview | `created_by_email`, `created_by_name` | cad |
-| `audio.file` | one audio file, the `primary`; from youtube-to-mp3 an MP3 named after the video, item id = `yt-<YouTube video id>`, `source` = the video's address, the video's thumbnail as the preview | `duration` (s); from youtube-to-mp3 also `format`, `youtube_id`, `channel`, `channel_url`, `license` (YouTube's licence text, e.g. Creative Commons), `upload_date` | youtube-to-mp3 |
+| `audio.file` | one audio file, the `primary`; from youtube-to-mp3 an MP3 named after the video, item id = `yt-<YouTube video id>`, `source` = the video's address, the video's thumbnail as the preview | `duration` (s); from youtube-to-mp3 also `format`, `youtube_id`, `channel`, `channel_url`, `license` (YouTube's licence text, e.g. Creative Commons), `upload_date`; from music-studio also `origin` (`composed` or `remake`), `rights` (`own`, or `third-party` when somebody else may hold them), `loop_start`, `loop_end` (s: a player that reaches the second may jump to the first unheard), `bpm`, `key`, `style`, `mood`, `words`, `model`, `artist` (the studio; `source` = its page) | youtube-to-mp3, music-studio |
 | `dicom.series` | the `.dcm` files of one DICOM series; item id = SeriesInstanceUID (imports: a generated id) | `Collection`, `Modality`, `BodyPartExamined`, `ImageCount`, `SeriesDescription`, `SeriesDate`, each when known | dicom-data-explorer, imports |
 | `document.markdown` | one Markdown document, the `primary`: `doc.md` (UTF-8); item id = the document's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name` | md |
 | `file.generic` | any files; promises nothing about them | free | imports |
@@ -346,6 +346,14 @@ mixer opens the converter's DDNS Intent `audio.find` as a dialog that keeps
 running when minimized (or shown as a small picture-in-picture window), and the
 converter reports every finished song with an intent `update` (`{"event":
 "ready", "ref": ...}`), so it appears in the mixer's library at once.
+
+**Music Studio** contributes to the same collection what the AI composed or changed, and **Music Box**
+reads all of it. Both are also dialogs for other apps: `audio.pick` (Music Box) answers with the
+songs chosen, `{"refs": [...], "items": [{"ref", "title", "seconds", "loop_start", "loop_end",
+"rights"}]}`, and `audio.make` (Music Studio; param `words`, what the music is for) answers with the
+take that was kept. **Apexline** declares `{"collection": "audio", "access": "read"}`, opens both
+from its race page and plays the file itself (`/_apexline/music`), going round `loop_start` and
+`loop_end` without a seam.
 
 **CAD Roam** (`cad-roam`) is a reader: its entry declares
 `{"collection": "cad-models", "access": "read"}`, it lists the models with

@@ -354,6 +354,21 @@ cd re_ddns
   </div>
 </footer>
 
+<dialog class="vd" id="video-dialog" aria-labelledby="vd-title">
+  <div class="vd-box">
+    <div class="vd-head">
+      <h3 id="vd-title"></h3>
+      <button class="icon-btn" id="vd-close" type="button"><span class="sr"><span lang="en">Close</span><span lang="zh-Hant">關閉</span></span><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="vd-stage">
+      <div id="vd-player"></div>
+      <a class="vd-note" id="vd-note" target="_blank" rel="noopener" hidden><span lang="en">This video can't play here.</span><span lang="zh-Hant">這支影片無法在這裡播放。</span><span class="btn btn-gold"><span lang="en">Watch on YouTube</span><span lang="zh-Hant">到 YouTube 觀看</span></span></a>
+    </div>
+    <ul class="vd-list" id="vd-list" hidden></ul>
+    <p class="vd-foot"><a id="vd-link" target="_blank" rel="noopener"><span lang="en">Watch on YouTube</span><span lang="zh-Hant">到 YouTube 觀看</span><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></a></p>
+  </div>
+</dialog>
+
 <script src="site/apps.js"></script>
 <script src="site/site.js"></script>
 </body>
