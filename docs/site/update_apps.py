@@ -35,7 +35,7 @@ CAT_OF = {sub: cat for cat, subs in CATEGORIES.items() for sub in subs}
 AI_RE = re.compile(r"\bAI\b|\bLLM\b|Ollama|Claude")
 # Apps whose code offers tools to AI agents through the AI Hub although their
 # catalog description does not mention AI.
-AI_EXTRA = {"cad", "cad-roam", "grid"}
+AI_EXTRA = {"cad", "cad-roam"}
 
 
 def icon_svg(name: str) -> str:

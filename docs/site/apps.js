@@ -459,8 +459,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/apexline",
   "icon": "<svg class=\"lucide lucide-flag\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528\" /></svg>",
   "desc": {
-   "en": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed.",
-   "zh": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。"
+   "en": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed. Pick your car and the AI's from the same four, with four levels and a driving line that tells you when to brake.",
+   "zh": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。你的車和 AI 的車都從同樣四台裡挑，難度分四級，還有告訴你何時該煞車的行車線。"
   },
   "img": "site/img/apps/apexline.webp",
   "collections": [],
@@ -491,8 +491,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/reflex_grid",
   "icon": "<svg class=\"lucide lucide-sheet\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\" /><line x1=\"3\" x2=\"21\" y1=\"9\" y2=\"9\" /><line x1=\"3\" x2=\"21\" y1=\"15\" y2=\"15\" /><line x1=\"9\" x2=\"9\" y1=\"9\" y2=\"21\" /><line x1=\"15\" x2=\"15\" y1=\"9\" y2=\"21\" /></svg>",
   "desc": {
-   "en": "Excel-compatible spreadsheet in the browser: opens and saves real .xlsx workbooks with formulas, styles, tables and charts.",
-   "zh": "在瀏覽器裡使用、相容 Excel 的試算表：可開啟與儲存真正的 .xlsx 活頁簿，包含公式、樣式、表格與圖表。"
+   "en": "The online Excel that runs your macros: opens and saves real .xlsx and .xlsm workbooks, runs their VBA macros and UserForms in the browser, lets everyone edit together live, and comes with AI that asks before it changes anything.",
+   "zh": "能跑巨集的線上 Excel：開啟與儲存真正的 .xlsx、.xlsm 活頁簿，在瀏覽器裡執行 VBA 巨集和 UserForm，大家能即時一起編輯，AI 要改內容之前也會先問你。"
   },
   "img": "site/img/apps/grid.webp",
   "collections": [

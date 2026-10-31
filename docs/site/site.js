@@ -34,19 +34,32 @@
   };
 
   // Videos on the channel. Where both exist, "zh" is the Chinese version of the same video.
+  // "img" is a 16:9 picture for videos whose YouTube thumbnail does not read well on the card.
   var VIDEOS = [
     { id: { en: "jR9b1qqIzzM", zh: "Y_98JTrUKoY" }, dur: { en: "3:43", zh: "3:40" },
       t: { en: "AI × CAD: say it, build it, walk in", zh: "AI × CAD：說出來，蓋出來，走進去" },
       d: { en: "Claude Code builds landmarks in Codoc in CAD through the AI Hub, and people walk into them together in CAD Roam.",
            zh: "Claude Code 透過 AI Hub 在 Codoc in CAD 蓋出地標建築，大家再一起走進 CAD Roam 參觀。" } },
-    { id: { en: "J60fVC0Y5Ys" }, dur: { en: "3:21" },
+    { id: { en: "196pWZceyas" }, dur: { en: "3:18" }, img: "site/img/videos/reflexgrid-intro.webp",
+      t: { en: "ReflexGrid: the online Excel that runs your macros", zh: "ReflexGrid：能跑巨集的線上 Excel" },
+      d: { en: "Real Excel files, VBA macros and UserForms in the browser, editing together, and AI that changes nothing until you press Accept.",
+           zh: "真正的 Excel 檔、在瀏覽器裡跑的 VBA 巨集和 UserForm、多人一起編輯，還有你按下 Accept 才會動手的 AI。" } },
+    { id: { en: "J60fVC0Y5Ys" }, dur: { en: "3:21" }, img: "site/img/videos/relack-own.webp",
       t: { en: "Relack: own your team's chat", zh: "Relack：團隊聊天，自己作主" },
       d: { en: "What happened on Slack, why a team's chat belongs on its own machine, and Relack at work, up to a real install from the store.",
            zh: "Slack 發生了哪些事、為什麼團隊聊天該放在自己的機器上，再看 Relack 實際運作，一路到從商店安裝。" } },
-    { id: { en: "NLCrHKpTJ5U" }, dur: { en: "2:49" },
+    { id: { en: "dTvia4_5Iaw" }, dur: { en: "2:27" }, img: "site/img/videos/apexline-intro.webp",
+      t: { en: "Apexline: race an AI that thinks", zh: "Apexline 極速對決：跟會思考的 AI 賽車" },
+      d: { en: "You on the left, a real language model on the right. It plans a speed for every corner, hears how each lap went and changes the plan.",
+           zh: "左邊是你，右邊是真正的語言模型。它替每個彎訂速度，每跑完一圈就聽取結果、修改計畫。" } },
+    { id: { en: "NLCrHKpTJ5U" }, dur: { en: "2:49" }, img: "site/img/videos/snake-duel-intro.webp",
       t: { en: "Snake Duel: the snake game that talks back", zh: "雙蛇搶食：會回嘴的貪食蛇" },
       d: { en: "Up to five snakes on one board: friends take the seats and AI snakes that ask a real language model fill the rest.",
            zh: "同一塊場地最多 5 條蛇：朋友先坐位子，其餘由真正問語言模型的 AI 蛇補滿。" } },
+    { id: { en: "DC_OD47kK3U", zh: "MoPO9Jv4l1I" }, dur: { en: "3:22", zh: "3:27" }, img: "site/img/videos/mixer-promo.webp",
+      t: { en: "Video Audio Mixer: put the music in the right place", zh: "Video Audio Mixer：把音樂放對地方" },
+      d: { en: "What research says about music under video, then the timeline at work: turn a song down under a voice, trim it, fade into the next.",
+           zh: "研究怎麼說影片配樂，再看時間軸實際操作：講話時把音樂壓低、裁出想用的段落、淡入下一首。" } },
     { id: { en: "dbz7ta0M1TM" }, dur: { en: "16:44" },
       t: { en: "Agentic App Store: the full demo", zh: "Agentic App Store 完整示範" },
       d: { en: "The whole store in action: installing apps and using them, with sign-in and calls.",
@@ -159,7 +172,7 @@
     var other = lang === "zh" ? (v.id.zh && v.id.en) : v.id.zh;
     return '<article class="video">' +
       '<button class="yt" type="button" data-id="' + id + '" data-title="' + esc(title) + '" aria-label="' + esc(fill(t.play, { t: title })) + '">' +
-        '<img src="https://i.ytimg.com/vi/' + id + '/sddefault.jpg" alt="" loading="lazy" decoding="async">' +
+        '<img src="' + (v.img || "https://i.ytimg.com/vi/" + id + "/sddefault.jpg") + '" alt="" loading="lazy" decoding="async">' +
         '<span class="play">' + PLAY + '</span><span class="dur">' + dur + "</span>" +
       "</button>" +
       "<h3>" + esc(title) + "</h3><p>" + esc(v.d[lang]) + "</p>" +

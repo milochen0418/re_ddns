@@ -960,7 +960,7 @@
     {
       "id": "apexline",
       "name": "Apexline",
-      "description": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed.",
+      "description": "A 3D race against an AI on one screen, you on the left and the AI on the right, each from behind its own car; the cars can knock into each other. Ten tracks, each its own place (an oval, a sunset coast, mountain hairpins, a figure eight that crosses itself, city blocks, a frozen lake, desert dunes, a night circuit, rain, a Grand Prix). The AI is the model the AI Hub sets for it: it studies the track, plans a speed for every corner and how hard to race you, and changes the plan after every lap; the result shows its plans next to what the grip allowed. Pick your car and the AI's from the same four, with four levels and a driving line that tells you when to brake.",
       "icon": "flag",
       "subdomain": "apexline",
       "github_repo": "https://github.com/milochen0418/apexline.git",
@@ -972,16 +972,16 @@
       "volumes": ["smart-app-apexline-data:/root/.local/share/apexline"],
       "i18n": {
         "zh-Hant": {
-          "description": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。"
+          "description": "極速對決：在同一個畫面跟 AI 賽車，左邊是你、右邊是 AI，各自從自己的車後面看，兩台車可以互撞。10 條賽道各有風景（環道、海邊夕陽、髮夾山路、會交叉的 8 字、城市街道、冰湖、沙丘、夜間、雨天、大獎賽）。AI 是 AI Hub 替它選的模型：先研究賽道，替每個彎訂速度、決定要不要擋你或撞你，每跑完一圈再改計畫；結束時把它的計畫和抓地力允許的極限並排給你看。你的車和 AI 的車都從同樣四台裡挑，難度分四級，還有告訴你何時該煞車的行車線。"
         },
         "zh-Hans": {
-          "description": "极速对决：在同一个画面跟 AI 赛车，左边是你、右边是 AI，各自从自己的车后面看，两台车可以互撞。10 条赛道各有风景（环道、海边夕阳、发夹山路、会交叉的 8 字、城市街道、冰湖、沙丘、夜间、雨天、大奖赛）。AI 是 AI Hub 替它选的模型：先研究赛道，替每个弯定速度、决定要不要挡你或撞你，每跑完一圈再改计划；结束时把它的计划和抓地力允许的极限并排给你看。"
+          "description": "极速对决：在同一个画面跟 AI 赛车，左边是你、右边是 AI，各自从自己的车后面看，两台车可以互撞。10 条赛道各有风景（环道、海边夕阳、发夹山路、会交叉的 8 字、城市街道、冰湖、沙丘、夜间、雨天、大奖赛）。AI 是 AI Hub 替它选的模型：先研究赛道，替每个弯定速度、决定要不要挡你或撞你，每跑完一圈再改计划；结束时把它的计划和抓地力允许的极限并排给你看。你的车和 AI 的车都从同样四辆里挑，难度分四级，还有告诉你何时该刹车的行车线。"
         },
         "ja": {
-          "description": "AI と同じ画面でレース：左があなた、右が AI、それぞれ自分の車の後ろから見ます。車同士はぶつかれます。10 のコースはそれぞれ違う景色（オーバル、夕日の海岸、山のヘアピン、交差する 8 の字、市街地、凍った湖、砂丘、夜、雨、グランプリ）。AI は AI Hub が選んだモデルで、コースを研究してコーナーごとの速度とあなたへの攻め方を決め、1 周ごとに計画を直します。レース後は計画とグリップの限界を並べて見せます。"
+          "description": "AI と同じ画面でレース：左があなた、右が AI、それぞれ自分の車の後ろから見ます。車同士はぶつかれます。10 のコースはそれぞれ違う景色（オーバル、夕日の海岸、山のヘアピン、交差する 8 の字、市街地、凍った湖、砂丘、夜、雨、グランプリ）。AI は AI Hub が選んだモデルで、コースを研究してコーナーごとの速度とあなたへの攻め方を決め、1 周ごとに計画を直します。レース後は計画とグリップの限界を並べて見せます。自分の車も AI の車も同じ 4 台から選べて、難易度は 4 段階、ブレーキのタイミングを教えるドライビングラインもあります。"
         },
         "es": {
-          "description": "Una carrera en 3D contra una IA en una sola pantalla: tú a la izquierda y la IA a la derecha, cada uno detrás de su coche; los coches pueden chocar. Diez circuitos, cada uno con su paisaje (un óvalo, una costa al atardecer, horquillas de montaña, un ocho que se cruza, calles de ciudad, un lago helado, dunas, un circuito nocturno, lluvia, un Gran Premio). La IA es el modelo que el AI Hub elige para él: estudia el circuito, planea la velocidad de cada curva y cuánto pelearte, y cambia el plan tras cada vuelta; al final muestra sus planes junto al límite del agarre."
+          "description": "Una carrera en 3D contra una IA en una sola pantalla: tú a la izquierda y la IA a la derecha, cada uno detrás de su coche; los coches pueden chocar. Diez circuitos, cada uno con su paisaje (un óvalo, una costa al atardecer, horquillas de montaña, un ocho que se cruza, calles de ciudad, un lago helado, dunas, un circuito nocturno, lluvia, un Gran Premio). La IA es el modelo que el AI Hub elige para él: estudia el circuito, planea la velocidad de cada curva y cuánto pelearte, y cambia el plan tras cada vuelta; al final muestra sus planes junto al límite del agarre. Elige tu coche y el de la IA entre los mismos cuatro, con cuatro niveles y una línea de conducción que te avisa cuándo frenar."
         }
       }
     },
@@ -1041,7 +1041,7 @@
     {
       "id": "reflex-grid",
       "name": "ReflexGrid",
-      "description": "Excel-compatible spreadsheet in the browser: opens and saves real .xlsx workbooks with formulas, styles, tables and charts.",
+      "description": "The online Excel that runs your macros: opens and saves real .xlsx and .xlsm workbooks, runs their VBA macros and UserForms in the browser, lets everyone edit together live, and comes with AI that asks before it changes anything.",
       "icon": "sheet",
       "subdomain": "grid",
       "github_repo": "https://github.com/milochen0418/reflex_grid.git",
@@ -1055,10 +1055,10 @@
         {"collection": "spreadsheets", "access": "contribute"}
       ],
       "i18n": {
-        "zh-Hant": {"description": "在瀏覽器裡使用、相容 Excel 的試算表：可開啟與儲存真正的 .xlsx 活頁簿，包含公式、樣式、表格與圖表。"},
-        "zh-Hans": {"description": "在浏览器里使用、兼容 Excel 的电子表格：可打开和保存真正的 .xlsx 工作簿，包括公式、样式、表格和图表。"},
-        "ja": {"description": "ブラウザで使える Excel 互換のスプレッドシート。数式、スタイル、テーブル、グラフを含む本物の .xlsx ブックを開いて保存できます。"},
-        "es": {"description": "Hoja de cálculo compatible con Excel en el navegador: abre y guarda libros .xlsx reales con fórmulas, estilos, tablas y gráficos."}
+        "zh-Hant": {"description": "能跑巨集的線上 Excel：開啟與儲存真正的 .xlsx、.xlsm 活頁簿，在瀏覽器裡執行 VBA 巨集和 UserForm，大家能即時一起編輯，AI 要改內容之前也會先問你。"},
+        "zh-Hans": {"description": "能运行宏的在线 Excel：打开和保存真正的 .xlsx、.xlsm 工作簿，在浏览器里运行 VBA 宏和 UserForm，大家能实时一起编辑，AI 要改内容之前也会先问你。"},
+        "ja": {"description": "マクロが動くオンライン Excel。本物の .xlsx と .xlsm ブックを開いて保存し、VBA マクロと UserForm をブラウザで実行できます。みんなでリアルタイムに同時編集でき、AI は変更する前に必ず確認します。"},
+        "es": {"description": "El Excel en línea que ejecuta tus macros: abre y guarda libros .xlsx y .xlsm reales, ejecuta sus macros VBA y UserForms en el navegador, permite editar en equipo en directo e incluye una IA que pregunta antes de cambiar nada."}
       }
     }
   ]

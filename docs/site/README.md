@@ -34,7 +34,7 @@ For a new app:
 
 ## Videos
 
-Edit `VIDEOS` in `site.js`: the YouTube id per language (`en`, and `zh` when there is a Chinese version), the length, and a title and one-line description in both languages. Videos load from youtube-nocookie.com only after a click.
+Edit `VIDEOS` in `site.js`: the YouTube id per language (`en`, and `zh` when there is a Chinese version), the length, and a title and one-line description in both languages. The card shows YouTube's thumbnail; when that one does not read well, set `img` to a 16:9 picture in `docs/site/img/videos/`. Videos load from youtube-nocookie.com only after a click.
 
 ## Preview
 
