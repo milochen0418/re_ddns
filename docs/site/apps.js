@@ -263,8 +263,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/relack",
   "icon": "<svg class=\"lucide lucide-messages-square\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z\" /><path d=\"M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1\" /></svg>",
   "desc": {
-   "en": "Self-hosted, privacy-focused team chat (a Slack alternative). Requires Google OAuth env.",
-   "zh": "自架、重視隱私的團隊聊天（Slack 的替代方案）。需要 Google OAuth 設定。"
+   "en": "Team chat you own: rooms, threads, files, search, calls, webhooks and an admin console on your own machine. No per-seat fees, and your history stays with you. A self-hosted Slack alternative.",
+   "zh": "屬於你自己的團隊聊天：房間、討論串、檔案、搜尋、通話、Webhook 和管理後台，都在你自己的機器上。不用按人頭付費，歷史紀錄留在你手上。可自架的 Slack 替代方案。"
   },
   "img": "site/img/apps/relack.webp",
   "collections": [],

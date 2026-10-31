@@ -193,7 +193,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | Video to MP4 | `video-to-mp4` | Convert video formats to MP4 |
 | Video Audio Mixer | `video-audio-mixer` | Layer and mix audio tracks onto video |
 | PDF Signature | `pdf-signature` | Draw and export signatures on PDFs |
-| Relack | `relack` | Self-hosted Slack alternative (requires Google OAuth) |
+| Relack | `relack` | Team chat you own: a self-hosted Slack alternative (Google sign-in optional) |
 | LiveKit Audio Chat | `audio-chat` | Real-time audio conferencing (requires LiveKit env) |
 | LiveKit Audio Chat (self-hosted) | `livekit` | Audio rooms on a built-in open-source LiveKit server — no LiveKit Cloud, no keys (publishes media ports 7881/tcp + 7882/udp) |
 | LiveKit Video Chat (self-hosted) | `video-chat` | Video rooms (camera + microphone) on its own built-in LiveKit server — no keys (publishes media ports 7981/tcp + 7982/udp, so it can run next to the audio app) |
