@@ -30,17 +30,17 @@ For a new app:
   ```
 
 - **Icon**: the Lucide icon named in the catalog must be in `docs/site/icons/`. When it is missing, the script says so and prints the `curl` command that fetches it.
-- **Group**: add the subdomain to `CATEGORIES` in `update_apps.py`, or it lands in "Media and tools". The AI tag comes from a description that mentions AI, LLM, Ollama or Claude, or from `AI_EXTRA`.
+- **Group**: add the subdomain to `CATEGORIES` in `update_apps.py`, or it lands in "Media and tools". The AI tag comes from a description that mentions AI, LLM, Ollama or Claude, or from `AI_EXTRA`; `NOT_AI` takes it off an app that only mentions AI.
 
 ## Videos
 
-Edit `VIDEOS` in `site.js`: the YouTube id per language (`en`, and `zh` when there is a Chinese version), the length, and a title and one-line description in both languages. The card shows YouTube's thumbnail; when that one does not read well, set `img` to a 16:9 picture in `docs/site/img/videos/`. Videos load from youtube-nocookie.com only after a click.
+Edit `VIDEOS` in `site.js`: the YouTube id per language (`en`, and `zh` when there is a Chinese version), the length, and a title and one-line description in both languages. The card shows YouTube's thumbnail; when that one does not read well, set `img` to a 16:9 picture in `docs/site/img/videos/`, or to `{ en, zh }` when the picture has words on it. Keep the middle of the picture clear: the play button sits there. Videos load from youtube-nocookie.com only after a click.
 
 ### Videos on the app cards
 
-`APP_VIDEOS` in `site.js` lists the videos about each app, by subdomain, the most direct one first: `["<English id>", <second to start at>]`. An app listed there gets a small YouTube icon on its card; an app that is not listed gets no icon.
+`APP_VIDEOS` in `site.js` lists the videos about each app, by subdomain, the most direct one first: `["<English id>", <second to start at>, <second in the Chinese version>]`. An app listed there gets a small YouTube icon on its card; an app that is not listed gets no icon.
 
-- List a video only if it really shows the app, and check the start second on a frame of the video. Chinese versions use the same second, so check them too.
+- List a video only if it really shows the app, and check the start second on a frame of the video. Chinese versions use the same second unless a third number says otherwise, so check them too.
 - A video that belongs on a card but not in the Videos section is a `VIDEOS` entry with `appOnly: true`.
 
 The icon opens the video in a dialog, with the app's other videos in a list under the player. When YouTube reports that the video cannot play there, or its player script cannot load, the video opens in a new window; if the browser blocks that window, the dialog shows a link instead. A player that has not loaded after 12 seconds also shows the link. The dialog needs YouTube's player API for this, so after the click it also loads `iframe_api` from www.youtube.com.

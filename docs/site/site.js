@@ -36,13 +36,23 @@
   };
 
   // Videos on the channel. Where both exist, "zh" is the Chinese version of the same video.
-  // "img" is a 16:9 picture for videos whose YouTube thumbnail does not read well on the card.
+  // "img" is a 16:9 picture for videos whose YouTube thumbnail does not read well on the card:
+  // one path, or { en, zh } when the picture has words on it.
   // "appOnly" keeps a video out of the Videos section: it shows only from its app's card.
   var VIDEOS = [
     { id: { en: "jR9b1qqIzzM", zh: "Y_98JTrUKoY" }, dur: { en: "3:43", zh: "3:40" },
       t: { en: "AI × CAD: say it, build it, walk in", zh: "AI × CAD：說出來，蓋出來，走進去" },
       d: { en: "Claude Code builds landmarks in Codoc in CAD through the AI Hub, and people walk into them together in CAD Roam.",
            zh: "Claude Code 透過 AI Hub 在 Codoc in CAD 蓋出地標建築，大家再一起走進 CAD Roam 參觀。" } },
+    { id: { en: "zJGloh9EZJw", zh: "hfAp2pW_FUE" }, dur: { en: "3:33", zh: "3:23" },
+      img: { en: "site/img/videos/userforms.en.webp", zh: "site/img/videos/userforms.zh.webp" },
+      t: { en: "Your UserForms, online, in a document you write together", zh: "UserForm 上線了，放進大家一起寫的文件" },
+      d: { en: "The forms your company already uses, with nothing to rewrite: their rules still run and the numbers follow the workbook. Two people send at the same moment and both rows land in the same table, with AI helping on the same page.",
+           zh: "公司用了好幾年的 UserForm，不用重寫：規則照跑，數字跟著活頁簿走。兩個人同時送出，兩筆都進同一張表，AI 也在同一頁幫忙。" } },
+    { id: { en: "cbQX8jrl_Nc", zh: "vOeiArqsMJI" }, dur: { en: "3:04", zh: "2:58" },
+      t: { en: "CoDoc in MD: one link, everyone writes", zh: "CoDoc in MD：一個連結，大家一起寫" },
+      d: { en: "A Markdown document you write together: everyone has a color and a name tag, and one line of text puts a video, a PDF or a flowchart on the page. For meetings, classes, design docs and shared notes.",
+           zh: "一起寫的 Markdown 文件：每個人有自己的顏色和名牌，打一行字就能放進 YouTube 影片、PDF、流程圖。開會、上課、寫規格、共筆都好用。" } },
     { id: { en: "196pWZceyas" }, dur: { en: "3:18" }, img: "site/img/videos/reflexgrid-intro.webp",
       t: { en: "ReflexGrid: the online Excel that runs your macros", zh: "ReflexGrid：能跑巨集的線上 Excel" },
       d: { en: "Real Excel files, VBA macros and UserForms in the browser, editing together, and AI that changes nothing until you press Accept.",
@@ -107,10 +117,12 @@
       t: { en: "ReflexGrid v1.0: a first look", zh: "ReflexGrid v1.0 簡介" } }
   ];
 
-  // Videos about each app, by subdomain, the most direct one first: [English id, second to start at].
+  // Videos about each app, by subdomain, the most direct one first: [English id, second to start at,
+  // and the second in the Chinese version when it is not the same].
   // List a video here only if it really shows the app. An app without a video gets no icon.
   var APP_VIDEOS = {
-    "ai": [["jR9b1qqIzzM"]],
+    "ai": [["jR9b1qqIzzM"], ["zJGloh9EZJw", 119, 112], ["cbQX8jrl_Nc", 122, 118]],
+    "md": [["cbQX8jrl_Nc"], ["zJGloh9EZJw"]],
     "plantuml": [["dbz7ta0M1TM", 61]],
     "vecdraw": [["qPKxzscEXRo"]],
     "cad": [["jR9b1qqIzzM"], ["8U_jHWmAXmA"]],
@@ -121,7 +133,7 @@
     "video-segment-splitter": [["dbz7ta0M1TM", 257]],
     "video-audio-mixer": [["DC_OD47kK3U"]],
     "relack": [["J60fVC0Y5Ys"], ["xwQz1Xm6ZZk", 32], ["Y5YKXsWkrxg", 100]],
-    "livekit": [["Y5YKXsWkrxg", 43]],
+    "livekit": [["cbQX8jrl_Nc", 46], ["Y5YKXsWkrxg", 43]],
     "video-chat": [["Y5YKXsWkrxg", 43]],
     "avatar-chat": [["cHdsxtrEHtg", 155], ["Y5YKXsWkrxg", 43]],
     "english-chat": [["Y5YKXsWkrxg", 43]],
@@ -130,7 +142,7 @@
     "chipova": [["Zt3voGhKGOk"]],
     "snake-duel": [["NLCrHKpTJ5U"]],
     "apexline": [["dTvia4_5Iaw"]],
-    "grid": [["196pWZceyas"], ["Zl0tysSTTOI"], ["I5rBceuf1tM"]]
+    "grid": [["196pWZceyas"], ["zJGloh9EZJw", 62, 60], ["Zl0tysSTTOI"], ["I5rBceuf1tM"]]
   };
 
   var CHIPS = ["all", "ai", "create", "health", "meet", "play", "tools"];
@@ -155,9 +167,11 @@
   function videosOf(sub, lang) {
     return (APP_VIDEOS[sub] || []).map(function (e) {
       var v = VIDEOS.filter(function (x) { return x.id.en === e[0]; })[0];
-      return { v: v, id: v.id[lang] || v.id.en, at: e[1] || 0 };
+      var at = lang === "zh" && e[2] !== undefined ? e[2] : e[1];
+      return { v: v, id: v.id[lang] || v.id.en, at: at || 0 };
     });
   }
+  function poster(v, lang) { return v.img && (v.img[lang] || v.img); }
   function watchUrl(item) { return YT + item.id + (item.at ? "&t=" + item.at + "s" : ""); }
   function inChip(a, chip) { return chip === "all" || (chip === "ai" ? a.ai : a.cat === chip); }
   function matches(a, q) {
@@ -223,7 +237,7 @@
     var other = lang === "zh" ? (v.id.zh && v.id.en) : v.id.zh;
     return '<article class="video">' +
       '<button class="yt" type="button" data-id="' + id + '" data-title="' + esc(title) + '" aria-label="' + esc(fill(t.play, { t: title })) + '">' +
-        '<img src="' + (v.img || "https://i.ytimg.com/vi/" + id + "/sddefault.jpg") + '" alt="" loading="lazy" decoding="async">' +
+        '<img src="' + (poster(v, lang) || "https://i.ytimg.com/vi/" + id + "/sddefault.jpg") + '" alt="" loading="lazy" decoding="async">' +
         '<span class="play">' + PLAY + '</span><span class="dur">' + dur + "</span>" +
       "</button>" +
       "<h3>" + esc(title) + "</h3><p>" + esc(v.d[lang]) + "</p>" +
@@ -314,7 +328,7 @@
     vdList.hidden = dialogVideos.length < 2;
     vdList.innerHTML = vdList.hidden ? "" : dialogVideos.map(function (item, i) {
       return '<li><button type="button" data-i="' + i + '">' +
-        '<img src="' + (item.v.img || "https://i.ytimg.com/vi/" + item.id + "/mqdefault.jpg") + '" alt="" width="96" height="54">' +
+        '<img src="' + (poster(item.v, lang) || "https://i.ytimg.com/vi/" + item.id + "/mqdefault.jpg") + '" alt="" width="96" height="54">' +
         "<span>" + esc(item.v.t[lang]) + "<small>" + (item.v.dur[lang] || item.v.dur.en) + "</small></span></button></li>";
     }).join("");
     dialog.showModal();

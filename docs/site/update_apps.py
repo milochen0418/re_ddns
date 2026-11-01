@@ -36,6 +36,8 @@ AI_RE = re.compile(r"\bAI\b|\bLLM\b|Ollama|Claude")
 # Apps whose code offers tools to AI agents through the AI Hub although their
 # catalog description does not mention AI.
 AI_EXTRA = {"cad", "cad-roam"}
+# Apps that only mention AI: Music Box plays what the AI wrote.
+NOT_AI = {"music-box"}
 
 
 def icon_svg(name: str) -> str:
@@ -71,7 +73,7 @@ def build() -> tuple[str, int, int]:
                      "zh": zh.get("description") or entry.get("description", "")},
             "img": f"site/img/apps/{sub}.webp" if img.exists() else None,
             "collections": [s["collection"] for s in entry.get("storage") or []],
-            "ai": sub in AI_EXTRA or bool(AI_RE.search(entry.get("description", ""))),
+            "ai": sub in AI_EXTRA or (sub not in NOT_AI and bool(AI_RE.search(entry.get("description", "")))),
             "setup": any(e.get("required") for e in entry.get("env_schema") or []),
         })
     meta = {

@@ -9,8 +9,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/ai_hub",
   "icon": "<svg class=\"lucide lucide-bot\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M12 8V4H8\" /><rect width=\"16\" height=\"12\" x=\"4\" y=\"8\" rx=\"2\" /><path d=\"M2 14h2\" /><path d=\"M20 14h2\" /><path d=\"M15 13v2\" /><path d=\"M9 13v2\" /></svg>",
   "desc": {
-   "en": "One door between AI and the apps: agents such as Claude Code reach every app's tools through one MCP address, an assistant does tasks in the apps with Claude or a local Ollama model, and a talking AI (a face that listens and speaks, Whisper and Kokoro on this machine) can be called up in any app, knowing what its page shows.",
-   "zh": "AI 和各個 App 之間的一道門：Claude Code 之類的 agent 透過一個 MCP 網址使用所有 App 的工具；助理能用 Claude 或本機的 Ollama 模型在 App 裡做事；還有一個會聽、會說、有表情的 AI 人（Whisper 和 Kokoro 都在本機跑），在任何 App 裡一鍵叫出來，而且知道你眼前的畫面在演什麼。"
+   "en": "One door between AI and the apps: agents such as Claude Code reach every app's tools through one MCP address, an assistant does tasks in the apps with Claude or a local Ollama model and waits for your Accept on anything risky, and a talking AI (a face that listens and speaks, Whisper and Kokoro on this machine) can be called up in any app, knowing what its page shows.",
+   "zh": "AI 和各個 App 之間的一道門：Claude Code 之類的 agent 透過一個 MCP 網址使用所有 App 的工具；助理能用 Claude 或本機的 Ollama 模型在 App 裡做事，有風險的動作會等你按下 Accept；還有一個會聽、會說、有表情的 AI 人（Whisper 和 Kokoro 都在本機跑），在任何 App 裡一鍵叫出來，而且知道你眼前的畫面在演什麼。"
   },
   "img": "site/img/apps/ai.webp",
   "collections": [],
@@ -19,20 +19,20 @@ window.AAS_APPS = [
  },
  {
   "id": "md",
-  "name": "Codoc in Markdown",
+  "name": "CoDoc in MD",
   "sub": "md",
   "cat": "create",
   "repo": "https://github.com/milochen0418/codoc_in_md",
   "icon": "<svg class=\"lucide lucide-file-text\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\" /><path d=\"M14 2v5a1 1 0 0 0 1 1h5\" /><path d=\"M10 9H8\" /><path d=\"M16 13H8\" /><path d=\"M16 17H8\" /></svg>",
   "desc": {
-   "en": "Collaborative document editing rendered as Markdown.",
-   "zh": "多人協作編輯文件，以 Markdown 呈現。"
+   "en": "One link, and everyone is on the same page: a Markdown editor for writing together, live, each person with a color and a name tag, no account needed. One line of text puts a YouTube video, a PDF, a diagram or a working UserForm from ReflexGrid in the document. For meetings, classes, design docs and shared notes. With the AI Hub, AI rewrites what you select and writes in the document once you press Accept.",
+   "zh": "一個連結，大家就在同一頁：即時一起寫的 Markdown 編輯器，每個人有自己的顏色和名牌，不用帳號。打一行字就能放進 YouTube 影片、PDF、流程圖，或 ReflexGrid 裡能實際操作的 UserForm。開會、上課、寫規格、共筆都好用。裝了 AI Hub，AI 能改寫你選的段落，也能在你按下 Accept 後寫進文件。"
   },
-  "img": null,
+  "img": "site/img/apps/md.webp",
   "collections": [
    "documents"
   ],
-  "ai": false,
+  "ai": true,
   "setup": false
  },
  {
@@ -59,8 +59,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/codoc_in_vecdraw",
   "icon": "<svg class=\"lucide lucide-pen-tool\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"m18 13-.654-4.736a4 4 0 00-2.756-3.266l-9.163-2.9a2 2 0 00-2.017.493l-.82.819a2 2 0 00-.492 2.017l2.9 9.163a4 4 0 003.266 2.756L13 18\" /><path d=\"M18.648 12.352a1.205 1.205 0 011.704 0l1.296 1.296a1.205 1.205 0 010 1.704l-6.296 6.296a1.205 1.205 0 01-1.704 0l-1.296-1.296a1.205 1.205 0 010-1.704z\" /><path d=\"m3 3 6.586 6.586\" /><circle cx=\"11\" cy=\"11\" r=\"2\" /></svg>",
   "desc": {
-   "en": "Collaborative vector drawing canvas.",
-   "zh": "多人協作的向量繪圖畫布。"
+   "en": "A vector editor you draw in together, like Google Drawings: shapes, lines, text, freehand and images on an infinite canvas. Everyone's pointer and selection show with their name, while your tool, view and Undo stay your own. See who is here, Call everyone, and find every drawing in the shared drawings collection.",
+   "zh": "像 Google 繪圖一樣、可以一起畫的向量編輯器：形狀、線條、文字、手繪和圖片都在無限畫布上。每個人的游標和選取都標著名字，工具、視角和復原則各管各的。看得到誰在線上、能 Call everyone，每張圖都存在共用的 drawings collection。"
   },
   "img": "site/img/apps/vecdraw.webp",
   "collections": [
@@ -77,8 +77,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/codoc_in_cad",
   "icon": "<svg class=\"lucide lucide-box\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\" /><path d=\"m3.3 7 8.7 5 8.7-5\" /><path d=\"M12 22V12\" /></svg>",
   "desc": {
-   "en": "3D CAD as code, together: edit the same build123d Python and see the model in 3D.",
-   "zh": "多人一起用 Python（build123d）寫 3D CAD 模型，即時看到 3D 結果。"
+   "en": "3D CAD as code, together: edit the same build123d Python with everyone's cursors on it and see the model in 3D on every screen, in its colors, with glass and parts that give light. AI agents and the assistant build with you through the AI Hub, and CAD Roam lets you walk into the result.",
+   "zh": "多人一起用 Python（build123d）寫 3D CAD 模型：每個人的游標都看得到，模型顯示在所有人的 3D 畫面上，有顏色、玻璃和會發光的零件。AI agent 和助理能透過 AI Hub 一起蓋，蓋好還能到 CAD Roam 走進去。"
   },
   "img": "site/img/apps/cad.webp",
   "collections": [
@@ -95,8 +95,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/dicom_data_explorer",
   "icon": "<svg class=\"lucide lucide-folder-search\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M10.7 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v4.1\" /><path d=\"m21 21-1.9-1.9\" /><circle cx=\"17\" cy=\"17\" r=\"3\" /></svg>",
   "desc": {
-   "en": "Browse and inspect DICOM datasets.",
-   "zh": "瀏覽與檢視 DICOM 資料集。"
+   "en": "Find DICOM images and bring them in: search the public Imaging Data Commons or your own PACS (DICOMweb, C-GET, C-MOVE), read a series' details first, and download it into the shared dicom collection with live progress. An annotation comes with the images it belongs to, and an interrupted download picks up where it stopped.",
+   "zh": "找到 DICOM 影像並帶回來：搜尋公開的 Imaging Data Commons 或你自己的 PACS（DICOMweb、C-GET、C-MOVE），先看過影像序列的資料，再下載到共用的 dicom collection，進度即時顯示。標註會連同它對應的影像一起下載，中斷的下載也能接著續傳。"
   },
   "img": "site/img/apps/dicom-data-explorer.webp",
   "collections": [
@@ -113,8 +113,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/dicom_viewer",
   "icon": "<svg class=\"lucide lucide-scan-eye\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M3 7V5a2 2 0 0 1 2-2h2\" /><path d=\"M17 3h2a2 2 0 0 1 2 2v2\" /><path d=\"M21 17v2a2 2 0 0 1-2 2h-2\" /><path d=\"M7 21H5a2 2 0 0 1-2-2v-2\" /><circle cx=\"12\" cy=\"12\" r=\"1\" /><path d=\"M18.944 12.33a1 1 0 0 0 0-.66 7.5 7.5 0 0 0-13.888 0 1 1 0 0 0 0 .66 7.5 7.5 0 0 0 13.888 0\" /></svg>",
   "desc": {
-   "en": "Render and view DICOM medical images.",
-   "zh": "顯示與檢視 DICOM 醫學影像。"
+   "en": "A DICOM viewer made friendly for people new to it: look at a series one image at a time or in three views, with windowing presets that explain themselves and annotations drawn on the images (SEG, RTSTRUCT, SR, PR). Every series has its own link: send it and you look at the same images together, see who did what and Call everyone. Works on a phone too. For research, teaching and discussion; not for diagnosis.",
+   "zh": "對 DICOM 新手友善的檢視器：一張一張看影像，或同時看三個切面；窗寬窗位預設都附說明，標註（SEG、RTSTRUCT、SR、PR）直接畫在影像上。每個影像序列都有自己的連結，傳出去，大家就一起看同一組影像，看得到是誰在操作，還能 Call everyone。手機也能用。供研究、教學與討論使用，不作診斷用途。"
   },
   "img": "site/img/apps/dicom-viewer.webp",
   "collections": [
@@ -249,10 +249,10 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/music_studio",
   "icon": "<svg class=\"lucide lucide-audio-lines\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M2 10v3\" /><path d=\"M6 6v11\" /><path d=\"M10 3v18\" /><path d=\"M14 8v7\" /><path d=\"M18 5v13\" /><path d=\"M22 10v3\" /></svg>",
   "desc": {
-   "en": "Say what a piece of music is for and the AI writes it: twelve styles from synthwave to orchestral, ready to loop without a seam in a game. Or turn a song you have into what you need: new speed, key, tone and drums. What you keep goes into the shared audio library.",
-   "zh": "說出這首音樂要用在哪裡，AI 就替你作一首：從合成波到管弦史詩共 12 種曲風，可在遊戲裡無縫循環。也能把現有的歌改成你要的樣子：換速度、調性、音色，加上新的鼓。收下的作品都進共用音樂庫。"
+   "en": "Say what a piece of music is for and the AI writes it: twelve styles from synthwave to orchestral, ready to loop without a seam in a game. Or turn a song you have into what you need: new speed, key, tone and drums. With the music engine on your Mac it also sings, and remakes a whole recording in a new style. What you keep goes into the shared audio library.",
+   "zh": "說出這首音樂要用在哪裡，AI 就替你作一首：從合成波到管弦史詩共 12 種曲風，可在遊戲裡無縫循環。也能把現有的歌改成你要的樣子：換速度、調性、音色，加上新的鼓。在 Mac 上裝好音樂引擎，還能唱歌，也能把整段錄音重新改編成新風格。收下的作品都進共用音樂庫。"
   },
-  "img": null,
+  "img": "site/img/apps/music-studio.webp",
   "collections": [
    "audio"
   ],
@@ -270,11 +270,11 @@ window.AAS_APPS = [
    "en": "Listen to everything in the shared audio library in one place, whoever made it: what the AI wrote, what you changed, what you collected. Other apps open it as their song picker.",
    "zh": "共用音樂庫裡的音樂都在這裡聽：AI 作的、改編的、你收藏的。其他 app 也用它來選歌。"
   },
-  "img": null,
+  "img": "site/img/apps/music-box.webp",
   "collections": [
    "audio"
   ],
-  "ai": true,
+  "ai": false,
   "setup": false
  },
  {
@@ -431,8 +431,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/cad_roam",
   "icon": "<svg class=\"lucide lucide-footprints\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z\" /><path d=\"M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z\" /><path d=\"M16 17h4\" /><path d=\"M4 13h4\" /></svg>",
   "desc": {
-   "en": "Walk into your CAD models: pick a model from Codoc in CAD and it stands in front of you at its real size. Walk in like in a first-person game or fly round it like a drone; everyone at the same model sees each other, and a rebuild in Codoc in CAD shows up at once.",
-   "zh": "走進你的 CAD 模型：從 Codoc in CAD 選一個模型，它就照真實大小站在你面前。可以像第一人稱遊戲一樣走進去，也可以像無人機一樣繞著它飛；在同一個模型裡的人都看得到彼此，Codoc in CAD 一重建，這裡馬上就換成新的。"
+   "en": "Walk into your CAD models: pick a model from Codoc in CAD and it stands in front of you at its real size, in its colors. Walk in like in a first-person game or fly round it like a drone; everyone at the same model sees each other, shares the sun and can light a torch, and a rebuild in Codoc in CAD shows up at once. Talk with the AI Hub's AI about what you see.",
+   "zh": "走進你的 CAD 模型：從 Codoc in CAD 選一個模型，它就照真實大小、帶著原本的顏色站在你面前。可以像第一人稱遊戲一樣走進去，也可以像無人機一樣繞著它飛；在同一個模型裡的人都看得到彼此，共用同一顆太陽，也能點起火把，Codoc in CAD 一重建，這裡馬上就換成新的。還能跟 AI Hub 的 AI 聊你眼前看到的東西。"
   },
   "img": "site/img/apps/cad-roam.webp",
   "collections": [
@@ -531,8 +531,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/reflex_grid",
   "icon": "<svg class=\"lucide lucide-sheet\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\" /><line x1=\"3\" x2=\"21\" y1=\"9\" y2=\"9\" /><line x1=\"3\" x2=\"21\" y1=\"15\" y2=\"15\" /><line x1=\"9\" x2=\"9\" y1=\"9\" y2=\"21\" /><line x1=\"15\" x2=\"15\" y1=\"9\" y2=\"21\" /></svg>",
   "desc": {
-   "en": "The online Excel that runs your macros: opens and saves real .xlsx and .xlsm workbooks, runs their VBA macros and UserForms in the browser, lets everyone edit together live, and comes with AI that asks before it changes anything.",
-   "zh": "能跑巨集的線上 Excel：開啟與儲存真正的 .xlsx、.xlsm 活頁簿，在瀏覽器裡執行 VBA 巨集和 UserForm，大家能即時一起編輯，AI 要改內容之前也會先問你。"
+   "en": "The online Excel that runs your macros: opens and saves real .xlsx and .xlsm workbooks, runs their UserForms and macros in the browser, lets everyone edit together live, and comes with AI that asks before it changes anything and writes macros from what you type or say. A workbook's forms and live cells can also sit in a CoDoc in MD document.",
+   "zh": "能跑巨集的線上 Excel：開啟與儲存真正的 .xlsx、.xlsm 活頁簿，在瀏覽器裡執行 UserForm 和巨集，大家能即時一起編輯。AI 要改內容之前會先問你，也能照你打的字或說的話寫巨集。活頁簿的表單和即時儲存格，還能放進 CoDoc in MD 文件裡。"
   },
   "img": "site/img/apps/grid.webp",
   "collections": [
