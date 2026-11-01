@@ -96,3 +96,7 @@ Optional environment variables (see `testcases/README.md`):
 ```
 poetry run ./reflex_rerun.sh --loglevel debug
 ```
+
+## 7) The music engine helper (`music_engine/`)
+
+`music_engine/music_engine.py` runs on the Mac itself (standard library only, the Mac's `/usr/bin/python3` 3.9: no syntax newer than that), installed by `macos_music_engine.sh` as a LaunchAgent. It looks after ACE-Step for the AI Hub: see its docstring. Test with `python -m pytest tests/test_music_engine.py` in a venv that has pytest. For a run without the LaunchAgent, point `MUSIC_ENGINE_CONFIG` at a config of your own (`{"port", "secret", "tier"}`) and run the file; the hub signs its requests with `DDNS_AUTH_SECRET`, so the config's `secret` must be the same one. ACE-Step reads a recording to remake only from the system temp folder, and downloads over a slow link need `HF_HUB_DISABLE_XET=1` (chunked downloads stalled here).
