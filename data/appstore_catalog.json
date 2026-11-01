@@ -168,6 +168,7 @@
       "subdir": "",
       "env_file": "",
       "volumes": [],
+      "storage": [{"collection": "drawings", "access": "contribute"}],
       "i18n": {
         "zh-Hant": {"description": "多人協作的向量繪圖畫布。"},
         "zh-Hans": {"description": "多人协作的矢量绘图画布。"},

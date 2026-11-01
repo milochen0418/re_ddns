@@ -182,7 +182,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | AI Hub | `ai` | One door between AI and the apps: agents (Claude Code, …) use every app's tools through one MCP address (`/api/mcp`), and an assistant does tasks in the apps with Claude or a local Ollama model |
 | Codoc in Markdown | `md` | Collaborative document editing in Markdown |
 | Codoc in PlantUML | `plantuml` | Collaborative diagrams in PlantUML |
-| Codoc in VecDraw | `vecdraw` | Collaborative vector drawing canvas |
+| Codoc in VecDraw | `vecdraw` | Collaborative vector drawing canvas: everyone's pointer and selection with their name, each with their own tool, view and Undo; who is here and Call everyone; drawings as `.json` + `.svg` in the `drawings` collection |
 | Codoc in CAD | `cad` | 3D CAD as code, together: co-edited build123d Python and a live 3D view |
 | DICOM Data Explorer | `dicom-data-explorer` | Browse and inspect DICOM datasets |
 | DICOM Viewer | `dicom-viewer` | Render and view DICOM medical images |
@@ -334,6 +334,19 @@ Configures a **remote Mac** over SSH: installs the Local CA and sets up DNS so i
 ```
 
 The script copies the CA certificate, installs it into the remote System Keychain, and configures DNS — all over SSH. Run `./remote_install_ca.sh --help` for details.
+
+### `macos_music_engine.sh` — Songs with singing, from a music engine on the Mac
+
+Music Studio writes instrumental music by itself. For songs with singing, and for remaking a recording (a new style, without the singing, an instrument in its place), it asks the AI Hub for a **music engine**: [ACE-Step 1.5](https://github.com/ace-step/ACE-Step-1.5) (MIT, its output usable commercially), which needs the Mac's graphics chip and so runs on the Mac, not in Docker, the way Ollama does. A small helper ([music_engine/music_engine.py](music_engine/music_engine.py), standard-library Python, a LaunchAgent) looks after it: it reports what the Mac can hold, installs the engine on request, starts it when a song is asked for and stops it after 20 minutes idle, so the memory goes back. Only the hub talks to it, with tokens signed by the platform's secret; the apps ask through `reflex_ddns_auth.ai.music`.
+
+```bash
+./macos_music_engine.sh --install        # the helper, the engine and its weights (asks before downloading)
+./macos_music_engine.sh --helper-only    # just the helper: the AI Hub's "Music engine" card then installs the rest on a click
+./macos_music_engine.sh --status
+./macos_music_engine.sh --uninstall [--purge]
+```
+
+The size follows the Mac: from 24 GB of memory the song model with its normal planner (10 GB of weights), below that the small planner (8 GB); 16 GB of memory is the least, and the Python environment takes about 5 GB more. Everything lives in `~/.local/share/music_engine`. Without the engine the hub's page says so, Music Studio greys out singing and whole remakes, and the apps make instrumental music only.
 
 ### `macos_docker_vm_helper.sh` — Resize the Docker VM from the Memory page
 

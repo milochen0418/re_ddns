@@ -63,7 +63,9 @@ window.AAS_APPS = [
    "zh": "多人協作的向量繪圖畫布。"
   },
   "img": "site/img/apps/vecdraw.webp",
-  "collections": [],
+  "collections": [
+   "drawings"
+  ],
   "ai": false,
   "setup": false
  },

@@ -140,9 +140,10 @@ next to `media.video`) and readers know which files and `meta` keys to expect:
 | Kind | Payload | `meta` | Published by |
 |---|---|---|---|
 | `cad.build123d` | one 3D model as build123d code, the `primary`: `model.py` (UTF-8 Python leaving the shape in `result`), plus `model.stl` once it built; item id = the model's id in its link; revised in place while it is edited; a picture of its last build as the preview | `created_by_email`, `created_by_name` | cad |
-| `audio.file` | one audio file, the `primary`; from youtube-to-mp3 an MP3 named after the video, item id = `yt-<YouTube video id>`, `source` = the video's address, the video's thumbnail as the preview | `duration` (s); from youtube-to-mp3 also `format`, `youtube_id`, `channel`, `channel_url`, `license` (YouTube's licence text, e.g. Creative Commons), `upload_date`; from music-studio also `origin` (`composed` or `remake`), `rights` (`own`, or `third-party` when somebody else may hold them), `loop_start`, `loop_end` (s: a player that reaches the second may jump to the first unheard), `bpm`, `key`, `style`, `mood`, `words`, `model`, `artist` (the studio; `source` = its page) | youtube-to-mp3, music-studio |
+| `audio.file` | one audio file, the `primary`; from youtube-to-mp3 an MP3 named after the video, item id = `yt-<YouTube video id>`, `source` = the video's address, the video's thumbnail as the preview | `duration` (s); from youtube-to-mp3 also `format`, `youtube_id`, `channel`, `channel_url`, `license` (YouTube's licence text, e.g. Creative Commons), `upload_date`; from music-studio also `origin` (`composed` or `sung`: made here, with or without singing; `remake` or `cover`: made from another recording), `rights` (`own`, or `third-party` when somebody else may hold them), `loop_start`, `loop_end` (s: a player that reaches the second may jump to the first unheard), `bpm`, `key`, `style`, `mood`, `words`, `model`, `artist` (the studio; `source` = its page); from its music engine also `lyrics`, `caption`, `language` | youtube-to-mp3, music-studio |
 | `dicom.series` | the `.dcm` files of one DICOM series; item id = SeriesInstanceUID (imports: a generated id) | `Collection`, `Modality`, `BodyPartExamined`, `ImageCount`, `SeriesDescription`, `SeriesDate`, each when known | dicom-data-explorer, imports |
 | `document.markdown` | one Markdown document, the `primary`: `doc.md` (UTF-8); item id = the document's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name` | md |
+| `drawing.vector` | one vector drawing: `drawing.json`, the `primary` (the shapes as a JSON list, what the app's Export as JSON gives), `drawing.svg` (the same picture), `images/<name>` (images placed in it), and `drawing.yjs` (the app's own copy with its edit history; readers ignore it); item id = the drawing's id in its link; revised in place while it is edited; a PNG of it as the preview | `shapes` (how many), `created_by_email`, `created_by_name` | vecdraw |
 | `file.generic` | any files; promises nothing about them | free | imports |
 | `notebook.jupyter` | one Jupyter notebook, the `primary`: `notebook.ipynb` (nbformat 4.5, with its outputs); item id = the notebook's id in its link; revised in place while it is edited | `created_by_email`, `created_by_name`, `last_editor`, `cells` | cellora |
 | `spreadsheet.workbook` | one workbook, the `primary`: `book.xlsx`, or `book.xlsm` when it has macros; item id = the workbook's id in its link; revised in place while it is edited | `sheets`, `created_by_email`, `created_by_name`, `last_editor` | reflex-grid |
@@ -354,6 +355,13 @@ songs chosen, `{"refs": [...], "items": [{"ref", "title", "seconds", "loop_start
 take that was kept. **Apexline** declares `{"collection": "audio", "access": "read"}`, opens both
 from its race page and plays the file itself (`/_apexline/music`), going round `loop_start` and
 `loop_end` without a seam.
+
+**Codoc in VecDraw** (`vecdraw`) declares `{"collection": "drawings", "access": "contribute"}`, the
+same way: each drawing is an item (`codoc_in_vecdraw/states/document_store.py`), published once and
+revised about 1.5 seconds after a change, and a local run keeps its database. It also keeps
+`drawing.yjs` in the item, the document with its edit history, so a restart of the app changes nothing
+for a tab left open; and the images people place in a drawing, which it serves itself
+(`/_vecdraw/image/...`).
 
 **CAD Roam** (`cad-roam`) is a reader: its entry declares
 `{"collection": "cad-models", "access": "read"}`, it lists the models with
