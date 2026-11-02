@@ -180,9 +180,9 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | App | Subdomain | Description |
 |-----|-----------|-------------|
 | AI Hub | `ai` | One door between AI and the apps: agents (Claude Code, …) use every app's tools through one MCP address (`/api/mcp`), and an assistant does tasks in the apps with Claude or a local Ollama model, waiting for your Accept on anything risky |
-| CoDoc in MD | `md` | Markdown documents you write together, live: one link, no account; one line of text puts a video, a PDF, a diagram or a ReflexGrid form or table in the document; AI rewrites a selection and writes after your Accept |
+| CoDoc in MD | `md` | Markdown documents you write together, live: one link, no account; one line of text puts a video, a PDF, a diagram, a live Codoc in VecDraw drawing or a ReflexGrid form or table in the document; AI rewrites a selection and writes after your Accept |
 | Codoc in PlantUML | `plantuml` | Collaborative diagrams in PlantUML |
-| Codoc in VecDraw | `vecdraw` | Collaborative vector drawing canvas: everyone's pointer and selection with their name, each with their own tool, view and Undo; who is here and Call everyone; drawings as `.json` + `.svg` in the `drawings` collection |
+| Codoc in VecDraw | `vecdraw` | Collaborative vector drawing canvas: one picture, always the latest. A link shows as a card in Relack, and one line of text puts the drawing, live, in a CoDoc in MD document; everyone's pointer and selection with their name, each with their own tool, view and Undo; AI draws through the AI Hub; who is here and Call everyone; drawings as `.json` + `.svg` in the `drawings` collection |
 | Codoc in CAD | `cad` | 3D CAD as code, together: co-edited build123d Python and a live 3D view, in colors, with glass and parts that give light; AI builds with you through the AI Hub |
 | DICOM Data Explorer | `dicom-data-explorer` | Search the public Imaging Data Commons or a PACS (DICOMweb, C-GET, C-MOVE) and download into the shared `dicom` collection, with annotations and resumable downloads |
 | DICOM Viewer | `dicom-viewer` | A DICOM viewer friendly to people new to it: one image or three views, annotations, and a link for every series to look at it together with Call everyone; not for diagnosis |
@@ -193,7 +193,7 @@ Apps are declared in [`data/appstore_catalog.json`](data/appstore_catalog.json).
 | Video to MP4 | `video-to-mp4` | Convert video formats to MP4 |
 | Video Audio Mixer | `video-audio-mixer` | Layer and mix audio tracks onto video |
 | PDF Signature | `pdf-signature` | Draw and export signatures on PDFs |
-| Relack | `relack` | Team chat you own: a self-hosted Slack alternative (Google sign-in optional) |
+| Relack | `relack` | Team chat you own: a self-hosted Slack alternative (Google sign-in optional); links from other apps, such as Snake Duel rooms and Codoc in VecDraw drawings, become cards |
 | LiveKit Audio Chat | `audio-chat` | Real-time audio conferencing (requires LiveKit env) |
 | LiveKit Audio Chat (self-hosted) | `livekit` | Audio rooms on a built-in open-source LiveKit server — no LiveKit Cloud, no keys (publishes media ports 7881/tcp + 7882/udp) |
 | LiveKit Video Chat (self-hosted) | `video-chat` | Video rooms (camera + microphone) on its own built-in LiveKit server — no keys (publishes media ports 7981/tcp + 7982/udp, so it can run next to the audio app) |

@@ -115,7 +115,7 @@
     {
       "id": "md",
       "name": "CoDoc in MD",
-      "description": "One link, and everyone is on the same page: a Markdown editor for writing together, live, each person with a color and a name tag, no account needed. One line of text puts a YouTube video, a PDF, a diagram or a working UserForm from ReflexGrid in the document. For meetings, classes, design docs and shared notes. With the AI Hub, AI rewrites what you select and writes in the document once you press Accept.",
+      "description": "One link, and everyone is on the same page: a Markdown editor for writing together, live, each person with a color and a name tag, no account needed. One line of text puts a YouTube video, a PDF, a diagram, a live drawing from Codoc in VecDraw or a working UserForm from ReflexGrid in the document. For meetings, classes, design docs and shared notes. With the AI Hub, AI rewrites what you select and writes in the document once you press Accept.",
       "icon": "file-text",
       "subdomain": "md",
       "github_repo": "https://github.com/milochen0418/codoc_in_md.git",
@@ -129,10 +129,10 @@
         {"collection": "documents", "access": "contribute"}
       ],
       "i18n": {
-        "zh-Hant": {"description": "一個連結，大家就在同一頁：即時一起寫的 Markdown 編輯器，每個人有自己的顏色和名牌，不用帳號。打一行字就能放進 YouTube 影片、PDF、流程圖，或 ReflexGrid 裡能實際操作的 UserForm。開會、上課、寫規格、共筆都好用。裝了 AI Hub，AI 能改寫你選的段落，也能在你按下 Accept 後寫進文件。"},
-        "zh-Hans": {"description": "一个链接，大家就在同一页：实时一起写的 Markdown 编辑器，每个人有自己的颜色和名牌，不用账号。打一行字就能放进 YouTube 视频、PDF、流程图，或 ReflexGrid 里能实际操作的 UserForm。开会、上课、写规格、共同记笔记都好用。装了 AI Hub，AI 能改写你选的段落，也能在你按下 Accept 后写进文档。"},
-        "ja": {"description": "リンクひとつで全員が同じページに。ライブで一緒に書ける Markdown エディターで、一人ひとりに色と名札があり、アカウントは要りません。1 行書くだけで YouTube 動画、PDF、図、ReflexGrid の実際に使える UserForm を文書に入れられます。会議、授業、設計書、共同メモに。AI Hub があれば、選んだ部分を AI が書き直し、Accept を押すと文書に書き込みます。"},
-        "es": {"description": "Un enlace y todos en la misma página: un editor de Markdown para escribir en equipo y en directo, cada persona con su color y su nombre, sin necesidad de cuenta. Una línea de texto pone en el documento un vídeo de YouTube, un PDF, un diagrama o un UserForm de ReflexGrid que funciona de verdad. Para reuniones, clases, documentos de diseño y notas compartidas. Con el AI Hub, la IA reescribe lo que selecciones y escribe en el documento cuando pulsas Accept."}
+        "zh-Hant": {"description": "一個連結，大家就在同一頁：即時一起寫的 Markdown 編輯器，每個人有自己的顏色和名牌，不用帳號。打一行字就能放進 YouTube 影片、PDF、流程圖、Codoc in VecDraw 裡會跟著更新的圖，或 ReflexGrid 裡能實際操作的 UserForm。開會、上課、寫規格、共筆都好用。裝了 AI Hub，AI 能改寫你選的段落，也能在你按下 Accept 後寫進文件。"},
+        "zh-Hans": {"description": "一个链接，大家就在同一页：实时一起写的 Markdown 编辑器，每个人有自己的颜色和名牌，不用账号。打一行字就能放进 YouTube 视频、PDF、流程图、Codoc in VecDraw 里会跟着更新的图，或 ReflexGrid 里能实际操作的 UserForm。开会、上课、写规格、共同记笔记都好用。装了 AI Hub，AI 能改写你选的段落，也能在你按下 Accept 后写进文档。"},
+        "ja": {"description": "リンクひとつで全員が同じページに。ライブで一緒に書ける Markdown エディターで、一人ひとりに色と名札があり、アカウントは要りません。1 行書くだけで YouTube 動画、PDF、図、変更に追従する Codoc in VecDraw の図面、ReflexGrid の実際に使える UserForm を文書に入れられます。会議、授業、設計書、共同メモに。AI Hub があれば、選んだ部分を AI が書き直し、Accept を押すと文書に書き込みます。"},
+        "es": {"description": "Un enlace y todos en la misma página: un editor de Markdown para escribir en equipo y en directo, cada persona con su color y su nombre, sin necesidad de cuenta. Una línea de texto pone en el documento un vídeo de YouTube, un PDF, un diagrama, un dibujo de Codoc in VecDraw que se actualiza solo o un UserForm de ReflexGrid que funciona de verdad. Para reuniones, clases, documentos de diseño y notas compartidas. Con el AI Hub, la IA reescribe lo que selecciones y escribe en el documento cuando pulsas Accept."}
       }
     },
     {
@@ -158,7 +158,7 @@
     {
       "id": "vecdraw",
       "name": "Codoc in VecDraw",
-      "description": "A vector editor you draw in together, like Google Drawings: shapes, lines, text, freehand and images on an infinite canvas. Everyone's pointer and selection show with their name, while your tool, view and Undo stay your own. See who is here, Call everyone, and find every drawing in the shared drawings collection.",
+      "description": "One picture, always the latest. A vector editor you draw in together, like Google Drawings: send a link instead of a screenshot, and the picture in your chat and in your documents follows the drawing. In Relack the link becomes a card, and one line of text puts the drawing in a CoDoc in MD document. Everyone's pointer shows with their name, while your tool, view and Undo stay your own. With the AI Hub, AI draws with you. Call everyone, and find every drawing in the shared drawings collection.",
       "icon": "pen-tool",
       "subdomain": "vecdraw",
       "github_repo": "https://github.com/milochen0418/codoc_in_vecdraw.git",
@@ -170,10 +170,10 @@
       "volumes": [],
       "storage": [{"collection": "drawings", "access": "contribute"}],
       "i18n": {
-        "zh-Hant": {"description": "像 Google 繪圖一樣、可以一起畫的向量編輯器：形狀、線條、文字、手繪和圖片都在無限畫布上。每個人的游標和選取都標著名字，工具、視角和復原則各管各的。看得到誰在線上、能 Call everyone，每張圖都存在共用的 drawings collection。"},
-        "zh-Hans": {"description": "像 Google 绘图一样、可以一起画的矢量编辑器：形状、线条、文字、手绘和图片都在无限画布上。每个人的光标和选取都标着名字，工具、视角和撤销则各管各的。看得到谁在线、能 Call everyone，每张图都存在共享的 drawings collection。"},
-        "ja": {"description": "Google 図形描画のように一緒に描けるベクターエディター。図形、線、テキスト、フリーハンド、画像を無限のキャンバスに置けます。全員のポインターと選択範囲が名前付きで見え、ツール、表示範囲、元に戻すは自分だけのものです。誰がいるかが分かり、Call everyone で呼び出せ、図面は共有の drawings コレクションに保存されます。"},
-        "es": {"description": "Un editor vectorial para dibujar en equipo, como Google Drawings: formas, líneas, texto, trazo libre e imágenes en un lienzo infinito. El puntero y la selección de cada persona se ven con su nombre, mientras que tu herramienta, tu vista y tu Deshacer son solo tuyos. Mira quién está, usa Call everyone y encuentra cada dibujo en la colección compartida drawings."}
+        "zh-Hant": {"description": "一張圖，永遠是最新的。像 Google 繪圖一樣、可以一起畫的向量編輯器：不用傳截圖，傳連結就好，聊天室和文件裡的圖都會跟著這張圖變。貼到 Relack 就變成看得到圖的卡片；在 CoDoc in MD 文件裡打一行字，圖就放進文件。每個人的游標都標著名字，工具、視角和復原則各管各的。裝了 AI Hub，AI 也能一起畫。還能 Call everyone，每張圖都存在共用的 drawings collection。"},
+        "zh-Hans": {"description": "一张图，永远是最新的。像 Google 绘图一样、可以一起画的矢量编辑器：不用传截图，传链接就好，聊天室和文档里的图都会跟着这张图变。贴到 Relack 就变成看得到图的卡片；在 CoDoc in MD 文档里打一行字，图就放进文档。每个人的光标都标着名字，工具、视角和撤销则各管各的。装了 AI Hub，AI 也能一起画。还能 Call everyone，每张图都存在共享的 drawings collection。"},
+        "ja": {"description": "一枚の図を、いつも最新のままに。Google 図形描画のように一緒に描けるベクターエディターです。スクリーンショットの代わりにリンクを送れば、チャットや文書の図が元の図面に合わせて変わります。Relack ではリンクが図の見えるカードになり、CoDoc in MD の文書には 1 行書くだけで図を入れられます。全員のポインターが名前付きで見え、ツール、表示範囲、元に戻すは自分だけのものです。AI Hub があれば AI も一緒に描きます。Call everyone で呼び出せ、図面は共有の drawings コレクションに保存されます。"},
+        "es": {"description": "Una sola imagen, siempre al día. Un editor vectorial para dibujar en equipo, como Google Drawings: envía un enlace en lugar de una captura de pantalla, y la imagen de tu chat y de tus documentos sigue al dibujo. En Relack el enlace se convierte en una tarjeta, y una línea de texto pone el dibujo en un documento de CoDoc in MD. El puntero de cada persona se ve con su nombre, mientras que tu herramienta, tu vista y tu Deshacer son solo tuyos. Con el AI Hub, la IA dibuja contigo. Usa Call everyone y encuentra cada dibujo en la colección compartida drawings."}
       }
     },
     {
@@ -464,7 +464,7 @@
     {
       "id": "relack",
       "name": "Relack",
-      "description": "Team chat you own: rooms, threads, files, search, calls, webhooks and an admin console on your own machine. No per-seat fees, and your history stays with you. A self-hosted Slack alternative.",
+      "description": "Team chat you own: rooms, threads, files, search, calls, webhooks and an admin console on your own machine. No per-seat fees, and your history stays with you. A self-hosted Slack alternative. Links from other apps become cards: a Snake Duel room shows its board, and a Codoc in VecDraw drawing shows its latest picture.",
       "icon": "messages-square",
       "subdomain": "relack",
       "github_repo": "https://github.com/milochen0418/relack.git",
@@ -481,28 +481,28 @@
       ],
       "i18n": {
         "zh-Hant": {
-          "description": "屬於你自己的團隊聊天：房間、討論串、檔案、搜尋、通話、Webhook 和管理後台，都在你自己的機器上。不用按人頭付費，歷史紀錄留在你手上。可自架的 Slack 替代方案。",
+          "description": "屬於你自己的團隊聊天：房間、討論串、檔案、搜尋、通話、Webhook 和管理後台，都在你自己的機器上。不用按人頭付費，歷史紀錄留在你手上。可自架的 Slack 替代方案。其他 App 的連結貼進來就變成卡片：雙蛇搶食的房間看得到場上畫面，Codoc in VecDraw 的圖永遠是最新的樣子。",
           "env": {
             "ADMIN_PASSCODE": {"label": "Admin Passcode（解鎖管理後台）", "placeholder": "自訂一組密碼"},
             "GOOGLE_CLIENT_ID": {"help": "選填。兩個 Google 欄位都填，大家就能用 Google 登入。不填的話，大家用暱稱加入。"}
           }
         },
         "zh-Hans": {
-          "description": "属于你自己的团队聊天：房间、讨论串、文件、搜索、通话、Webhook 和管理后台，都在你自己的机器上。不用按人头付费，历史记录留在你手上。可自托管的 Slack 替代品。",
+          "description": "属于你自己的团队聊天：房间、讨论串、文件、搜索、通话、Webhook 和管理后台，都在你自己的机器上。不用按人头付费，历史记录留在你手上。可自托管的 Slack 替代品。其他 App 的链接贴进来就变成卡片：双蛇抢食的房间看得到场上画面，Codoc in VecDraw 的图永远是最新的样子。",
           "env": {
             "ADMIN_PASSCODE": {"label": "Admin Passcode（解锁管理后台）", "placeholder": "自定义一个密码"},
             "GOOGLE_CLIENT_ID": {"help": "选填。两个 Google 字段都填，大家就能用 Google 登录。不填的话，大家用昵称加入。"}
           }
         },
         "ja": {
-          "description": "自分たちのものになるチームチャット：ルーム、スレッド、ファイル、検索、通話、Webhook、管理画面を自分のマシンで動かせます。人数課金はなく、履歴は手元に残ります。セルフホストできる Slack の代替です。",
+          "description": "自分たちのものになるチームチャット：ルーム、スレッド、ファイル、検索、通話、Webhook、管理画面を自分のマシンで動かせます。人数課金はなく、履歴は手元に残ります。セルフホストできる Slack の代替です。他のアプリのリンクはカードになります。Snake Duel のルームならゲーム画面が、Codoc in VecDraw の図面なら最新の図が見えます。",
           "env": {
             "ADMIN_PASSCODE": {"label": "管理者パスコード（管理ダッシュボードを開く）", "placeholder": "秘密の文字列を決める"},
             "GOOGLE_CLIENT_ID": {"help": "任意。Google の 2 項目を入力すると Google でログインできます。空欄なら、みんなニックネームで参加します。"}
           }
         },
         "es": {
-          "description": "Un chat de equipo que es tuyo: salas, hilos, archivos, búsqueda, llamadas, webhooks y un panel de administración en tu propia máquina. Sin pago por usuario, y el historial se queda contigo. Una alternativa autoalojada a Slack.",
+          "description": "Un chat de equipo que es tuyo: salas, hilos, archivos, búsqueda, llamadas, webhooks y un panel de administración en tu propia máquina. Sin pago por usuario, y el historial se queda contigo. Una alternativa autoalojada a Slack. Los enlaces de otras apps se convierten en tarjetas: una sala de Snake Duel muestra su tablero y un dibujo de Codoc in VecDraw, su imagen más reciente.",
           "env": {
             "ADMIN_PASSCODE": {"label": "Código de administrador (desbloquea el panel de administración)", "placeholder": "elige un secreto"},
             "GOOGLE_CLIENT_ID": {"help": "Opcional. Rellena los dos campos de Google para poder entrar con Google. Si los dejas vacíos, todos entran con un apodo."}

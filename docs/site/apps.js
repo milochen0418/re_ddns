@@ -25,8 +25,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/codoc_in_md",
   "icon": "<svg class=\"lucide lucide-file-text\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\" /><path d=\"M14 2v5a1 1 0 0 0 1 1h5\" /><path d=\"M10 9H8\" /><path d=\"M16 13H8\" /><path d=\"M16 17H8\" /></svg>",
   "desc": {
-   "en": "One link, and everyone is on the same page: a Markdown editor for writing together, live, each person with a color and a name tag, no account needed. One line of text puts a YouTube video, a PDF, a diagram or a working UserForm from ReflexGrid in the document. For meetings, classes, design docs and shared notes. With the AI Hub, AI rewrites what you select and writes in the document once you press Accept.",
-   "zh": "一個連結，大家就在同一頁：即時一起寫的 Markdown 編輯器，每個人有自己的顏色和名牌，不用帳號。打一行字就能放進 YouTube 影片、PDF、流程圖，或 ReflexGrid 裡能實際操作的 UserForm。開會、上課、寫規格、共筆都好用。裝了 AI Hub，AI 能改寫你選的段落，也能在你按下 Accept 後寫進文件。"
+   "en": "One link, and everyone is on the same page: a Markdown editor for writing together, live, each person with a color and a name tag, no account needed. One line of text puts a YouTube video, a PDF, a diagram, a live drawing from Codoc in VecDraw or a working UserForm from ReflexGrid in the document. For meetings, classes, design docs and shared notes. With the AI Hub, AI rewrites what you select and writes in the document once you press Accept.",
+   "zh": "一個連結，大家就在同一頁：即時一起寫的 Markdown 編輯器，每個人有自己的顏色和名牌，不用帳號。打一行字就能放進 YouTube 影片、PDF、流程圖、Codoc in VecDraw 裡會跟著更新的圖，或 ReflexGrid 裡能實際操作的 UserForm。開會、上課、寫規格、共筆都好用。裝了 AI Hub，AI 能改寫你選的段落，也能在你按下 Accept 後寫進文件。"
   },
   "img": "site/img/apps/md.webp",
   "collections": [
@@ -59,14 +59,14 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/codoc_in_vecdraw",
   "icon": "<svg class=\"lucide lucide-pen-tool\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"m18 13-.654-4.736a4 4 0 00-2.756-3.266l-9.163-2.9a2 2 0 00-2.017.493l-.82.819a2 2 0 00-.492 2.017l2.9 9.163a4 4 0 003.266 2.756L13 18\" /><path d=\"M18.648 12.352a1.205 1.205 0 011.704 0l1.296 1.296a1.205 1.205 0 010 1.704l-6.296 6.296a1.205 1.205 0 01-1.704 0l-1.296-1.296a1.205 1.205 0 010-1.704z\" /><path d=\"m3 3 6.586 6.586\" /><circle cx=\"11\" cy=\"11\" r=\"2\" /></svg>",
   "desc": {
-   "en": "A vector editor you draw in together, like Google Drawings: shapes, lines, text, freehand and images on an infinite canvas. Everyone's pointer and selection show with their name, while your tool, view and Undo stay your own. See who is here, Call everyone, and find every drawing in the shared drawings collection.",
-   "zh": "像 Google 繪圖一樣、可以一起畫的向量編輯器：形狀、線條、文字、手繪和圖片都在無限畫布上。每個人的游標和選取都標著名字，工具、視角和復原則各管各的。看得到誰在線上、能 Call everyone，每張圖都存在共用的 drawings collection。"
+   "en": "One picture, always the latest. A vector editor you draw in together, like Google Drawings: send a link instead of a screenshot, and the picture in your chat and in your documents follows the drawing. In Relack the link becomes a card, and one line of text puts the drawing in a CoDoc in MD document. Everyone's pointer shows with their name, while your tool, view and Undo stay your own. With the AI Hub, AI draws with you. Call everyone, and find every drawing in the shared drawings collection.",
+   "zh": "一張圖，永遠是最新的。像 Google 繪圖一樣、可以一起畫的向量編輯器：不用傳截圖，傳連結就好，聊天室和文件裡的圖都會跟著這張圖變。貼到 Relack 就變成看得到圖的卡片；在 CoDoc in MD 文件裡打一行字，圖就放進文件。每個人的游標都標著名字，工具、視角和復原則各管各的。裝了 AI Hub，AI 也能一起畫。還能 Call everyone，每張圖都存在共用的 drawings collection。"
   },
   "img": "site/img/apps/vecdraw.webp",
   "collections": [
    "drawings"
   ],
-  "ai": false,
+  "ai": true,
   "setup": false
  },
  {
@@ -301,8 +301,8 @@ window.AAS_APPS = [
   "repo": "https://github.com/milochen0418/relack",
   "icon": "<svg class=\"lucide lucide-messages-square\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M16 10a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 14.286V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z\" /><path d=\"M20 9a2 2 0 0 1 2 2v10.286a.71.71 0 0 1-1.212.502l-2.202-2.202A2 2 0 0 0 17.172 19H10a2 2 0 0 1-2-2v-1\" /></svg>",
   "desc": {
-   "en": "Team chat you own: rooms, threads, files, search, calls, webhooks and an admin console on your own machine. No per-seat fees, and your history stays with you. A self-hosted Slack alternative.",
-   "zh": "屬於你自己的團隊聊天：房間、討論串、檔案、搜尋、通話、Webhook 和管理後台，都在你自己的機器上。不用按人頭付費，歷史紀錄留在你手上。可自架的 Slack 替代方案。"
+   "en": "Team chat you own: rooms, threads, files, search, calls, webhooks and an admin console on your own machine. No per-seat fees, and your history stays with you. A self-hosted Slack alternative. Links from other apps become cards: a Snake Duel room shows its board, and a Codoc in VecDraw drawing shows its latest picture.",
+   "zh": "屬於你自己的團隊聊天：房間、討論串、檔案、搜尋、通話、Webhook 和管理後台，都在你自己的機器上。不用按人頭付費，歷史紀錄留在你手上。可自架的 Slack 替代方案。其他 App 的連結貼進來就變成卡片：雙蛇搶食的房間看得到場上畫面，Codoc in VecDraw 的圖永遠是最新的樣子。"
   },
   "img": "site/img/apps/relack.webp",
   "collections": [],
