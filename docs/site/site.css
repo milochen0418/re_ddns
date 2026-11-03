@@ -241,6 +241,11 @@ html:has(.vd[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .quote { border-left: 3px solid var(--gold); padding: 4px 0 4px 24px; margin: 8px 0 0; max-width: 860px; }
 .quote p { font-size: 1.12rem; line-height: 1.75; margin: 0 0 14px; }
 .quote footer { color: var(--muted); font-size: .92rem; }
+.vision { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 48px; align-items: center; }
+.vision-photo { margin: 0; }
+.vision-photo img { width: 100%; height: auto; display: block; border-radius: 14px; border: 1px solid var(--line-2); }
+.vision-photo figcaption { color: var(--muted); font-size: .84rem; line-height: 1.5; margin-top: 10px; }
+@media (max-width: 860px) { .vision { grid-template-columns: 1fr; gap: 28px; } .vision-photo { max-width: 340px; } }
 
 /* follow */
 .follow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
