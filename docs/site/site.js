@@ -57,6 +57,11 @@
       t: { en: "Codoc in VecDraw: one picture, always the latest", zh: "Codoc in VecDraw：一張圖，永遠是最新的" },
       d: { en: "Send a link instead of a screenshot: the card in Relack and the picture in a CoDoc in MD document follow the drawing. Draw together, each with your own tools, and tell the AI what to draw.",
            zh: "傳連結，不傳截圖：Relack 的卡片和 CoDoc in MD 文件裡的圖都跟著這張圖變。大家一起畫，工具各用各的，跟 AI 說一聲它也會畫。" } },
+    { id: { en: "reXaFfgzWug", zh: "qGI1hyhIpMw" }, dur: { en: "5:49", zh: "6:17" },
+      img: { en: "site/img/videos/chipova-forge.en.webp", zh: "site/img/videos/chipova-forge.zh.webp" },
+      t: { en: "Chipova Forge: from a chip to a product that works", zh: "Chipova Forge：從一顆晶片，到一個真的能用的產品" },
+      d: { en: "A tutorial for anyone new to the road from a chip to a product: the twelve steps in Forge, from the chip to the board, firmware, co-simulation, the PCB, the app, tests and the release. The AI Hub helps at each step, and people make the decisions.",
+           zh: "給第一次走這段路的人的教學：在 Forge 裡走完十二個步驟，從晶片到電路板、韌體、協同模擬、PCB、App，再到測試和發佈。每一步都有 AI Hub 幫忙，決定由人來做。" } },
     { id: { en: "196pWZceyas" }, dur: { en: "3:18" }, img: "site/img/videos/reflexgrid-intro.webp",
       t: { en: "ReflexGrid: the online Excel that runs your macros", zh: "ReflexGrid：能跑巨集的線上 Excel" },
       d: { en: "Real Excel files, VBA macros and UserForms in the browser, editing together, and AI that changes nothing until you press Accept.",
@@ -125,7 +130,7 @@
   // and the second in the Chinese version when it is not the same].
   // List a video here only if it really shows the app. An app without a video gets no icon.
   var APP_VIDEOS = {
-    "ai": [["jR9b1qqIzzM"], ["zJGloh9EZJw", 119, 112], ["cbQX8jrl_Nc", 122, 118], ["hrBlC-gHpss", 56, 55]],
+    "ai": [["jR9b1qqIzzM"], ["zJGloh9EZJw", 119, 112], ["cbQX8jrl_Nc", 122, 118], ["hrBlC-gHpss", 56, 55], ["reXaFfgzWug", 69, 81]],
     "md": [["cbQX8jrl_Nc"], ["zJGloh9EZJw"], ["hrBlC-gHpss", 76, 74]],
     "plantuml": [["dbz7ta0M1TM", 61]],
     "vecdraw": [["hrBlC-gHpss"], ["qPKxzscEXRo"]],
@@ -144,6 +149,7 @@
     "nooklane": [["jKJ8QdtrUs4"]],
     "cellora": [["cHdsxtrEHtg"]],
     "chipova": [["Zt3voGhKGOk"]],
+    "chipova-forge": [["reXaFfgzWug"]],
     "snake-duel": [["NLCrHKpTJ5U"]],
     "apexline": [["dTvia4_5Iaw"]],
     "grid": [["196pWZceyas"], ["zJGloh9EZJw", 62, 60], ["Zl0tysSTTOI"], ["I5rBceuf1tM"]]
