@@ -949,6 +949,43 @@
       }
     },
     {
+      "id": "chipova-forge",
+      "name": "Chipova Forge",
+      "description": "Turn a finished chip into a working virtual product, together: import a Chipova release, and Forge builds its hardware contract, registers, board, firmware and a simulation where the firmware runs on a virtual STM32 while the chip's own RTL runs beside it (Renode and Verilator), with an analog side in step (ngspice). Then the device API and its app, end-to-end tests, the module's schematic and PCB checked by KiCad, and a release package with its evidence. AI agents read, build, simulate and test through the AI Hub, and propose changes people accept or reject.",
+      "icon": "hammer",
+      "subdomain": "chipova-forge",
+      "github_repo": "https://github.com/milochen0418/chipova_forge.git",
+      "app_name": "chipova_forge",
+      "branch": "main",
+      "commit": "",
+      "subdir": "",
+      "env_file": "",
+      "volumes": [
+        "/var/run/docker.sock:/var/run/docker.sock",
+        "smart-app-chipova-forge-data:/root/.local/share/chipova-forge"
+      ],
+      "storage": [
+        {
+          "collection": "chips",
+          "access": "read"
+        }
+      ],
+      "i18n": {
+        "zh-Hant": {
+          "description": "把設計好的晶片變成一個能動的虛擬產品，大家一起做：匯入 Chipova 的發佈包，Forge 幫你做出硬體契約、暫存器、電路板、韌體，以及一個模擬：韌體跑在虛擬的 STM32 上，晶片自己的 RTL 同時在旁邊跑（Renode 與 Verilator），類比電路同步計算（ngspice）。接著是裝置 API 和它的 App、端到端測試、經 KiCad 檢查的模組原理圖與 PCB，以及附證據的發佈包。AI agent 透過 AI Hub 讀取、建置、模擬、測試，只提出修改，由人接受或拒絕。"
+        },
+        "zh-Hans": {
+          "description": "把设计好的芯片变成一个能运行的虚拟产品，大家一起做：导入 Chipova 的发布包，Forge 帮你做出硬件契约、寄存器、电路板、固件，以及一个仿真：固件跑在虚拟的 STM32 上，芯片自己的 RTL 同时在旁边跑（Renode 与 Verilator），模拟电路同步计算（ngspice）。接着是设备 API 和它的 App、端到端测试、经 KiCad 检查的模块原理图与 PCB，以及附证据的发布包。AI agent 通过 AI Hub 读取、构建、仿真、测试，只提出修改，由人接受或拒绝。"
+        },
+        "ja": {
+          "description": "完成したチップを、動く仮想製品にみんなで仕上げます。Chipova のリリースを取り込むと、Forge がハードウェア契約、レジスタ、ボード、ファームウェアを用意し、ファームウェアが仮想 STM32 上で動き、チップ自身の RTL が横で動くシミュレーション（Renode と Verilator）に、アナログ回路も同期して加わります（ngspice）。さらにデバイス API とそのアプリ、エンドツーエンドテスト、KiCad で検査したモジュールの回路図と PCB、証拠付きのリリースパッケージまで。AI エージェントは AI Hub を通じて読み、ビルドし、シミュレーションし、テストし、変更は提案するだけで採否は人が決めます。"
+        },
+        "es": {
+          "description": "Convierte un chip terminado en un producto virtual que funciona, en equipo: importa una versión de Chipova y Forge construye su contrato de hardware, registros, placa, firmware y una simulación donde el firmware corre en un STM32 virtual mientras el RTL del propio chip corre a su lado (Renode y Verilator), con la parte analógica al mismo paso (ngspice). Después, la API del dispositivo y su app, pruebas de extremo a extremo, el esquema y la PCB del módulo revisados por KiCad, y un paquete de versión con sus evidencias. Los agentes de IA leen, construyen, simulan y prueban a través del AI Hub, y proponen cambios que las personas aceptan o rechazan."
+        }
+      }
+    },
+    {
       "id": "mindspar",
       "name": "Mindspar",
       "description": "A quiz duel against an AI: you and the model the AI Hub sets for it get the same question at the same moment, bet your confidence, and see who is quicker and right more often. Seven kinds of questions (mental math, making a number, sequences, deduction, counting letters, the day of the week, trick questions) each test one thing a model may or may not be good at, and every match is kept per model, so you can switch the model on the AI Hub and compare.",

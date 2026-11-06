@@ -155,6 +155,7 @@ Planned for the apps that join next; the first one to publish a kind settles its
 | `video.file` | one video file, the `primary` | `duration` (s), `width`, `height` when known |
 | `image.file` | one image file, the `primary` (its own preview) | `width`, `height` |
 | `document.pdf` | one PDF, the `primary` | `pages` |
+| `chip.release` | one approved Chipova release, unpacked: `RELEASE_MANIFEST.json` (its `revision.files` list each file with its SHA-256; their hash is the snapshot id, `sha256:…`) and `source/` with the chip's files; item id = the release's id; read by Chipova Forge (`chipova-forge`) | `title`, `project`, `top`, `snapshot` |
 
 ## Quotas
 
@@ -371,6 +372,12 @@ read from the comments of its `primary` code. What it makes from them (meshes, s
 stays in its own volume, never in the collection; it follows a model's revisions (one stat of the
 manifest every 2 s while someone is at it). It declares `@intent(..., accepts=("cad.build123d",))`,
 so the storage page offers **Open with → Walk in CAD Roam** for CAD models.
+
+**Chipova Forge** (`chipova-forge`) is a reader of the planned `chips` collection: its entry declares
+`{"collection": "chips", "access": "read"}`, and its New product dialog lists the `chip.release`
+items (`Collection("chips").items(kind="chip.release")`), checks each file of the one picked
+against the snapshot id in its manifest, and copies the chip into the product. Chipova doesn't
+publish there yet; until it does, Forge takes the same release as an uploaded `.zip`.
 
 Everything beyond that (a list of the collection's items in the viewer, a
 "Open in Viewer" button through DDNS Intent, fetching from another host with
