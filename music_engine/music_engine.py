@@ -309,6 +309,57 @@ class Engine:
 
 # ------------------------------------------------------------ jobs
 
+# Tasks ACE-Step does without its planner (the 5 Hz LM): it takes the caption and lyrics as given.
+# Asking for the planner's thinking there changes nothing in the song, and on a Mac the server
+# unloads the planner for a cover and loads it again (about 10 s) when any is asked for.
+DIRECT_TASKS = ("cover", "repaint")
+REPAINT_MODES = ("conservative", "balanced", "aggressive")
+
+
+def release_body(job_id: str, spec: dict) -> dict:
+    """ACE-Step's ``/release_task`` request for a job's spec (the hub's ``SPEC_KEYS``). A recording
+    to remake is written to the system temp folder, the only place ACE-Step reads one from."""
+    task = spec.get("task") or "text2music"
+    direct = task in DIRECT_TASKS
+    body = {
+        "prompt": spec.get("caption") or "",
+        "lyrics": spec.get("lyrics") or "[Instrumental]",
+        "task_type": task,
+        "vocal_language": spec.get("language") or "en",
+        "audio_format": "mp3",
+        "batch_size": 1,
+        "thinking": False if direct else bool(spec.get("thinking", True)),
+        "use_random_seed": not spec.get("seed"),
+        "seed": int(spec.get("seed") or -1),
+        "inference_steps": int(spec.get("steps") or 8),
+    }
+    if direct:
+        body["use_cot_caption"] = False
+        body["use_cot_language"] = False
+    for key in ("bpm", "key_scale", "time_signature"):
+        if spec.get(key):
+            body[key] = spec[key]
+    if spec.get("duration"):
+        body["audio_duration"] = max(10, min(600, int(spec["duration"])))
+    if spec.get("audio_b64"):
+        UPLOADS.mkdir(parents=True, exist_ok=True)
+        src = UPLOADS / f"{job_id}.{spec.get('audio_format') or 'mp3'}"
+        src.write_bytes(base64.b64decode(spec["audio_b64"]))
+        body["src_audio_path"] = str(src)
+        if "cover_strength" in spec:
+            body["audio_cover_strength"] = float(spec["cover_strength"])
+        if spec.get("reference") == "source":
+            # The recording also as the sound to aim for (its timbre and mix, averaged over time).
+            body["reference_audio_path"] = str(src)
+        if spec.get("repaint_start") is not None:
+            body["repainting_start"] = float(spec["repaint_start"])
+            body["repainting_end"] = float(spec.get("repaint_end") or -1)
+            # Only an explicit mask makes the window reach the model (ACE-Step's own page does so).
+            body["chunk_mask_mode"] = "explicit"
+            if spec.get("repaint_mode") in REPAINT_MODES:
+                body["repaint_mode"] = spec["repaint_mode"]
+    return body
+
 
 class Jobs:
     def __init__(self, engine: Engine):
@@ -358,34 +409,7 @@ class Jobs:
 
     def _generate(self, job: dict) -> None:
         engine = self.engine
-        spec = job["spec"]
-        body = {
-            "prompt": spec.get("caption") or "",
-            "lyrics": spec.get("lyrics") or "[Instrumental]",
-            "task_type": spec.get("task") or "text2music",
-            "vocal_language": spec.get("language") or "en",
-            "audio_format": "mp3",
-            "batch_size": 1,
-            "thinking": bool(spec.get("thinking", True)),
-            "use_random_seed": not spec.get("seed"),
-            "seed": int(spec.get("seed") or -1),
-            "inference_steps": int(spec.get("steps") or 8),
-        }
-        for key in ("bpm", "key_scale", "time_signature"):
-            if spec.get(key):
-                body[key] = spec[key]
-        if spec.get("duration"):
-            body["audio_duration"] = max(10, min(600, int(spec["duration"])))
-        if spec.get("audio_b64"):
-            UPLOADS.mkdir(parents=True, exist_ok=True)
-            src = UPLOADS / f"{job['id']}.{spec.get('audio_format') or 'mp3'}"
-            src.write_bytes(base64.b64decode(spec["audio_b64"]))
-            body["src_audio_path"] = str(src)
-            if "cover_strength" in spec:
-                body["audio_cover_strength"] = float(spec["cover_strength"])
-            if spec.get("repaint_start") is not None:
-                body["repainting_start"] = float(spec["repaint_start"])
-                body["repainting_end"] = float(spec.get("repaint_end") or -1)
+        body = release_body(job["id"], job["spec"])
         released = engine.call("/release_task", body, timeout=120)
         task = (released.get("data") or {}).get("task_id") or released.get("task_id")
         if not task:
@@ -411,6 +435,9 @@ class Jobs:
                 engine.fetch(file_path if file_path.startswith("/v1/") else f"/v1/audio?path={urllib.request.quote(file_path, safe='')}", dest)
                 job["file"] = str(dest)
                 job["metas"] = {k: result.get("metas", {}).get(k) for k in ("bpm", "duration", "keyscale", "genres")} if isinstance(result.get("metas"), dict) else {}
+                seed = str(result.get("seed_value") or "").split(",")[0].strip()
+                if seed.lstrip("-").isdigit():
+                    job["metas"]["seed"] = int(seed)  # the same spec with this seed makes this song again
                 job["models"] = {"dit": result.get("dit_model"), "lm": result.get("lm_model")}
                 job["state"] = "done"
                 log(f"job {job['id']} done in {time.time() - job['at']:.0f} s")

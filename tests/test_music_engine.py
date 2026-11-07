@@ -85,3 +85,38 @@ def test_room_is_checked_before_an_install(monkeypatch):
     assert not ok and "16 GB" in why
     monkeypatch.setattr(engine, "memory_gb", lambda: 24.0)
     assert engine.fits("standard") == (True, "")
+
+
+def test_a_song_lets_the_planner_think_and_a_cover_does_not(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine, "UPLOADS", tmp_path)
+    song = engine.release_body("j1", {"caption": "synthwave", "lyrics": "[Verse 1]\nla", "language": "zh", "duration": 60})
+    assert song["task_type"] == "text2music" and song["thinking"] is True and "use_cot_caption" not in song
+    assert song["audio_duration"] == 60 and song["use_random_seed"] is True and song["seed"] == -1
+    audio = base64.b64encode(b"ID3fake").decode()
+    cover = engine.release_body("j2", {"task": "cover", "caption": "rock", "lyrics": "[Instrumental]", "audio_b64": audio, "audio_format": "mp3", "cover_strength": 0.75, "thinking": True})
+    assert cover["thinking"] is False and cover["use_cot_caption"] is False and cover["use_cot_language"] is False, "ACE-Step plans nothing for a cover"
+    assert cover["audio_cover_strength"] == 0.75 and Path(cover["src_audio_path"]).read_bytes() == b"ID3fake"
+    assert "reference_audio_path" not in cover and "chunk_mask_mode" not in cover
+
+
+def test_a_seed_makes_the_same_song_again(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine, "UPLOADS", tmp_path)
+    body = engine.release_body("j3", {"caption": "x", "seed": 1234})
+    assert body["use_random_seed"] is False and body["seed"] == 1234
+
+
+def test_a_repaint_reaches_the_model_only_in_its_window(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine, "UPLOADS", tmp_path)
+    audio = base64.b64encode(b"ID3take").decode()
+    body = engine.release_body("j4", {"task": "repaint", "caption": "x", "lyrics": "y", "audio_b64": audio, "repaint_start": 30, "repaint_end": 52.5, "repaint_mode": "aggressive"})
+    assert body["repainting_start"] == 30.0 and body["repainting_end"] == 52.5 and body["chunk_mask_mode"] == "explicit"
+    assert body["repaint_mode"] == "aggressive" and body["thinking"] is False
+    odd = engine.release_body("j5", {"task": "repaint", "audio_b64": audio, "repaint_start": 0, "repaint_mode": "wild"})
+    assert "repaint_mode" not in odd and odd["repainting_end"] == -1
+
+
+def test_the_recording_can_also_be_the_sound_to_aim_for(tmp_path, monkeypatch):
+    monkeypatch.setattr(engine, "UPLOADS", tmp_path)
+    audio = base64.b64encode(b"ID3song").decode()
+    body = engine.release_body("j6", {"task": "cover", "audio_b64": audio, "reference": "source"})
+    assert body["reference_audio_path"] == body["src_audio_path"]
